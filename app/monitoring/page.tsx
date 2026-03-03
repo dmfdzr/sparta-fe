@@ -465,7 +465,7 @@ export default function MonitoringPage() {
 
     return (
         <div className="min-h-screen bg-slate-100 font-sans pb-12">
-            <header className="flex items-center justify-between p-4 md:px-8 bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20 relative">
+            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
                 <div className="flex items-center gap-3 md:gap-5">
                     <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
                     <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-12 object-contain drop-shadow-md" />
@@ -480,7 +480,7 @@ export default function MonitoringPage() {
                 </div>
             </header>
 
-            <main className="max-w-[1400px] mx-auto p-4 md:p-8 mt-2">
+            <main className="max-w-350 mx-auto p-4 md:p-8 mt-2">
                 
                 {/* 2. FILTER CONTROLS */}
                 <div className="mb-8 p-1 bg-white rounded-2xl shadow-sm border border-slate-200">
@@ -512,7 +512,7 @@ export default function MonitoringPage() {
                                 </select>
                             </div>
                         </div>
-                        <Button onClick={applyFilter} className="w-full md:w-auto h-[50px] rounded-xl bg-red-600 hover:bg-red-700 px-8 font-bold shadow-md transition-transform active:scale-95 text-base">
+                        <Button onClick={applyFilter} className="w-full md:w-auto h-12.5 rounded-xl bg-red-600 hover:bg-red-700 px-8 font-bold shadow-md transition-transform active:scale-95 text-base">
                             <Filter className="w-4 h-4 mr-2"/> Terapkan
                         </Button>
                     </div>
@@ -527,7 +527,7 @@ export default function MonitoringPage() {
                     /* 3. STATISTIK KARTU UTAMA (Dengan Animasi Count-Up) */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                         
-                        <Card onClick={openProjectDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-blue-50/80">
+                        <Card onClick={openProjectDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-blue-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-blue-100 text-blue-600 rounded-xl shadow-inner"><FolderKanban className="w-6 h-6" /></div>
@@ -538,11 +538,11 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.totalProyek} />
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-blue-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-blue-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
                         
-                        <Card onClick={openSpkDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-emerald-50/80">
+                        <Card onClick={openSpkDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-emerald-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-inner"><Wallet className="w-6 h-6" /></div>
@@ -553,11 +553,11 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.totalSPK} formatter={formatRupiah} />
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-emerald-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-emerald-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
 
-                        <Card onClick={openJhkDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-amber-50/80">
+                        <Card onClick={openJhkDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-amber-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-amber-100 text-amber-600 rounded-xl shadow-inner"><CalendarClock className="w-6 h-6" /></div>
@@ -568,11 +568,11 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.avgJHK} /> <span className="text-lg text-slate-500 font-semibold">Hari</span>
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-amber-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-amber-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
 
-                        <Card onClick={openKeterlambatanDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-red-50/80">
+                        <Card onClick={openKeterlambatanDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-red-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-red-100 text-red-600 rounded-xl shadow-inner"><ClockAlert className="w-6 h-6" /></div>
@@ -583,11 +583,11 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.avgKeterlambatan} /> <span className="text-lg text-slate-500 font-semibold">Hari</span>
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-red-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-red-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
 
-                        <Card onClick={openAvgCostM2Details} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-indigo-50/80">
+                        <Card onClick={openAvgCostM2Details} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-indigo-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl shadow-inner"><Calculator className="w-6 h-6" /></div>
@@ -598,11 +598,11 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.avgCostM2} formatter={formatRupiah} />
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-indigo-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-indigo-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
 
-                        <Card onClick={openNilaiTokoDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-gradient-to-br from-white to-orange-50/80">
+                        <Card onClick={openNilaiTokoDetails} className="cursor-pointer hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 border-0 ring-1 ring-slate-200 overflow-hidden group bg-linear-to-br from-white to-orange-50/80">
                             <CardContent className="p-6 relative">
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="p-3 bg-orange-100 text-orange-600 rounded-xl shadow-inner"><TrendingUp className="w-6 h-6" /></div>
@@ -613,7 +613,7 @@ export default function MonitoringPage() {
                                         <AnimatedNumber value={stats.avgNilaiToko} formatter={formatScore} isFloat={true} />
                                     </p>
                                 </div>
-                                <Search className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-orange-500/10 group-hover:scale-110 transition-transform duration-500"/>
+                                <Search className="absolute -right-5 -bottom-5 w-32 h-32 text-orange-500/10 group-hover:scale-110 transition-transform duration-500"/>
                             </CardContent>
                         </Card>
                     </div>
@@ -660,7 +660,7 @@ export default function MonitoringPage() {
                             )}
 
                             {modal.view === 'list' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-[1400px] mx-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-350 mx-auto">
                                     {modal.dataList.length === 0 ? (
                                         <div className="col-span-full text-center py-20 text-slate-500 font-medium">Tidak ada data untuk ditampilkan.</div>
                                     ) : modal.dataList.map((item, i) => {
@@ -719,10 +719,10 @@ export default function MonitoringPage() {
                                 <div className="max-w-5xl mx-auto animate-in zoom-in-95 duration-300">
                                     <div className="p-6 md:p-8 bg-white border border-slate-200 rounded-3xl shadow-xl overflow-hidden relative">
                                         {/* Ornamen Latar */}
-                                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-100/50 to-transparent rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-bl from-blue-100/50 to-transparent rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
                                         
                                         <div className="flex items-center gap-4 md:gap-6 mb-8 relative z-10 border-b border-slate-100 pb-6">
-                                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-2xl shrink-0">
+                                            <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-blue-700 text-white rounded-2xl shadow-lg flex items-center justify-center font-bold text-2xl shrink-0">
                                                 <Building2 className="w-8 h-8" />
                                             </div>
                                             <div>
