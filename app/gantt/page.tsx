@@ -566,7 +566,7 @@ function GanttBoard() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
-        <header className="flex items-center justify-between p-4 md:px-8 bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
+        <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
             <div className="flex items-center gap-3">
                 <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
                 <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-10 drop-shadow-md" />
@@ -578,7 +578,7 @@ function GanttBoard() {
             </Badge>
         </header>
 
-        <main className="p-4 md:p-8 max-w-[1400px] mx-auto mt-2">
+        <main className="p-4 md:p-8 max-w-350 mx-auto mt-2">
             <div className="flex flex-col lg:flex-row gap-6 mb-6">
                 <Card className="w-full lg:w-1/3 shadow-sm">
                     <CardContent className="p-6">
@@ -637,7 +637,7 @@ function GanttBoard() {
                     
                     {tasks.length > 0 ? (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left border-collapse min-w-[900px]">
+                            <table className="w-full text-sm text-left border-collapse min-w-225">
                                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                                     <tr>
                                         <th className="p-4 w-12 text-center border-r">No</th>
@@ -748,11 +748,11 @@ function GanttBoard() {
             <Card className="overflow-hidden shadow-md mb-8 border-slate-200">
                 <div className="p-4 bg-slate-100 border-b flex justify-center gap-6 text-sm font-medium">
                     <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-500 rounded shadow-inner"></div> Sesuai Target</div>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gradient-to-r from-pink-500 to-orange-500 rounded shadow-inner"></div> Terlambat</div>
+                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-linear-to-r from-pink-500 to-orange-500 rounded shadow-inner"></div> Terlambat</div>
                     <div className="flex items-center gap-2"><div className="w-4 h-4 bg-sky-200 border border-sky-300 rounded shadow-inner"></div> Masa Pengawasan</div>
                 </div>
                 
-                <div className="p-0 overflow-x-auto min-h-[400px] relative bg-white pb-10" id="ganttChartContainer">
+                <div className="p-0 overflow-x-auto min-h-100 relative bg-white pb-10" id="ganttChartContainer">
                     {isLoading ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 backdrop-blur-sm">
                             <Loader2 className="w-12 h-12 animate-spin text-red-600 mb-4" />
@@ -761,7 +761,7 @@ function GanttBoard() {
                     ) : chartData ? (
                         <div>
                             <div className="flex sticky top-0 bg-white z-40 border-b border-slate-200 shadow-sm">
-                                <div className="w-[250px] shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r border-slate-200 sticky left-0 z-50">Tahapan</div>
+                                <div className="w-62.5 shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r border-slate-200 sticky left-0 z-50">Tahapan</div>
                                 <div className="flex" style={{ width: chartData.totalChartWidth }}>
                                     {Array.from({length: chartData.totalDaysToRender}).map((_, i) => {
                                         const isSup = chartData.supervisionDays[i+1];
@@ -779,7 +779,7 @@ function GanttBoard() {
                                     const shift = task.computed.shift || 0;
                                     return (
                                         <div key={task.id} className="flex border-b border-slate-50 hover:bg-slate-50/50" style={{ height: ROW_HEIGHT }}>
-                                            <div className="w-[250px] shrink-0 px-2.5 py-1 bg-white border-r border-slate-200 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.02)] flex flex-col justify-center">
+                                            <div className="w-62.5 shrink-0 px-2.5 py-1 bg-white border-r border-slate-200 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.02)] flex flex-col justify-center">
                                                 <span className="text-[13px] font-semibold text-slate-800 leading-tight">{task.name}</span>
                                             </div>
                                             <div className="relative" style={{ width: chartData.totalChartWidth }}>
@@ -792,14 +792,14 @@ function GanttBoard() {
                                                     return (
                                                         <React.Fragment key={rIdx}>
                                                             <div 
-                                                                className={`absolute top-[13px] h-6 rounded flex items-center justify-center text-[11px] font-bold text-white shadow-sm z-10 ${shift > 0 ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 'bg-gradient-to-r from-green-500 to-green-600'}`}
+                                                                className={`absolute top-3.25 h-6 rounded flex items-center justify-center text-[11px] font-bold text-white shadow-sm z-10 ${shift > 0 ? 'bg-linear-to-r from-orange-400 to-orange-500' : 'bg-linear-to-r from-green-500 to-green-600'}`}
                                                                 style={{ left: (s - 1) * DAY_WIDTH, width: dur * DAY_WIDTH - 1 }}
                                                             >
                                                                 {dur} Hari
                                                             </div>
                                                             {delay > 0 && (
                                                                 <div 
-                                                                    className="absolute top-[13px] h-6 rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-r from-red-500 to-red-600 shadow-sm z-10 opacity-90"
+                                                                    className="absolute top-3.25 h-6 rounded flex items-center justify-center text-[11px] font-bold text-white bg-linear-to-r from-red-500 to-red-600 shadow-sm z-10 opacity-90"
                                                                     style={{ left: e * DAY_WIDTH, width: delay * DAY_WIDTH - 1 }}
                                                                 >
                                                                     +{delay}
@@ -809,7 +809,7 @@ function GanttBoard() {
                                                     )
                                                 })}
                                                 {Object.keys(chartData.supervisionDays).map(day => (
-                                                    <div key={day} className="absolute top-10 w-[30px] h-1 bg-sky-500 rounded-full z-15 ml-1" style={{ left: (parseInt(day) - 1) * DAY_WIDTH }}></div>
+                                                    <div key={day} className="absolute top-10 w-7.5 h-1 bg-sky-500 rounded-full z-15 ml-1" style={{ left: (parseInt(day) - 1) * DAY_WIDTH }}></div>
                                                 ))}
                                             </div>
                                         </div>
