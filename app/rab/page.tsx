@@ -169,7 +169,7 @@ export default function RABPage() {
   };
 
   // --- 5. KALKULASI REAKTIF ---
-  const luasTerbangunan = useMemo(() => {
+  const luasTerbangun = useMemo(() => {
     return (parseFloat(formData.luasBangunan) || 0) + ((parseFloat(formData.luasAreaTerbuka) || 0) / 2);
   }, [formData.luasBangunan, formData.luasAreaTerbuka]);
 
@@ -225,7 +225,7 @@ export default function RABPage() {
   // --- 7. SUBMIT DATA MENGGUNAKAN API SERVICE ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (luasTerbangunan <= 0) return showAlert("Peringatan", "Luas Terbangunan tidak boleh kosong.", "error");
+    if (luasTerbangun <= 0) return showAlert("Peringatan", "Luas Terbangun tidak boleh kosong.", "error");
     if (formData.lokasiCabang.length < 4 || formData.lokasiTanggal.length !== 4 || formData.lokasiManual.length !== 4) return showAlert("Peringatan", "Format Nomor Ulok belum lengkap.", "error");
 
     setIsLoading(true);
@@ -260,7 +260,7 @@ export default function RABPage() {
       durasi_pekerjaan: formData.durasiPekerjaan,
       kategori_lokasi: formData.kategoriLokasi.toUpperCase(),
       luas_bangunan: String(formData.luasBangunan || "0"),
-      luas_terbangun: String(luasTerbangunan.toFixed(2)),
+      luas_terbangun: String(luasTerbangun.toFixed(2)),
       luas_area_terbuka: String(formData.luasAreaTerbuka || "0"),
       luas_area_parkir: String(formData.luasAreaParkir || "0"),
       luas_area_sales: String(formData.luasAreaSales || "0"),
@@ -274,8 +274,19 @@ export default function RABPage() {
     console.log("🚀 PAYLOAD SUBMIT RAB:", JSON.stringify(payloadData, null, 2));
 
     try {
-        await submitRABData(payloadData);
-        const params = new URLSearchParams({ ulok: getUlokString(), lingkup: formData.lingkupPekerjaan, locked: 'true' });
+        // Simpan response API ke dalam variabel submitRes
+        const submitRes = await submitRABData(payloadData);
+        
+        // Tangkap id_toko dari data response API
+        const idToko = submitRes.data?.id_toko;
+
+        // Tambahkan id_toko ke dalam parameter URL!
+        const params = new URLSearchParams({ 
+            id_toko: idToko ? String(idToko) : '', 
+            ulok: getUlokString(), 
+            lingkup: formData.lingkupPekerjaan, 
+            locked: 'true' 
+        });
         
         showAlert("Berhasil", "Pengajuan RAB berhasil disimpan dan PDF sedang diproses.", "success");
         setTimeout(() => { router.push(`/gantt?${params.toString()}`); }, 1500);
@@ -389,7 +400,7 @@ export default function RABPage() {
               <div className="space-y-2"><Label>Luas Area Sales (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaSales" value={formData.luasAreaSales} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
               <div className="space-y-2"><Label>Luas Gudang (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasGudang" value={formData.luasGudang} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
               <div className="space-y-2"><Label>Luas Area Parkir (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaParkir" value={formData.luasAreaParkir} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
-              <div className="space-y-2"><Label className="text-blue-700 font-bold">Luas Terbangunan (m²) <span className="text-xs font-normal text-slate-400">(Auto)</span></Label><Input readOnly value={luasTerbangunan > 0 ? luasTerbangunan.toFixed(2) : ''} className="bg-blue-50 border-blue-200 font-bold text-blue-800 cursor-not-allowed" placeholder="0.00" tabIndex={-1} /></div>
+              <div className="space-y-2"><Label className="text-blue-700 font-bold">Luas Terbangun (m²) <span className="text-xs font-normal text-slate-400">(Auto)</span></Label><Input readOnly value={luasTerbangun > 0 ? luasTerbangun.toFixed(2) : ''} className="bg-blue-50 border-blue-200 font-bold text-blue-800 cursor-not-allowed" placeholder="0.00" tabIndex={-1} /></div>
             </CardContent>
           </Card>
 
@@ -481,15 +492,14 @@ export default function RABPage() {
         </form>
       </main>
 
-      {/* PERBAIKAN: MODAL DAFTAR NOTIFIKASI REVISI (Menghapus <p> dan <ul>) */}
       <AlertDialog open={revisionListDialogOpen} onOpenChange={setRevisionListDialogOpen}>
         <AlertDialogContent className="rounded-2xl max-w-md max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 border-b pb-3 mb-3">
-               <div className="bg-amber-100 text-amber-600 p-2 rounded-full">
+              <div className="bg-amber-100 text-amber-600 p-2 rounded-full">
                   <Bell className="w-6 h-6" />
-               </div>
-               <AlertDialogTitle className="text-lg">Daftar Pekerjaan Revisi</AlertDialogTitle>
+              </div>
+              <AlertDialogTitle className="text-lg">Daftar Pekerjaan Revisi</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-left text-slate-600">
               {rejectedList.length > 0 ? (
@@ -541,7 +551,7 @@ export default function RABPage() {
             <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full mb-4 bg-amber-100 text-amber-600"><AlertTriangle className="w-8 h-8" /></div>
             <AlertDialogTitle className="text-center">Data Revisi Ditemukan</AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              Ditemukan data REVISI untuk Ulok <strong>{revisionDataToLoad?.['Nomor Ulok']}</strong> ({formData.lingkupPekerjaan}). <br/><br/>Apakah Anda ingin memuat data ini?
+              Ditemukan data REVISI untuk No. Ulok <strong>{revisionDataToLoad?.['Nomor Ulok']}</strong> ({formData.lingkupPekerjaan}). <br/><br/>Apakah Anda ingin memuat data ini?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-2">
