@@ -139,9 +139,6 @@ export default function TentangSparta() {
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-500">
                 {/* HERO SECTION */}
                 <div className="flex flex-col items-center text-center mb-16">
-                    <div className="bg-linear-to-br from-red-100 to-red-50 p-5 rounded-full mb-6 shadow-inner border border-red-100">
-                    <HardHat className="w-14 h-14 text-red-600" />
-                    </div>
                     <h2 className="text-3xl font-bold text-slate-800 mb-4">
                     System for Property Administration, Reporting, Tracking & Approval
                     </h2>
