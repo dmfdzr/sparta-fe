@@ -64,7 +64,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           
           {/* Card 1: Dashboard */}
-          <Link href="/auth" className="block h-full outline-none focus:ring-2 focus:ring-red-500 rounded-xl">
+          <Link href="/auth" className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-xl">
             <Card className="h-full flex flex-col items-center justify-center p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-red-300 cursor-pointer bg-white group">
               <div className="flex justify-center items-center gap-6 mb-8 h-24 transition-transform duration-300 group-hover:scale-110 text-slate-700 w-full">
                 <HardHat className="w-16 h-16 stroke-[1.5]" />
@@ -80,7 +80,7 @@ export default function LandingPage() {
           </Link>
 
           {/* Card 2: User Manual */}
-          <a href="#" onClick={(e) => handleUnavailableMenu(e, "User Manual")} className="block h-full outline-none focus:ring-2 focus:ring-red-500 rounded-xl">
+          <a href="#" onClick={(e) => handleUnavailableMenu(e, "User Manual")} className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-xl">
             <Card className="h-full flex flex-col items-center justify-center p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-red-300 cursor-pointer bg-white group">
               <div className="flex justify-center items-center mb-8 h-24 transition-transform duration-300 group-hover:scale-110 text-slate-700 w-full">
                 <BookOpen className="w-20 h-20 stroke-[1.5]" />
@@ -95,7 +95,7 @@ export default function LandingPage() {
           </a>
 
           {/* Card 3: Tentang SPARTA */}
-          <a href="#" onClick={(e) => handleUnavailableMenu(e, "Tentang SPARTA")} className="block h-full outline-none focus:ring-2 focus:ring-red-500 rounded-xl">
+          <a href="#" onClick={(e) => handleUnavailableMenu(e, "Tentang SPARTA")} className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-xl">
             <Card className="h-full flex flex-col items-center justify-center p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-red-300 cursor-pointer bg-white group">
               <div className="flex justify-center items-center mb-8 h-24 transition-transform duration-300 group-hover:scale-110 text-slate-700 w-full">
                 <Info className="w-20 h-20 stroke-[1.5]" />
