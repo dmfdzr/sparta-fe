@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Home, Loader2, Eye } from 'lucide-react';
+import { Loader2, Eye } from 'lucide-react';
 import { fetchGanttData } from '@/lib/api';
+import AppNavbar from '@/components/AppNavbar';
 
 const SUPERVISION_RULES: Record<number, number[]> = {
     10: [2, 5, 8, 10], 14: [2, 7, 10, 14], 20: [2, 12, 16, 20],
@@ -55,13 +55,14 @@ function GanttViewer() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-12">
-      <header className="flex items-center justify-between p-4 bg-slate-800 text-white sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-            <Link href="/" className="p-2 hover:bg-white/20 rounded-full"><Home className="w-5 h-5" /></Link>
-            <h1 className="text-lg font-bold">Laporan Gantt Chart</h1>
-        </div>
-        <Badge className="bg-blue-500 text-white"><Eye className="w-3 h-3 mr-1" /> VIEWER</Badge>
-      </header>
+      <AppNavbar
+        title="Laporan Gantt Chart"
+        showBackButton
+        backHref="/dashboard"
+        rightActions={
+          <Badge className="bg-blue-500 text-white"><Eye className="w-3 h-3 mr-1" /> VIEWER</Badge>
+        }
+      />
 
       <main className="p-4 md:p-8 max-w-400 mx-auto">
           {errorMsg ? (

@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { ChevronLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { fetchPricesData, submitILData } from '@/lib/api';
+import AppNavbar from '@/components/AppNavbar';
 
 const SIPIL_CATEGORIES = [
     "PEKERJAAN PERSIAPAN", "PEKERJAAN BOBOKAN / BONGKARAN", "PEKERJAAN TANAH",
@@ -148,14 +148,11 @@ function ILForm() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
-                <div className="flex items-center gap-3">
-                    <Link href="/opname" className="hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 drop-shadow-md" />
-                    <div className="h-6 w-px bg-white/30 hidden md:block"></div>
-                    <h1 className="text-lg font-bold tracking-wide">Form Instruksi Lapangan</h1>
-                </div>
-            </header>
+            <AppNavbar
+                title="Form Instruksi Lapangan"
+                showBackButton
+                backHref="/opname"
+            />
 
             <main className="max-w-5xl mx-auto p-4 md:p-8 mt-4">
                 <form onSubmit={handleSubmit} className="space-y-6">

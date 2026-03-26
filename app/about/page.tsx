@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import AppNavbar from '@/components/AppNavbar'; // Import AppNavbar
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
     Info, 
     FileText, 
     Activity, 
     CheckCircle, 
-    ChevronLeft,
     Briefcase,
     Eye,
     ClipboardList,
@@ -40,7 +40,7 @@ export default function TentangSparta() {
 
   // --- DATA TIM PERTAMA ---
     const initiators = [
-        { name: "Andy Mulyono", role: "Head of System Development Building & Maintenance", desc: "Penggagas utama digitalisasi proses bisnis.", icon: <Lightbulb className="w-6 h-6 text-amber-600" /> }
+        { name: "Andy Mulyono", role: "System Development Building Maintenance Energy Manager", desc: "Penggagas utama digitalisasi proses bisnis.", icon: <Lightbulb className="w-6 h-6 text-amber-600" /> }
     ];
 
     const firstTeamDevelopers = [
@@ -56,7 +56,7 @@ export default function TentangSparta() {
 
   // --- DATA TIM KEDUA ---
     const secondTeamInitiators = [
-        { name: "Andy Mulyono", role: "Head of System Development Building & Maintenance", desc: "Penggagas utama digitalisasi proses bisnis.", icon: <Lightbulb className="w-6 h-6 text-amber-600" /> },
+        { name: "Andy Mulyono", role: "System Development Building Maintenance Energy Manager", desc: "Penggagas utama digitalisasi proses bisnis.", icon: <Lightbulb className="w-6 h-6 text-amber-600" /> },
         { name: "Bima Arya Bhagaskara", role: "Project Manager", desc: "Pengarah untuk pengembangan lanjutan SPARTA.", icon: <Users className="w-6 h-6 text-amber-600" /> }
     ];
 
@@ -68,22 +68,13 @@ export default function TentangSparta() {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
         
-        {/* HEADER - Layout disamakan dengan Dashboard */}
-        <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-30 shrink-0">
-            <div className="flex items-center gap-3 md:gap-5">
-                <Link href="/" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
-                <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-12 object-contain drop-shadow-md" />
-                <div className="h-6 md:h-8 w-px bg-white/30 hidden md:block" />
-                <h1 className="text-lg md:text-2xl font-bold md:font-extrabold tracking-widest drop-shadow-md">TENTANG SPARTA</h1>
-                <img src="/assets/Building-Logo.png" alt="BM Logo" className="h-8 md:h-12 hidden sm:block object-contain drop-shadow-md" />
-            </div>
-            
-            <div className="items-center gap-2 relative z-10 hidden md:flex">
-                <div className="h-9 px-4 flex items-center text-sm font-medium text-white/80">
-                    V 2.0.0
-                </div>
-            </div>
-        </header>
+        {/* Mengganti header lama dengan AppNavbar */}
+        <AppNavbar 
+            title="TENTANG SPARTA"
+            showBackButton={true}
+            backHref="/"
+            showBuildingLogo={true}
+        />
 
         {/* MAIN CONTENT */}
         <main className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-8 mt-4">

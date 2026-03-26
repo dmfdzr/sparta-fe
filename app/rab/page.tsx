@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+// Import AppNavbar
+import AppNavbar from '@/components/AppNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { ChevronLeft, Plus, Trash2, Save, Loader2, Info, AlertTriangle, Bell } from 'lucide-react';
+// ChevronLeft dihapus dari sini karena sudah ada di AppNavbar
+import { Plus, Trash2, Save, Loader2, Info, AlertTriangle, Bell } from 'lucide-react';
 
 import { SIPIL_CATEGORIES, ME_CATEGORIES, BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 import { checkRevisionStatus, fetchPricesData, submitRABData } from '@/lib/api';
@@ -326,26 +328,27 @@ export default function RABPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-12">
-      <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20 border-b border-red-900">
-        <div className="flex items-center">
-            <Link href="/dashboard" className="mr-4 hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
-            <div className="flex items-center gap-3">
-              <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-10 drop-shadow-md" />
-              <div className="h-6 w-px bg-white/30 hidden md:block"></div>
-              <h1 className="text-lg md:text-xl font-bold drop-shadow-md">Rencana Anggaran Biaya</h1>
-            </div>
-        </div>
-        <div className="relative">
-            <button onClick={() => setRevisionListDialogOpen(true)} className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none" title="Lihat Daftar Revisi">
-                <Bell className="w-6 h-6 drop-shadow-md" />
-                {rejectedList.length > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-yellow-500 border-2 border-red-700 rounded-full">
-                        {rejectedList.length}
-                    </span>
-                )}
-            </button>
-        </div>
-      </header>
+      
+      {/* Menggunakan AppNavbar, dengan memasukkan tombol Lonceng ke prop rightActions */}
+      <AppNavbar 
+        title="Rencana Anggaran Biaya"
+        showBackButton={true}
+        backHref="/dashboard"
+        rightActions={
+          <button 
+            onClick={() => setRevisionListDialogOpen(true)} 
+            className="relative p-2 rounded-full hover:bg-white/20 transition-colors focus:outline-none" 
+            title="Lihat Daftar Revisi"
+          >
+            <Bell className="w-6 h-6 drop-shadow-md text-white" />
+            {rejectedList.length > 0 && (
+              <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-yellow-500 border-2 border-red-700 rounded-full">
+                {rejectedList.length}
+              </span>
+            )}
+          </button>
+        }
+      />
 
       <main className="max-w-350 mx-auto p-4 md:p-8 mt-4">
         <form onSubmit={handleSubmit}>

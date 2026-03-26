@@ -8,8 +8,10 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut, AlertTriangle, Menu, X, ChevronRight, RefreshCw } from 'lucide-react';
+// LogOut, Menu, dan X dihapus dari import ini karena sudah pindah ke AppNavbar
+import { AlertTriangle, ChevronRight, RefreshCw } from 'lucide-react';
 
+import AppNavbar from '@/components/AppNavbar'; // Import AppNavbar
 import { ALL_MENUS, ROLE_CONFIG } from '@/lib/constants';
 import { fetchMonitoringData } from '@/lib/api';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
@@ -231,33 +233,17 @@ export default function DashboardPage() {
         <div className="h-screen flex flex-col overflow-hidden bg-slate-100 font-sans text-slate-800">
 
             {/* ================================================================
-                HEADER — PERSIS SAMA dengan halaman lain (opname, approval, dll.)
+                HEADER — Menggunakan AppNavbar dengan konfigurasi khusus Dashboard
             ================================================================ */}
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-30 shrink-0">
-                <div className="flex items-center gap-3 md:gap-5">
-                    <button
-                        onClick={() => setSidebarOpen(prev => !prev)}
-                        className="p-2 rounded-lg bg-white/15 hover:bg-white/30 border border-white/20 transition-all duration-200 shrink-0"
-                        aria-label="Toggle sidebar"
-                    >
-                        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                    </button>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-12 object-contain drop-shadow-md" />
-                    <div className="h-6 md:h-8 w-px bg-white/30 hidden md:block" />
-                    <h1 className="text-lg md:text-2xl font-bold md:font-extrabold tracking-widest drop-shadow-md">SPARTA</h1>
-                    <img src="/assets/Building-Logo.png" alt="BM Logo" className="h-8 md:h-12 hidden sm:block object-contain drop-shadow-md" />
-                </div>
-                <div className="flex items-center gap-2 relative z-10">
-                    <Button
-                        variant="outline"
-                        onClick={() => setLogoutDialogOpen(true)}
-                        className="bg-black/10 hover:bg-white hover:text-red-700 text-white border-white/30 transition-all shadow-sm backdrop-blur-sm h-9 px-3 md:px-4"
-                    >
-                        <LogOut className="w-4 h-4 md:mr-2" />
-                        <span className="hidden md:inline">Logout</span>
-                    </Button>
-                </div>
-            </header>
+            <AppNavbar 
+                title="SPARTA"
+                showBuildingLogo={true}
+                showMenuToggle={true}
+                isMenuOpen={sidebarOpen}
+                onMenuToggle={() => setSidebarOpen(prev => !prev)}
+                showLogout={true}
+                onLogout={() => setLogoutDialogOpen(true)}
+            />
 
             {/* ================================================================
                 BODY: SIDEBAR + MAIN CONTENT

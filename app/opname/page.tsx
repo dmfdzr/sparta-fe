@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, CheckCircle, XCircle, Loader2, Save, ArrowLeft, Search, FileDown } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, Save, ArrowLeft, Search, FileDown } from 'lucide-react';
+import AppNavbar from '@/components/AppNavbar';
 
 import { 
     fetchOpnameStoreList, fetchOpnameItems, fetchOpnamePending, 
@@ -548,27 +549,16 @@ export default function OpnamePage() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
-            
-            {/* HEADER (Desain Konsisten dengan Materai) */}
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
-                
-                {/* KIRI: Tombol Kembali, Logo & Judul */}
-                <div className="flex items-center gap-3">
-                    <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors">
-                        <ChevronLeft className="w-6 h-6" />
-                    </Link>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-10 drop-shadow-md" />
-                    <div className="h-6 w-px bg-white/30 hidden md:block"></div>
-                    <h1 className="text-lg md:text-xl font-bold">Opname</h1>
-                </div>
-
-                {/* KANAN: Mode Indicator (tetap dipertahankan karena fitur opname membutuhkannya) */}
-                <div className="flex items-center gap-2">
+            <AppNavbar
+                title="Opname"
+                showBackButton
+                backHref="/dashboard"
+                rightActions={
                     <Badge variant="outline" className="bg-black/10 text-white border-white/30 px-3 py-1 md:py-1.5 shadow-sm backdrop-blur-sm text-[10px] md:text-xs font-semibold">
                         {appMode === 'pic' ? 'MODE PIC' : 'MODE KONTRAKTOR'}
                     </Badge>
-                </div>
-            </header>
+                }
+            />
 
             <main className="max-w-375 mx-auto p-4 md:p-8 mt-4">
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import AppNavbar from '@/components/AppNavbar'; // Menggunakan AppNavbar
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   BookOpen, 
@@ -34,24 +35,13 @@ export default function UserManualPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
       
-      {/* HEADER - Style disamakan dengan TentangSparta */}
-      <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-30 shrink-0">
-        <div className="flex items-center gap-3 md:gap-5">
-          <Link href="/" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors">
-            <ChevronLeft className="w-6 h-6" />
-          </Link>
-          <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-12 object-contain drop-shadow-md" />
-          <div className="h-6 md:h-8 w-px bg-white/30 hidden md:block" />
-          <h1 className="text-lg md:text-2xl font-bold md:font-extrabold tracking-widest drop-shadow-md">USER MANUAL</h1>
-          <img src="/assets/Building-Logo.png" alt="BM Logo" className="h-8 md:h-12 hidden sm:block object-contain drop-shadow-md" />
-        </div>
-
-        <div className="items-center gap-2 relative z-10 hidden md:flex">
-          <div className="h-9 px-4 flex items-center text-sm font-medium text-white/80">
-            V 2.0.0
-          </div>
-        </div>
-      </header>
+      {/* Menggunakan AppNavbar dengan konfigurasi tombol back dan judul */}
+      <AppNavbar 
+        title="USER MANUAL"
+        showBackButton={true}
+        backHref="/"
+        showBuildingLogo={true}
+      />
 
       {/* MAIN CONTENT */}
       <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8">

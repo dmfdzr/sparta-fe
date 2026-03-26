@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, FileText, FolderOpen, Loader2, UploadCloud, Eye, Download, Link as LinkIcon } from 'lucide-react';
+import { FileText, FolderOpen, Loader2, UploadCloud, Eye, Download, Link as LinkIcon } from 'lucide-react';
+import AppNavbar from '@/components/AppNavbar';
 
 // --- KONFIGURASI API (GOOGLE APPS SCRIPT) ---
 const SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyUpg_II5NKNw1YFSyWiTiVBLKuNdnawunFRJJCJeCs4sWwjX3fB7sKi-tefj8-lSn8mQ/exec";
@@ -169,17 +169,11 @@ export default function MateraiPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
-            {/* HEADER (Desain Konsisten dengan Gantt) */}
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
-                <div className="flex items-center gap-3">
-                    <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors">
-                        <ChevronLeft className="w-6 h-6" />
-                    </Link>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-10 drop-shadow-md" />
-                    <div className="h-6 w-px bg-white/30 hidden md:block"></div>
-                    <h1 className="text-lg md:text-xl font-bold">Dokumen Termaterai</h1>
-                </div>
-            </header>
+            <AppNavbar
+                title="Dokumen Termaterai"
+                showBackButton
+                backHref="/dashboard"
+            />
 
             <main className="max-w-4xl mx-auto px-4">
                 

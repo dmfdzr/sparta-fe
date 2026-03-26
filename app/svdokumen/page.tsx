@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Save, Loader2, Search, FileDown, FolderOpen, Plus, UploadCloud, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, ExternalLink, FileText } from 'lucide-react';
+import { Save, Loader2, Search, FileDown, FolderOpen, Plus, UploadCloud, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, ExternalLink, FileText } from 'lucide-react';
+import AppNavbar from '@/components/AppNavbar';
 
 import { fetchDokumenToko, submitDokumenToko, updateDokumenToko, deleteDokumenToko } from '@/lib/api';
 
@@ -369,23 +369,11 @@ export default function DokumenPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-20">
-                <div className="flex items-center gap-3 md:gap-5">
-                    <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors"><ChevronLeft className="w-6 h-6" /></Link>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-12 object-contain drop-shadow-md" />
-                    <div className="h-6 md:h-8 w-px bg-white/30 hidden md:block"></div>
-                    <h1 className="text-lg md:text-2xl font-bold tracking-widest drop-shadow-md">DOKUMEN</h1>
-                </div>
-
-                {userInfo.name && (
-                    <div className="hidden md:flex flex-col items-center justify-center absolute left-1/2 transform -translate-x-1/2 text-center w-full max-w-75 pointer-events-none">
-                        <span className="text-sm font-bold text-white drop-shadow-md truncate w-full">{userInfo.name}</span>
-                        <span className="text-xs font-medium text-red-50 bg-black/20 px-3 py-0.5 rounded-full mt-0.5 backdrop-blur-sm border border-white/10 shadow-inner truncate max-w-[90%]">
-                            {userInfo.role} | {userInfo.cabang}
-                        </span>
-                    </div>
-                )}
-            </header>
+            <AppNavbar
+                title="PENYIMPANAN DOKUMEN TOKO"
+                showBackButton
+                backHref="/dashboard"
+            />
 
             <main className="max-w-350 mx-auto p-4 md:p-8 mt-4">
                 
