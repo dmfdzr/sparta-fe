@@ -31,7 +31,7 @@ import { parseCurrency } from '@/lib/utils';
 // =============================================
 type ApprovalType = 'RAB' | 'SPK' | 'IL';
 type ActiveView = 'menu' | 'list' | 'detail';
-type FilterStatus = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
 
 interface NormalizedListItem {
     id: number;
@@ -254,7 +254,6 @@ export default function ApprovalPage() {
     // --- DATA ---
     const [listData, setListData]         = useState<NormalizedListItem[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<NormalizedDetail | null>(null);
-    const [filterStatus, setFilterStatus] = useState<FilterStatus>('PENDING');
     const [searchQuery, setSearchQuery]   = useState('');
 
     // --- UI ---
@@ -320,7 +319,6 @@ export default function ApprovalPage() {
     const loadList = async (type: ApprovalType) => {
         setIsLoading(true);
         setSearchQuery('');
-        setFilterStatus('PENDING');
         try {
             let normalized: NormalizedListItem[] = [];
             if (type === 'RAB') {
@@ -333,6 +331,23 @@ export default function ApprovalPage() {
                 const res = await fetchILList();
                 normalized = normalizeILList(res.data ?? []);
             }
+
+            // Filter: hanya tampilkan item yang statusnya "Menunggu Persetujuan ..."
+            // dan sesuai dengan giliran jabatan user yang login
+            normalized = normalized.filter(item => {
+                const upper = (item.status ?? '').toUpperCase();
+                // Harus mengandung "MENUNGGU" (artinya masih menunggu persetujuan)
+                if (!upper.includes('MENUNGGU') && !upper.startsWith('PENDING')) return false;
+
+                // SPK hanya satu level, cukup cek "Menunggu"
+                if (type === 'SPK') return true;
+
+                // RAB & IL — multi-level: cocokkan jabatan
+                if (jabatan === 'KOORDINATOR') return upper.includes('KOORDINATOR');
+                if (jabatan === 'MANAGER')     return upper.includes('MANAGER') || upper.includes('MANAJER');
+                return true;
+            });
+
             setListData(normalized);
         } catch (err: any) {
             showToast(err.message || 'Gagal memuat data.', 'error');
@@ -476,8 +491,12 @@ export default function ApprovalPage() {
                     tindakan:       'APPROVE',
                 });
             }
-            setListData(prev => prev.map(d => d.id === item.id ? { ...d, status: 'APPROVED' } : d));
-            if (selectedDetail?.id === item.id) setSelectedDetail(prev => prev ? { ...prev, status: 'APPROVED' } : null);
+            // Hapus item dari list karena sudah bukan giliran role ini lagi
+            setListData(prev => prev.filter(d => d.id !== item.id));
+            if (selectedDetail?.id === item.id) {
+                setSelectedDetail(null);
+                setActiveView('list');
+            }
             showToast(`${APPROVAL_CONFIG[item.tipe].label} berhasil di-approve!`, 'success');
         } catch (err: any) {
             showToast(err.message || 'Gagal melakukan approval.', 'error');
@@ -522,8 +541,12 @@ export default function ApprovalPage() {
                     alasan_penolakan: rejectNote,
                 });
             }
-            setListData(prev => prev.map(d => d.id === item.id ? { ...d, status: 'REJECTED' } : d));
-            if (selectedDetail?.id === item.id) setSelectedDetail(prev => prev ? { ...prev, status: 'REJECTED' } : null);
+            // Hapus item dari list karena sudah ditolak
+            setListData(prev => prev.filter(d => d.id !== item.id));
+            if (selectedDetail?.id === item.id) {
+                setSelectedDetail(null);
+                setActiveView('list');
+            }
             showToast('Pengajuan berhasil ditolak.', 'success');
         } catch (err: any) {
             showToast(err.message || 'Gagal menolak pengajuan.', 'error');
@@ -576,49 +599,47 @@ export default function ApprovalPage() {
 
     /**
      * Menentukan apakah sebuah item bisa di-action oleh role yang sedang login.
-     * - KOORDINATOR  → hanya PENDING_KOORDINATOR
-     * - MANAGER (RAB/IL) → hanya PENDING_MANAGER
-     * - BRANCH MANAGER (SPK) → status PENDING apapun (satu level approval)
+     * Backend mengembalikan status dalam bahasa Indonesia:
+     *   - "Menunggu Persetujuan Koordinator"
+     *   - "Menunggu Persetujuan Manager"
+     *   - "Menunggu Persetujuan Direktur"
+     *   - "Disetujui" / "Approved"
+     *   - "Ditolak"  / "Rejected"
      */
     const isActionableByRole = (status: string, tipe: ApprovalType): boolean => {
         const upper = (status ?? '').toUpperCase();
+        // Abaikan item yang sudah ditolak atau disetujui
+        if (upper.includes('TOLAK') || upper.includes('DITOLAK') || upper === 'REJECTED') return false;
+        if (upper.includes('DISETUJUI') || upper === 'APPROVED') return false;
+
         if (tipe === 'SPK') {
-            // SPK hanya punya satu level approval (Branch Manager)
-            return upper.startsWith('PENDING');
+            return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
         }
-        // RAB & IL — multi-level: cocokkan jabatan login ke status spesifik
-        if (jabatan === 'KOORDINATOR') return upper === 'PENDING_KOORDINATOR';
-        if (jabatan === 'MANAGER')     return upper === 'PENDING_MANAGER';
-        // Fallback jika jabatan belum di-set
-        return upper.startsWith('PENDING');
+        // RAB & IL — multi-level: harus "Menunggu" + sesuai jabatan
+        if (jabatan === 'KOORDINATOR') return upper.includes('MENUNGGU') && upper.includes('KOORDINATOR');
+        if (jabatan === 'MANAGER')     return upper.includes('MENUNGGU') && (upper.includes('MANAGER') || upper.includes('MANAJER'));
+        return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
     };
 
-    const filteredList = useMemo(() => listData.filter(item => {
-        let matchStatus = true;
-        if (filterStatus === 'PENDING') {
-            // Tab "Pending" hanya tampilkan item yang memang giliran role ini
-            matchStatus = isActionableByRole(item.status, item.tipe);
-        } else if (filterStatus === 'APPROVED') {
-            matchStatus = item.status.toUpperCase() === 'APPROVED';
-        } else if (filterStatus === 'REJECTED') {
-            matchStatus = item.status.toUpperCase() === 'REJECTED';
-        }
-        // filterStatus === 'ALL' → matchStatus tetap true, tampilkan semua
+    const isApproved = (status: string) => {
+        const upper = (status ?? '').toUpperCase();
+        return upper === 'APPROVED' || upper.includes('DISETUJUI');
+    };
 
+    const isRejected = (status: string) => {
+        const upper = (status ?? '').toUpperCase();
+        return upper === 'REJECTED' || upper.includes('DITOLAK') || upper.includes('TOLAK');
+    };
+
+    const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
-        const matchSearch = !q
-            || item.nama_toko.toLowerCase().includes(q)
-            || item.nomor_ulok.toLowerCase().includes(q)
-            || item.email_pembuat.toLowerCase().includes(q);
-
-        return matchStatus && matchSearch;
-    }), [listData, filterStatus, searchQuery, jabatan]);
-
-    // Hitung hanya item yang memang giliran role ini (bukan semua PENDING_*)
-    const pendingCount = useMemo(
-        () => listData.filter(i => isActionableByRole(i.status, i.tipe)).length,
-        [listData, jabatan]
-    );
+        return listData.filter(item => {
+            if (!q) return true;
+            return item.nama_toko.toLowerCase().includes(q)
+                || item.nomor_ulok.toLowerCase().includes(q)
+                || item.email_pembuat.toLowerCase().includes(q);
+        });
+    }, [listData, searchQuery]);
 
     // Tombol approve/tolak hanya muncul jika item memang giliran role ini
     const canActOnDetail = selectedDetail && isActionableByRole(selectedDetail.status, selectedDetail.tipe);
@@ -684,9 +705,9 @@ export default function ApprovalPage() {
                 backHref="/dashboard"
                 rightActions={
                     <div className="flex items-center gap-2">
-                        {selectedType && pendingCount > 0 && activeView === 'list' && (
+                        {selectedType && listData.length > 0 && activeView === 'list' && (
                             <Badge className="bg-yellow-400 text-yellow-900 border-0 font-bold text-xs px-2.5">
-                                {pendingCount} Pending
+                                {listData.length} Item
                             </Badge>
                         )}
                         <Badge variant="outline" className="bg-black/10 text-white border-white/30 px-3 py-1 md:py-1.5 shadow-sm backdrop-blur-sm text-[10px] md:text-xs font-semibold hidden md:flex">
@@ -756,21 +777,7 @@ export default function ApprovalPage() {
                             </div>
                         </div>
 
-                        {/* Filter Tabs */}
-                        <div className="flex bg-slate-200 p-1 rounded-lg w-fit mb-6">
-                            {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map(s => (
-                                <button
-                                    key={s}
-                                    onClick={() => setFilterStatus(s)}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${filterStatus === s ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:bg-slate-300'}`}
-                                >
-                                    {s === 'ALL' ? 'Semua' : s === 'PENDING' ? 'Pending' : s === 'APPROVED' ? 'Approved' : 'Ditolak'}
-                                    {s === 'PENDING' && pendingCount > 0 && (
-                                        <span className="ml-1.5 bg-yellow-400 text-yellow-900 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
+
 
                         {isLoading ? (
                             <div className="py-24 text-center text-slate-500">

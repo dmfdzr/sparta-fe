@@ -137,13 +137,14 @@ export default function RABPage() {
               luasAreaTerbuka: data["Luas Area Terbuka"]?.toString() || prev.luasAreaTerbuka,
           }));
 
-          const details = typeof data["Item_Details_JSON"] === 'string' ? JSON.parse(data["Item_Details_JSON"]) : (data["Item_Details_JSON"] || data);
+          const itemsData = typeof data["Item_Details_JSON"] === 'string' ? JSON.parse(data["Item_Details_JSON"]) : (data["Item_Details_JSON"] || []);
           
           const newRows = [];
-          for (let i = 1; i <= 200; i++) {
-              if (details[`Jenis_Pekerjaan_${i}`]) {
-                  const category = details[`Kategori_Pekerjaan_${i}`];
-                  const jobName = details[`Jenis_Pekerjaan_${i}`];
+          if (Array.isArray(itemsData) && itemsData.length > 0) {
+              // Format dari backend baru
+              itemsData.forEach((item: any, i: number) => {
+                  const category = item.kategori_pekerjaan;
+                  const jobName = item.jenis_pekerjaan;
                   
                   const itemPriceRef = fetchedPrices[category]?.find((x: any) => x["Jenis Pekerjaan"] === jobName);
                   const isMatCond = itemPriceRef ? itemPriceRef["Harga Material"] === "Kondisional" : false;
@@ -153,12 +154,36 @@ export default function RABPage() {
                       id: Date.now() + i + Math.random(),
                       category: category,
                       jenisPekerjaan: jobName,
-                      satuan: details[`Satuan_Item_${i}`] || itemPriceRef?.["Satuan"],
-                      volume: parseFloat(details[`Volume_Item_${i}`]) || 0,
-                      hargaMaterial: parseFloat(details[`Harga_Material_Item_${i}`]) || 0,
-                      hargaUpah: parseFloat(details[`Harga_Upah_Item_${i}`]) || 0,
+                      satuan: item.satuan || itemPriceRef?.["Satuan"],
+                      volume: parseFloat(item.volume) || 0,
+                      hargaMaterial: parseFloat(item.harga_material) || 0,
+                      hargaUpah: parseFloat(item.harga_upah) || 0,
                       isKondisional: isMatCond || isUpahCond
                   });
+              });
+          } else {
+              // Fallback format API lama (kolom 1-200)
+              const details = itemsData;
+              for (let i = 1; i <= 200; i++) {
+                  if (details[`Jenis_Pekerjaan_${i}`]) {
+                      const category = details[`Kategori_Pekerjaan_${i}`];
+                      const jobName = details[`Jenis_Pekerjaan_${i}`];
+                      
+                      const itemPriceRef = fetchedPrices[category]?.find((x: any) => x["Jenis Pekerjaan"] === jobName);
+                      const isMatCond = itemPriceRef ? itemPriceRef["Harga Material"] === "Kondisional" : false;
+                      const isUpahCond = itemPriceRef ? itemPriceRef["Harga Upah"] === "Kondisional" : false;
+
+                      newRows.push({
+                          id: Date.now() + i + Math.random(),
+                          category: category,
+                          jenisPekerjaan: jobName,
+                          satuan: details[`Satuan_Item_${i}`] || itemPriceRef?.["Satuan"],
+                          volume: parseFloat(details[`Volume_Item_${i}`]) || 0,
+                          hargaMaterial: parseFloat(details[`Harga_Material_Item_${i}`]) || 0,
+                          hargaUpah: parseFloat(details[`Harga_Upah_Item_${i}`]) || 0,
+                          isKondisional: isMatCond || isUpahCond
+                      });
+                  }
               }
           }
           setTableRows(newRows);

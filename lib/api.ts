@@ -169,14 +169,50 @@ export type RABApprovalResponse = {
 
 /** Cek status revisi RAB berdasarkan email pembuat dan cabang. */
 export const checkRevisionStatus = async (email: string, cabang: string) => {
-    const BASE = "https://sparta-backend-5hdj.onrender.com";
-    const endpoint = `${BASE}/api/check_status`;
-    const res = await fetch(`${endpoint}?email=${encodeURIComponent(email)}&cabang=${encodeURIComponent(cabang)}`);
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Gagal merespon server (${res.status}): ${text.substring(0, 100)}`);
+    try {
+        // Ambil dari API List RAB baru
+        const res = await fetchRABList();
+        
+        // Filter RAB yang dimiliki user ini dan ditolak/dikembalikan
+        const rejected = res.data.filter(rab => {
+            if (!rab.status) return false;
+            const s = rab.status.toUpperCase();
+            const isRejected = s.includes('TOLAK') || s === 'REJECTED';
+            const isMine = (rab.email_pembuat || '').toLowerCase() === (email || '').toLowerCase();
+            return isMine && isRejected;
+        });
+
+        if (rejected.length === 0) return { rejected_submissions: [] };
+
+        // Ambil detail RAB yang ditolak agar formatnya sama dengan yang diharapkan halaman RAB
+        const formatted = await Promise.all(rejected.map(async r => {
+            try {
+                const detail = await fetchRABDetail(r.id);
+                return {
+                    "Nomor Ulok": r.nomor_ulok,
+                    "Lingkup_Pekerjaan": detail.data.toko?.lingkup_pekerjaan || '-',
+                    "nama_toko": r.nama_toko,
+                    "Proyek": r.proyek,
+                    "Alamat": detail.data.toko?.alamat || '',
+                    "Kategori_Lokasi": detail.data.rab?.kategori_lokasi || '',
+                    "Durasi_Pekerjaan": detail.data.rab?.durasi_pekerjaan || '',
+                    "Luas Area Parkir": detail.data.rab?.luas_area_parkir || '',
+                    "Luas Area Sales": detail.data.rab?.luas_area_sales || '',
+                    "Luas Gudang": detail.data.rab?.luas_gudang || '',
+                    "Luas Bangunan": detail.data.rab?.luas_bangunan || '',
+                    "Luas Area Terbuka": detail.data.rab?.luas_area_terbuka || '',
+                    "Item_Details_JSON": detail.data.items || [] // format array dari backend baru
+                };
+            } catch (err) {
+                return null;
+            }
+        }));
+
+        return { rejected_submissions: formatted.filter(Boolean) };
+    } catch (err) {
+        console.error("Error checkRevisionStatus:", err);
+        return { rejected_submissions: [] };
     }
-    return res.json();
 };
 
 /** Ambil data harga material/upah berdasarkan cabang dan lingkup pekerjaan. */
