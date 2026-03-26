@@ -73,7 +73,11 @@ export type RABListItem = {
     link_pdf_non_sbo:     string;
     link_pdf_rekapitulasi:string;
     created_at:           string;
-    toko:                 RABTokoDetail;
+    nomor_ulok:           string;
+    nama_toko:            string;
+    cabang:               string;
+    proyek:               string;
+    toko?:                RABTokoDetail;
 };
 
 export type RABListFilters = {

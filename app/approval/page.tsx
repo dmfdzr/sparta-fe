@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-    ChevronLeft, ArrowLeft, Loader2, CheckCircle, XCircle,
+    ArrowLeft, Loader2, CheckCircle, XCircle,
     Search, FileText, ClipboardList, Lightbulb, Eye,
     AlertTriangle, FileDown, Building2, CalendarDays, User
 } from 'lucide-react';
+import AppNavbar from '@/components/AppNavbar';
 
 import {
     // RAB
@@ -172,9 +172,9 @@ const normalizeRABList = (items: RABListItem[]): NormalizedListItem[] =>
     items.map(r => ({
         id: r.id,
         tipe: 'RAB' as ApprovalType,
-        nomor_ulok:    r.toko?.nomor_ulok ?? '-',
-        nama_toko:     r.toko?.nama_toko  ?? '-',
-        cabang:        r.toko?.cabang     ?? '-',
+        nomor_ulok:    r.nomor_ulok ?? r.toko?.nomor_ulok ?? '-',
+        nama_toko:     r.nama_toko  ?? r.toko?.nama_toko  ?? '-',
+        cabang:        r.cabang     ?? r.toko?.cabang     ?? '-',
         status:        r.status,
         total_nilai:   parseCurrency(r.grand_total_final ?? r.grand_total),
         email_pembuat: r.email_pembuat,
@@ -678,35 +678,23 @@ export default function ApprovalPage() {
                 </div>
             )}
 
-            {/* HEADER — konsisten dengan halaman Opname */}
-            <header className="flex items-center justify-between p-4 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md sticky top-0 z-20">
-                <div className="flex items-center gap-3">
-                    <Link href="/dashboard" className="mr-2 hover:bg-white/20 p-2 rounded-full transition-colors">
-                        <ChevronLeft className="w-6 h-6" />
-                    </Link>
-                    <img src="/assets/Alfamart-Emblem.png" alt="Logo" className="h-8 md:h-10 drop-shadow-md" />
-                    <div className="h-6 w-px bg-white/30 hidden md:block" />
-                    <h1 className="text-lg md:text-xl font-bold">Approval Dokumen</h1>
-                    {selectedType && (
-                        <>
-                            <div className="h-4 w-px bg-white/30 hidden md:block" />
-                            <span className="text-sm font-medium text-white/80 hidden md:block">
-                                {APPROVAL_CONFIG[selectedType].label}
-                            </span>
-                        </>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    {selectedType && pendingCount > 0 && activeView === 'list' && (
-                        <Badge className="bg-yellow-400 text-yellow-900 border-0 font-bold text-xs px-2.5">
-                            {pendingCount} Pending
+            <AppNavbar
+                title={selectedType ? `Approval ${APPROVAL_CONFIG[selectedType].label}` : 'Approval Dokumen'}
+                showBackButton
+                backHref="/dashboard"
+                rightActions={
+                    <div className="flex items-center gap-2">
+                        {selectedType && pendingCount > 0 && activeView === 'list' && (
+                            <Badge className="bg-yellow-400 text-yellow-900 border-0 font-bold text-xs px-2.5">
+                                {pendingCount} Pending
+                            </Badge>
+                        )}
+                        <Badge variant="outline" className="bg-black/10 text-white border-white/30 px-3 py-1 md:py-1.5 shadow-sm backdrop-blur-sm text-[10px] md:text-xs font-semibold hidden md:flex">
+                            {userInfo.role || 'LOADING...'}
                         </Badge>
-                    )}
-                    <Badge variant="outline" className="bg-black/10 text-white border-white/30 px-3 py-1 md:py-1.5 shadow-sm backdrop-blur-sm text-[10px] md:text-xs font-semibold hidden md:flex">
-                        {userInfo.role || 'LOADING...'}
-                    </Badge>
-                </div>
-            </header>
+                    </div>
+                }
+            />
 
             <main className="max-w-350 mx-auto p-4 md:p-8 mt-4">
 
