@@ -139,7 +139,8 @@ function GanttBoard() {
         }
 
         // Cek apakah akses langsung atau dari parameter (RAB)
-        if (!urlUlok && !urlIdToko) {
+        // Jika dari RAB, ulok pasti ada di parameter. Jika hanya id_toko, berarti dari internal navigasi dropdown.
+        if (!urlUlok) {
             setIsDirectAccess(true);
         }
 
@@ -227,8 +228,15 @@ function GanttBoard() {
             const endTime = endTimestamps.length > 0 ? Math.max(...endTimestamps) : null;
 
             // 3. Set projectStart
+            // Gunakan `timestamp` buatan database saat Gantt pertama dibuat agar perhitungan hari tidak bergeser,
+            // dan konstruksikan menjadi Local Midnight seperti pengolahan inputan harinya.
             let projectStart = new Date();
-            if (startTime) {
+            if (gantt.timestamp) {
+                const parts = gantt.timestamp.split('T')[0].split('-'); // [YYYY, MM, DD]
+                if (parts.length === 3) {
+                    projectStart = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                }
+            } else if (startTime) {
                 projectStart = new Date(startTime);
             }
 
@@ -734,9 +742,9 @@ function GanttBoard() {
                                     {allTokoList.map((toko) => {
                                         const ganttMatch = availableProjects.find(p => p.id_toko === toko.id || p.nomor_ulok === toko.nomor_ulok);
                                         const ulok = formatUlokWithDash(toko.nomor_ulok);
-                                        const label = [toko.nama_toko, toko.cabang, toko.proyek]
+                                        const label = [ulok, toko.nama_toko, toko.cabang]
                                             .filter(Boolean).join(' · ');
-                                        const statusBadge = ganttMatch?.status === 'terkunci' ? ' 🔒' : (ganttMatch ? ' 📝' : '');
+                                        const statusBadge = ganttMatch?.status === 'terkunci' ? ' (Terkunci)' : (ganttMatch?.status === 'active' ? ' (Aktif)' : '');
                                         
                                         // Gunakan ID Gantt jika ada, jika tidak gunakan ID Toko dengan prefix
                                         const val = ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${toko.id}`;
