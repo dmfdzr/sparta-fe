@@ -13,7 +13,8 @@ import { Lock, Send, Loader2, Info, Plus, Trash2 } from 'lucide-react';
 import { 
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
-    updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko
+    updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko,
+    fetchTokoList
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
 import { API_URL } from '@/lib/constants';
@@ -82,6 +83,8 @@ function GanttBoard() {
     const [isLoading, setIsLoading] = useState(false);
     const [isProjectLocked, setIsProjectLocked] = useState(false);
     const [availableProjects, setAvailableProjects] = useState<GanttListItem[]>([]);
+    const [allTokoList, setAllTokoList] = useState<any[]>([]);
+    const [isDirectAccess, setIsDirectAccess] = useState(false);
 
     // State Tabel / Tasks
     const [tasks, setTasks] = useState<any[]>([]);
@@ -134,6 +137,16 @@ function GanttBoard() {
                 .then(res => setAvailableProjects(res.data || []))
                 .catch(err => console.error("Gagal memuat list Gantt Chart:", err));
         }
+
+        // Cek apakah akses langsung atau dari parameter (RAB)
+        if (!urlUlok && !urlIdToko) {
+            setIsDirectAccess(true);
+        }
+
+        // Ambil daftar seluruh toko untuk dropdown
+        fetchTokoList()
+            .then(res => setAllTokoList(res.data || []))
+            .catch(err => console.error("Gagal memuat semua daftar Toko:", err));
         
     }, [router, urlIdToko]);
 
@@ -684,41 +697,52 @@ function GanttBoard() {
                     <CardContent className="p-6">
                         <div className="space-y-3">
                             <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Pilih / Input No. Ulok</label>
-                            {urlIdToko || urlUlok ? (
+                            {(urlIdToko || urlUlok) && !isDirectAccess ? (
                                 <div className="p-3 bg-slate-100 border rounded-md font-bold text-slate-600 flex justify-between items-center shadow-inner">
                                     <span>{selectedUlok}</span><Lock className="w-5 h-5 text-slate-400" />
                                 </div>
                             ) : (
                                 <select 
                                     className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
-                                    value={selectedGanttId ?? ''}
+                                    value={selectedGanttId ? `gantt-${selectedGanttId}` : (urlIdToko ? `toko-${urlIdToko}` : '')}
                                     onChange={(e) => {
-                                        const selectedId = parseInt(e.target.value);
-                                        const selectedProj = availableProjects.find(p => p.id === selectedId);
-                                        
-                                        if (selectedProj && selectedProj.id_toko) {
-                                            // 1. Update URL secara halus agar jika user me-refresh halaman, datanya tidak hilang
+                                        const val = e.target.value;
+                                        if (!val) return;
+
+                                        if (val.startsWith('gantt-')) {
+                                            const gId = parseInt(val.replace('gantt-', ''));
+                                            const proj = availableProjects.find(p => p.id === gId);
+                                            if (proj?.id_toko) {
+                                                const newUrl = new URL(window.location.href);
+                                                newUrl.searchParams.set('id_toko', proj.id_toko.toString());
+                                                window.history.pushState({}, '', newUrl.toString());
+                                                loadGanttDetail(gId);
+                                            } else {
+                                                loadGanttDetail(gId);
+                                            }
+                                        } else if (val.startsWith('toko-')) {
+                                            const tId = parseInt(val.replace('toko-', ''));
                                             const newUrl = new URL(window.location.href);
-                                            newUrl.searchParams.set('id_toko', selectedProj.id_toko.toString());
+                                            newUrl.searchParams.set('id_toko', tId.toString());
                                             window.history.pushState({}, '', newUrl.toString());
-                                            
-                                            // 2. Panggil fungsi alur SQL baru menggunakan id_toko
-                                            loadDataByToko(selectedProj.id_toko);
-                                        } else if (!isNaN(selectedId)) {
-                                            // Fallback ke alur lama
-                                            loadGanttDetail(selectedId);
+                                            loadDataByToko(tId);
                                         }
                                     }}
                                 >
                                     <option value="">-- Pilih Proyek / RAB Anda --</option>
-                                    {availableProjects.map((proj) => {
-                                        const ulok = formatUlokWithDash(proj.nomor_ulok);
-                                        const label = [proj.nama_toko, proj.cabang, proj.proyek]
+                                    {/* PRIORITASKAN TOKO DARI DAFTAR TOKO LENGKAP */}
+                                    {allTokoList.map((toko) => {
+                                        const ganttMatch = availableProjects.find(p => p.id_toko === toko.id || p.nomor_ulok === toko.nomor_ulok);
+                                        const ulok = formatUlokWithDash(toko.nomor_ulok);
+                                        const label = [toko.nama_toko, toko.cabang, toko.proyek]
                                             .filter(Boolean).join(' · ');
-                                        const statusBadge = proj.status === 'terkunci' ? ' 🔒' : '';
+                                        const statusBadge = ganttMatch?.status === 'terkunci' ? ' 🔒' : (ganttMatch ? ' 📝' : '');
+                                        
+                                        // Gunakan ID Gantt jika ada, jika tidak gunakan ID Toko dengan prefix
+                                        const val = ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${toko.id}`;
                                         
                                         return (
-                                            <option key={proj.id} value={proj.id}>
+                                            <option key={toko.id} value={val}>
                                                 {label || ulok}{statusBadge}
                                             </option>
                                         );

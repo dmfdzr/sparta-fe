@@ -258,6 +258,11 @@ export const fetchTokoDetail = async (id: number) => {
     return res.json();
 };
 
+/** Ambil daftar seluruh Toko. */
+export const fetchTokoList = async (): Promise<{ status: string; data: RABDetailToko[] }> => {
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/toko`);
+};
+
 /**
  * Download PDF RAB ke browser.
  * Nama file diambil dari header Content-Disposition jika tersedia.
