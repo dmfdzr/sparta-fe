@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 // Import AppNavbar
 import AppNavbar from '@/components/AppNavbar';
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // ChevronLeft dihapus dari sini karena sudah ada di AppNavbar
-import { Plus, Trash2, Save, Loader2, Info, AlertTriangle, Bell } from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, Info, AlertTriangle, Bell, Upload, X, Image as ImageIcon } from 'lucide-react';
 
 import { SIPIL_CATEGORIES, ME_CATEGORIES, BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 import { checkRevisionStatus, fetchPricesData, submitRABData, fetchRABDetail, fetchTokoDetail } from '@/lib/api';
@@ -31,8 +31,11 @@ export default function RABPage() {
   const [formData, setFormData] = useState({
     namaToko: '', lokasiCabang: '', lokasiTanggal: '', lokasiManual: '', isRenovasi: false,
     proyek: '', alamat: '', cabang: '', lingkupPekerjaan: '', kategoriLokasi: '', durasiPekerjaan: '',
-    luasAreaParkir: '', luasAreaSales: '', luasGudang: '', luasBangunan: '', luasAreaTerbuka: ''
+    luasAreaParkir: '', luasAreaSales: '', luasGudang: '', luasBangunan: '', luasAreaTerbuka: '',
+    logo: '' // Base64 logo string
   });
+
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const [availableCabang, setAvailableCabang] = useState<string[]>([]);
   const [prices, setPrices] = useState<any>({});
@@ -43,6 +46,7 @@ export default function RABPage() {
   const [hasPromptedRevisionFor, setHasPromptedRevisionFor] = useState<string>(''); 
   
   const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRevisionLoading, setIsRevisionLoading] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{title: string, desc: string, type: 'info' | 'error' | 'success' | 'warning'}>({ title: "", desc: "", type: "info" });
@@ -270,6 +274,32 @@ export default function RABPage() {
       }
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showAlert("Peringatan", "Ukuran logo maksimal 2MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setLogoPreview(base64);
+      setFormData(prev => ({ ...prev, logo: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    setFormData(prev => ({ ...prev, logo: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset internal value so same file can be re-uploaded
+    }
+  };
+
   // --- 5. KALKULASI REAKTIF ---
   const luasTerbangun = useMemo(() => {
     return (parseFloat(formData.luasBangunan) || 0) + ((parseFloat(formData.luasAreaTerbuka) || 0) / 2);
@@ -374,6 +404,7 @@ export default function RABPage() {
       luas_area_parkir: String(formData.luasAreaParkir || "0"),
       luas_area_sales: String(formData.luasAreaSales || "0"),
       luas_gudang: String(formData.luasGudang || "0"),
+      logo: formData.logo,
       detail_items: detailItems
     };
 
@@ -472,46 +503,96 @@ export default function RABPage() {
         <form onSubmit={handleSubmit}>
           <Card className="mb-8 shadow-sm">
             <CardHeader className="border-b bg-slate-50/50 pb-4"><CardTitle className="text-red-700">Data & Identitas Proyek</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
-              <div className="space-y-2"><Label>Nama Toko <span className="text-red-500">*</span></Label><Input name="namaToko" value={formData.namaToko} onChange={handleInputChange} placeholder="Masukkan nama toko" className="bg-white" required /></div>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Checkbox id="isRenovasi" checked={formData.isRenovasi} onCheckedChange={(c) => setFormData(prev => ({...prev, isRenovasi: !!c, proyek: !!c ? 'Renovasi' : prev.proyek}))}/>
-                  <Label htmlFor="isRenovasi" className="font-normal cursor-pointer">Proyek Renovasi (Format Baru)</Label>
+            <CardContent className="pt-6">
+              {/* --- BAGIAN LOGO PERUSAHAAN --- */}
+              <div className="mb-8 p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col md:flex-row items-center gap-8 transition-all hover:border-slate-300">
+                <div className="relative group shrink-0">
+                  <div className={`w-32 h-32 rounded-2xl overflow-hidden shadow-md border-2 border-white flex items-center justify-center bg-white ${!logoPreview ? 'bg-slate-50' : ''}`}>
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-300">
+                        <ImageIcon className="w-10 h-10" />
+                        <span className="text-[10px] font-bold mt-1 uppercase tracking-tight">Logo</span>
+                      </div>
+                    )}
+                  </div>
+                  {logoPreview && (
+                    <button 
+                      type="button" 
+                      onClick={removeLogo}
+                      className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-transform hover:scale-110 active:scale-95"
+                      title="Hapus Logo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Input name="lokasiCabang" placeholder="Kode" className="w-[30%] bg-slate-100 text-slate-500 font-bold cursor-not-allowed border-slate-200" value={formData.lokasiCabang} readOnly tabIndex={-1} />
-                  <span className="font-bold text-slate-400">-</span>
-                  <Input name="lokasiTanggal" placeholder="YYMM" className="w-[30%] bg-white" maxLength={4} value={formData.lokasiTanggal} onChange={handleInputChange} required />
-                  <span className="font-bold text-slate-400">-</span>
-                  <Input name="lokasiManual" placeholder={formData.isRenovasi ? "C0B4" : "0001"} className="w-[40%] bg-white uppercase" maxLength={4} value={formData.lokasiManual} onChange={handleInputChange} required />
-                  {formData.isRenovasi && (<><span className="font-bold text-slate-400">-</span><Input readOnly value="R" className="w-12 bg-slate-100 text-center font-bold text-slate-500 cursor-not-allowed border-slate-200" tabIndex={-1} /></>)}
+
+                <div className="flex-1 space-y-2 text-center md:text-left">
+                  <h3 className="font-extrabold text-slate-800 text-lg tracking-tight">Logo Perusahaan</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Unggah logo perusahaan anda untuk dicetak pada dokumen SPH. <br className="hidden md:block" />
+                    Format yang didukung: <b>PNG, JPG, JPEG</b>.
+                  </p>
+                  <div className="pt-2">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 group">
+                      <Upload className="w-4 h-4 text-red-500 transition-transform group-hover:-translate-y-0.5" />
+                      {logoPreview ? 'Ganti Logo' : 'Pilih Logo'}
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleLogoChange} 
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Proyek <span className="text-red-500">*</span></Label>
-                <Select 
-                  onValueChange={(val) => handleSelectChange('proyek', val)} 
-                  value={formData.proyek} 
-                  disabled={formData.isRenovasi} 
-                  required
-                >
-                  <SelectTrigger className={formData.isRenovasi ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" : "bg-white"}>
-                    <SelectValue placeholder="-- Pilih Jenis Proyek --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Alfamart Reguler">Reguler</SelectItem>
-                    <SelectItem value="Renovasi">Renovasi</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 lg:col-span-3"><Label>Alamat Lengkap <span className="text-red-500">*</span></Label><Input name="alamat" value={formData.alamat} onChange={handleInputChange} placeholder="Masukkan alamat lengkap proyek" className="bg-white" required /></div>
-              
-              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-2"><Label>Cabang <span className="text-red-500">*</span></Label><Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} /></div>
-                <div className="space-y-2"><Label>Lingkup Pekerjaan <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('lingkupPekerjaan', val)} value={formData.lingkupPekerjaan} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Lingkup Pekerjaan --" /></SelectTrigger><SelectContent><SelectItem value="Sipil">Sipil</SelectItem><SelectItem value="ME">ME</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Kategori Lokasi <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('kategoriLokasi', val)} value={formData.kategoriLokasi} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Kategori Lokasi --" /></SelectTrigger><SelectContent><SelectItem value="Ruko">Ruko</SelectItem><SelectItem value="Non Ruko">Non Ruko</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Durasi Pekerjaan (Hari) <span className="text-red-500">*</span></Label><Input type="number" min="1" step="1" name="durasiPekerjaan" value={formData.durasiPekerjaan} onChange={handleInputChange} placeholder="Masukkan jumlah hari" className="bg-white" required /></div>
+
+              {/* --- GRID FORM IDENTITAS --- */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2"><Label>Nama Toko <span className="text-red-500">*</span></Label><Input name="namaToko" value={formData.namaToko} onChange={handleInputChange} placeholder="Masukkan nama toko" className="bg-white" required /></div>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Checkbox id="isRenovasi" checked={formData.isRenovasi} onCheckedChange={(c) => setFormData(prev => ({...prev, isRenovasi: !!c, proyek: !!c ? 'Renovasi' : prev.proyek}))}/>
+                    <Label htmlFor="isRenovasi" className="font-normal cursor-pointer">Proyek Renovasi (Format Baru)</Label>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input name="lokasiCabang" placeholder="Kode" className="w-[30%] bg-slate-100 text-slate-500 font-bold cursor-not-allowed border-slate-200" value={formData.lokasiCabang} readOnly tabIndex={-1} />
+                    <span className="font-bold text-slate-400">-</span>
+                    <Input name="lokasiTanggal" placeholder="YYMM" className="w-[30%] bg-white" maxLength={4} value={formData.lokasiTanggal} onChange={handleInputChange} required />
+                    <span className="font-bold text-slate-400">-</span>
+                    <Input name="lokasiManual" placeholder={formData.isRenovasi ? "C0B4" : "0001"} className="w-[40%] bg-white uppercase" maxLength={4} value={formData.lokasiManual} onChange={handleInputChange} required />
+                    {formData.isRenovasi && (<><span className="font-bold text-slate-400">-</span><Input readOnly value="R" className="w-12 bg-slate-100 text-center font-bold text-slate-500 cursor-not-allowed border-slate-200" tabIndex={-1} /></>)}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Proyek <span className="text-red-500">*</span></Label>
+                  <Select 
+                    onValueChange={(val) => handleSelectChange('proyek', val)} 
+                    value={formData.proyek} 
+                    disabled={formData.isRenovasi} 
+                    required
+                  >
+                    <SelectTrigger className={formData.isRenovasi ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" : "bg-white"}>
+                      <SelectValue placeholder="-- Pilih Jenis Proyek --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Alfamart Reguler">Reguler</SelectItem>
+                      <SelectItem value="Renovasi">Renovasi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 lg:col-span-3"><Label>Alamat Lengkap <span className="text-red-500">*</span></Label><Input name="alamat" value={formData.alamat} onChange={handleInputChange} placeholder="Masukkan alamat lengkap proyek" className="bg-white" required /></div>
+                
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2"><Label>Cabang <span className="text-red-500">*</span></Label><Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} /></div>
+                  <div className="space-y-2"><Label>Lingkup Pekerjaan <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('lingkupPekerjaan', val)} value={formData.lingkupPekerjaan} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Lingkup Pekerjaan --" /></SelectTrigger><SelectContent><SelectItem value="Sipil">Sipil</SelectItem><SelectItem value="ME">ME</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Kategori Lokasi <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('kategoriLokasi', val)} value={formData.kategoriLokasi} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Kategori Lokasi --" /></SelectTrigger><SelectContent><SelectItem value="Ruko">Ruko</SelectItem><SelectItem value="Non Ruko">Non Ruko</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Durasi Pekerjaan (Hari) <span className="text-red-500">*</span></Label><Input type="number" min="1" step="1" name="durasiPekerjaan" value={formData.durasiPekerjaan} onChange={handleInputChange} placeholder="Masukkan jumlah hari" className="bg-white" required /></div>
+                </div>
               </div>
             </CardContent>
           </Card>
