@@ -1189,11 +1189,4 @@ export const deleteDokumenToko = async (kode_toko: string) => {
     if (!res.ok) throw new Error(result.detail || result.message || "Gagal menghapus dokumen.");
     return result;
 };
-
-// =============================================================================
-// 10. MONITORING DASHBOARD
-// =============================================================================
-
-/** Ambil data ringkasan untuk dashboard monitoring (grafik progres & status). */
-export const fetchMonitoringData = async () =>
-    safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/opname/summary-data`);
+
