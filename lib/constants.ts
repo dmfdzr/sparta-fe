@@ -7,6 +7,7 @@ import {
     FileText, Stamp, FileSignature, Users, CheckSquare,
     Camera, FilePlus, FolderArchive, BarChartHorizontal,
     AlertTriangle, Activity, PieChart, ClipboardCheck,
+    FileStack,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -119,6 +120,13 @@ export const ALL_MENUS = [
         href: "/approval",
         icon: ClipboardCheck,
     },
+    {
+        id: "menu-daftardokumen",
+        title: "Daftar Dokumen",
+        desc: "Lihat daftar dokumen RAB, SPK, dan lainnya.",
+        href: "/list",
+        icon: FileStack,
+    },
 ];
 
 // -----------------------------------------------------------------------------
@@ -128,32 +136,33 @@ export const ALL_MENUS = [
 
 export const ROLE_CONFIG: Record<string, string[]> = {
     "BRANCH MANAGER": [
-        "menu-approval",
+        "menu-approval", "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING & MAINTENANCE MANAGER": [
         "menu-spk", "menu-pengawasan", "menu-opname", "menu-tambahspk",
         "menu-gantt", "menu-dokumentasi", "menu-svdokumen", "menu-sp",
-        "menu-approval",
+        "menu-approval", "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING SUPPORT DOKUMENTASI": [
         "menu-spk", "menu-pengawasan", "menu-opname", "menu-tambahspk",
         "menu-gantt", "menu-dokumentasi", "menu-svdokumen", "menu-sp",
+        "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING COORDINATOR": [
         "menu-dokumentasi", "menu-svdokumen", "menu-gantt",
-        "menu-opname", "menu-sp", "menu-approval",
+        "menu-opname", "menu-sp", "menu-approval", "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING SUPPORT": [
         "menu-dokumentasi", "menu-opname", "menu-gantt",
-        "menu-svdokumen", "menu-sp",
+        "menu-svdokumen", "menu-sp", "menu-daftardokumen",
     ],
 
     "DIREKTUR": [
-        "menu-approval"
+        "menu-approval", "menu-daftardokumen",
     ],
 
     "KONTRAKTOR": [
