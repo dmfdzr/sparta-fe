@@ -14,7 +14,7 @@ import {
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
     updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko,
-    fetchTokoList
+    fetchRABList
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
 import { API_URL } from '@/lib/constants';
@@ -150,15 +150,15 @@ function GanttBoard() {
             setIsDirectAccess(true);
         }
 
-        // Ambil daftar seluruh toko untuk dropdown (Filter Cabang)
-        fetchTokoList()
+        // Ambil daftar seluruh RAB untuk dropdown (Filter Cabang)
+        fetchRABList()
             .then(res => {
                 const data = res.data || [];
                 // Filter berdasarkan cabang user agar dropdown hanya menampilkan toko di cabangnya
                 const filtered = cabang ? data.filter(item => item.cabang?.toUpperCase() === cabang.toUpperCase()) : data;
                 setAllTokoList(filtered);
             })
-            .catch(err => console.error("Gagal memuat semua daftar Toko:", err));
+            .catch(err => console.error("Gagal memuat semua daftar RAB:", err));
         
     }, [router, urlIdToko]);
 
@@ -181,6 +181,8 @@ function GanttBoard() {
                     alert("Info: RAB belum disetujui atau belum ada untuk toko ini.");
                 }
                 
+                const rData: any = rab;
+                const rDuration = rData?.durasi_pekerjaan ? parseInt(String(rData.durasi_pekerjaan).replace(/\D/g, '')) || 1 : 1;
                 // Set data proyek awal
                 setProjectData({
                     ganttId: null,
@@ -190,7 +192,7 @@ function GanttBoard() {
                     work: toko.lingkup_pekerjaan || "SIPIL",
                     cabang: toko.cabang || "-",
                     kontraktor: toko.nama_kontraktor || "-",
-                    duration: 0,
+                    duration: rDuration,
                     startDate: new Date().toISOString().split('T')[0],
                 });
                 
@@ -199,7 +201,7 @@ function GanttBoard() {
                     id: idx + 1, 
                     name: kName, 
                     dependencies: [], 
-                    ranges: [{ start: '', end: '', keterlambatan: 0 }], 
+                    ranges: [{ start: 1, end: rDuration, keterlambatan: 0 }], 
                     keterlambatan: 0
                 }));
                 
@@ -318,8 +320,9 @@ function GanttBoard() {
             dependencies.forEach(dep => {
                 const child  = dep.kategori_pekerjaan.toLowerCase().trim();
                 const parent = dep.kategori_pekerjaan_terikat.toLowerCase().trim();
-                if (!depMap[child]) depMap[child] = [];
-                depMap[child].push(parent);
+                // Map the child to the parent's array so parent.dependencies = [child1, child2] representing Dilanjutkan Ke..
+                if (!depMap[parent]) depMap[parent] = [];
+                depMap[parent].push(child);
             });
 
             generatedTasks = generatedTasks.map(task => {
@@ -451,12 +454,12 @@ function GanttBoard() {
 
                 // 2. Map Dependencies
                 if (t.dependencies && t.dependencies.length > 0) {
-                    t.dependencies.forEach((pId: number) => {
-                        const pTask = tasks.find(pt => pt.id === pId);
-                        if (pTask) {
+                    t.dependencies.forEach((childId: number) => {
+                        const cTask = tasks.find(ct => ct.id === childId);
+                        if (cTask) {
                             dependencies.push({
-                                kategori_pekerjaan: kategoriName,
-                                kategori_pekerjaan_terikat: pTask.name.toUpperCase()
+                                kategori_pekerjaan: cTask.name.toUpperCase(), // child
+                                kategori_pekerjaan_terikat: kategoriName // parent
                             });
                         }
                     });
@@ -619,18 +622,17 @@ function GanttBoard() {
         let maxTaskEndDay = 0;
         let effectiveEndDates: Record<number, number> = {};
 
-        processedTasks.forEach(task => {
+        processedTasks.forEach(task => { // task is the child being evaluated
             let maxShift = 0;
-            if (task.dependencies && task.dependencies.length > 0) {
-                task.dependencies.forEach((parentId: number) => {
-                    const parentTask = processedTasks.find(t => t.id === parentId);
-                    if (parentTask) {
-                        const parentShift = parentTask.computed?.shift || 0;
-                        const pRanges = parentTask.ranges || [];
-                        const parentDelay = pRanges.length > 0 ? (parseInt(pRanges[pRanges.length-1].keterlambatan) || 0) : 0;
-                        const potentialShift = parentShift + parentDelay;
-                        if (potentialShift > maxShift) maxShift = potentialShift;
-                    }
+            // Find parents: tasks whose dependency array includes this child's id
+            const myParents = processedTasks.filter(pt => pt.dependencies && pt.dependencies.includes(task.id));
+            if (myParents.length > 0) {
+                myParents.forEach(parentTask => {
+                    const parentShift = parentTask.computed?.shift || 0;
+                    const pRanges = parentTask.ranges || [];
+                    const parentDelay = pRanges.length > 0 ? (parseInt(pRanges[pRanges.length-1].keterlambatan) || 0) : 0;
+                    const potentialShift = parentShift + parentDelay;
+                    if (potentialShift > maxShift) maxShift = potentialShift;
                 });
             }
             
@@ -659,30 +661,42 @@ function GanttBoard() {
             const shift = task.computed.shift || 0;
             const ranges = task.ranges || [];
             if(ranges.length > 0 && ranges[0].start) {
-                const maxEnd = Math.max(...ranges.map((r:any) => parseInt(r.end) + shift + (parseInt(r.keterlambatan) || 0)));
-                const minStart = Math.min(...ranges.map((r:any) => parseInt(r.start) + shift));
+                const maxEnd = Math.max(...ranges.map((r:any) => parseInt(r.end || 0) + shift + (parseInt(r.keterlambatan) || 0)));
+                const minStart = Math.min(...ranges.map((r:any) => parseInt(r.start || 0) + shift));
+                
+                let firstPeriodEnd = maxEnd;
+                let lowestStart = Infinity;
+                ranges.forEach((r: any) => {
+                    const s = parseInt(r.start || 0) + shift;
+                    if (s < lowestStart) {
+                        lowestStart = s;
+                        firstPeriodEnd = parseInt(r.end || 0) + shift + (parseInt(r.keterlambatan) || 0);
+                    }
+                });
+
                 taskCoordinates[task.id] = {
                     centerY: (idx * ROW_HEIGHT) + (ROW_HEIGHT / 2),
                     endX: maxEnd * DAY_WIDTH,
-                    startX: (minStart - 1) * DAY_WIDTH
+                    startX: (minStart - 1) * DAY_WIDTH,
+                    firstEndX: firstPeriodEnd * DAY_WIDTH
                 };
             }
         });
         let svgLines = [];
         for (let i=0; i < processedTasks.length; i++) {
-            const task = processedTasks[i];
+            const task = processedTasks[i]; // task is parent
             if(task.dependencies && task.dependencies.length > 0) {
-                for (let pId of task.dependencies) {
-                    const parent = taskCoordinates[pId];
-                    const me = taskCoordinates[task.id];
-                    if(parent && me && parent.endX !== undefined && me.startX !== undefined) {
-                        const startX = parent.endX, startY = parent.centerY;
-                        const endX = me.startX, endY = me.centerY;
+                for (let cId of task.dependencies) {
+                    const parentCoordinates = taskCoordinates[task.id];
+                    const childCoordinates = taskCoordinates[cId];
+                    if(parentCoordinates && childCoordinates && parentCoordinates.firstEndX !== undefined && childCoordinates.startX !== undefined) {
+                        const startX = parentCoordinates.firstEndX, startY = parentCoordinates.centerY;
+                        const endX = childCoordinates.startX, endY = childCoordinates.centerY;
                         let tension = (endX - startX) < 40 ? 60 : 40;
                         if ((endX - startX) < 0) tension = 100;
                         const path = `M ${startX} ${startY} C ${startX + tension} ${startY}, ${endX - tension} ${endY}, ${endX} ${endY}`;
                         svgLines.push(
-                            <g key={`${pId}-${task.id}`}>
+                            <g key={`${task.id}-${cId}`}>
                                 <path d={path} className="dependency-line stroke-blue-500 fill-transparent stroke-2" markerEnd="url(#depArrow)" opacity="0.95" />
                                 <circle cx={startX} cy={startY} r="4" className="fill-white stroke-blue-500 stroke-2" />
                                 <circle cx={endX} cy={endY} r="4" className="fill-white stroke-blue-500 stroke-2" />
@@ -802,7 +816,7 @@ function GanttBoard() {
                                     <tr>
                                         <th className="p-4 w-12 text-center border-r">No</th>
                                         <th className="p-4 w-[30%] border-r">Tahapan Pekerjaan</th>
-                                        <th className="p-4 w-[25%] border-r">Keterikatan (Bisa dikerjakan setelah..)</th>
+                                        <th className="p-4 w-[25%] border-r">Keterikatan (Dilanjutkan ke..)</th>
                                         <th className="p-4">Durasi (Hari Ke-)</th>
                                     </tr>
                                 </thead>
@@ -818,8 +832,8 @@ function GanttBoard() {
                                                     value={task.dependencies[0] || ''}
                                                     onChange={(e) => handleDependencyChange(task.id, e.target.value)}
                                                 >
-                                                    <option value="">- Tidak Ada (Dikerjakan paralel) -</option>
-                                                    {tasks.filter(t => t.id < task.id).map(opt => (
+                                                    <option value="">- Tidak Ada -</option>
+                                                    {tasks.filter(t => t.id > task.id).map(opt => (
                                                         <option key={opt.id} value={opt.id}>{opt.id}. {opt.name}</option>
                                                     ))}
                                                 </select>

@@ -11,6 +11,7 @@ import {
     AlertTriangle, FileDown, Building2, CalendarDays, User
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
+import GanttViewer from '@/components/GanttViewer';
 
 import {
     // RAB
@@ -1025,6 +1026,13 @@ export default function ApprovalPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                {/* Visualisasi Gantt Chart - Hanya untuk RAB */}
+                                {selectedDetail.tipe === 'RAB' && (
+                                    <div className="mb-6">
+                                        <GanttViewer nomorUlok={selectedDetail.nomor_ulok} />
+                                    </div>
+                                )}
 
                                 {/* Tabel Rincian */}
                                 {selectedDetail.items.length > 0 ? (
