@@ -1080,10 +1080,10 @@ function GanttBoard() {
                         </div>
                     ) : chartData ? (
                         <div>
-                            <div className="flex sticky top-0 bg-white z-40 border-b border-slate-200 shadow-sm">
-                                <div className="w-62.5 shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r border-slate-200 sticky left-0 z-50">Tahapan</div>
+                            <div className="flex sticky top-0 bg-white z-20 border-b border-slate-200 shadow-sm">
+                                <div className="w-62.5 shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r border-slate-200 sticky left-0 z-30">Tahapan</div>
                                 <div className="flex" style={{ width: chartData.totalChartWidth }}>
-                                     {Array.from({length: chartData.totalDaysToRender}).map((_, i) => {
+                                    {Array.from({length: chartData.totalDaysToRender}).map((_, i) => {
                                         return (
                                             <div key={i} className="shrink-0 text-center border-r border-slate-100 py-1 text-xs font-bold bg-slate-50 text-slate-500" style={{ width: DAY_WIDTH }}>
                                                 {i+1}
@@ -1132,7 +1132,7 @@ function GanttBoard() {
                                     )
                                 })}
 
-                                <svg className="absolute top-0 pointer-events-none z-30" style={{ left: 250, width: chartData.totalChartWidth, height: chartData.svgHeight }}>
+                                <svg className="absolute top-0 pointer-events-none z-0" style={{ left: 250, width: chartData.totalChartWidth, height: chartData.svgHeight }}>
                                     <defs>
                                         <marker id="depArrow" viewBox="0 0 10 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto">
                                             <path d="M0,0 L10,3 L0,6 Z" className="fill-blue-500" />

@@ -299,7 +299,7 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
                             <div key={`col-${i}`} className="absolute top-0 bottom-0 border-r border-slate-100 z-0 pointer-events-none" style={{ left: (i + 1) * DAY_WIDTH, width: 1 }} />
                         ))}
                         
-                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-20 overflow-visible">
+                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-visible">
                             <defs>
                                 <marker id="depArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
                                     <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6" />
