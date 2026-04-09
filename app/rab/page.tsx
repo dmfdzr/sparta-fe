@@ -646,7 +646,7 @@ export default function RABPage() {
                       <SelectValue placeholder="-- Pilih Jenis Proyek --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Alfamart Reguler">Reguler</SelectItem>
+                      <SelectItem value="Reguler">Reguler</SelectItem>
                       <SelectItem value="Renovasi">Renovasi</SelectItem>
                     </SelectContent>
                   </Select>
