@@ -237,9 +237,15 @@ function GanttBoard() {
                 }
 
                 let finalCategories = filtered_categories || [];
+                let rDuration = 1;
+
                 if (validRabId) {
                     try {
                         const rabDetailRes = await fetchRABDetail(validRabId);
+                        if (rabDetailRes?.data?.rab?.durasi_pekerjaan) {
+                            rDuration = parseInt(String(rabDetailRes.data.rab.durasi_pekerjaan).replace(/\D/g, '')) || 1;
+                        }
+
                         if (rabDetailRes?.data?.items) {
                             const uniqueCats = new Set<string>();
                             rabDetailRes.data.items.forEach((item: any) => {
@@ -256,8 +262,6 @@ function GanttBoard() {
                     }
                 }
                 
-                const rData: any = rab;
-                const rDuration = rData?.durasi_pekerjaan ? parseInt(String(rData.durasi_pekerjaan).replace(/\D/g, '')) || 1 : 1;
                 // Set data proyek awal
                 setProjectData({
                     ganttId: null,
