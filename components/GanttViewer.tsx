@@ -22,7 +22,18 @@ function parseDateDDMMYYYY(dateStr: string) {
     return null;
 }
 
-export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, idToko?: number }) {
+function formatHeaderDate(date: Date): string {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    return `${d}/${m}`;
+}
+
+export default function GanttViewer({ nomorUlok, idToko, spkStartDate, spkDuration }: {
+    nomorUlok: string;
+    idToko?: number;
+    spkStartDate?: string;  // ISO date string e.g. "2026-04-01T00:00:00" or "2026-04-01"
+    spkDuration?: number;   // SPK duration in days
+}) {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
     const [projectData, setProjectData] = useState<any>(null);
@@ -43,7 +54,8 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
                         toko: res.toko,
                         kategori_pekerjaan: res.kategori_pekerjaan,
                         day_items: res.day_gantt_data,
-                        dependencies: res.dependency_data || []
+                        dependencies: res.dependency_data || [],
+                        pengawasan: res.pengawasan_data || []
                     }
                 };
             })
@@ -60,7 +72,7 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
         fetchPromise
             .then(detailRes => {
                 if (!detailRes) return;
-                const { gantt, toko, kategori_pekerjaan, day_items, dependencies } = detailRes.data;
+                const { gantt, toko, kategori_pekerjaan, day_items, dependencies, pengawasan } = detailRes.data;
 
                 // Determine project start date
                 let projectStart = new Date();
@@ -90,9 +102,22 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
 
                 const duration = maxDay;
 
+                // If SPK data is provided, use SPK start date and duration
+                const effectiveStartDate = spkStartDate
+                    ? new Date(spkStartDate.split('T')[0] + 'T00:00:00')
+                    : projectStart;
+                const effectiveDuration = spkDuration && spkDuration > 0
+                    ? spkDuration
+                    : duration;
+
+                const pengawasanDates = (pengawasan || []).map((p: any) => p.tanggal_pengawasan).filter(Boolean);
+
                 setProjectData({
-                    duration,
-                    startDate: projectStart.toISOString().split('T')[0],
+                    duration: effectiveDuration,
+                    startDate: effectiveStartDate.toISOString().split('T')[0],
+                    useSpkDates: !!(spkStartDate && spkDuration && spkDuration > 0),
+                    spkStartDateObj: effectiveStartDate,
+                    pengawasanDates
                 });
 
                 let generatedTasks: any[] = kategori_pekerjaan.map((k: any, idx: number) => ({
@@ -151,7 +176,7 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
                 setErrorMsg(err?.message || "Gagal memuat detail Gantt Chart.");
                 setIsLoading(false);
             });
-    }, [nomorUlok, idToko]);
+    }, [nomorUlok, idToko, spkStartDate, spkDuration]);
 
     const chartData = useMemo(() => {
         if (!projectData || tasks.length === 0) return null;
@@ -182,7 +207,7 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
             }
         });
 
-        const totalDaysToRender = Math.max(projectData.duration, maxTaskEndDay) + 5;
+        const totalDaysToRender = projectData.duration;
         const totalChartWidth = totalDaysToRender * DAY_WIDTH;
         const svgHeight = processedTasks.length * ROW_HEIGHT;
         
@@ -238,7 +263,27 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
             }
         }
 
-        return { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, svgLines };
+        let liveDayIndex = -1;
+        if (projectData?.useSpkDates && projectData?.spkStartDateObj) {
+            const today = new Date();
+            const td = String(today.getDate()).padStart(2, '0');
+            const tm = String(today.getMonth() + 1).padStart(2, '0');
+            const ty = today.getFullYear();
+            
+            for (let i = 0; i < totalDaysToRender; i++) {
+                const d = new Date(projectData.spkStartDateObj);
+                d.setDate(d.getDate() + i);
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                if (dd === td && mm === tm && yyyy === ty) {
+                    liveDayIndex = i;
+                    break;
+                }
+            }
+        }
+
+        return { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, svgLines, liveDayIndex };
     }, [tasks, projectData]);
 
     if (isLoading) {
@@ -255,7 +300,7 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
 
     if (!chartData) return null;
 
-    const { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, svgLines } = chartData;
+    const { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, svgLines, liveDayIndex } = chartData;
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden text-xs">
@@ -266,8 +311,8 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
                 </div>
             </div>
             <div className="flex border-b overflow-hidden relative" style={{ maxHeight: "400px" }}>
-                <div className="w-1/3 min-w-50 border-r border-slate-200 bg-white z-10 sticky left-0 shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] flex flex-col">
-                    <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-4 font-bold text-slate-600">
+                <div className="w-1/3 min-w-50 border-r-[3px] border-slate-400 bg-white z-10 sticky left-0 shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] flex flex-col">
+                    <div className="h-10 bg-slate-50 border-b-2 border-slate-300 flex items-center px-4 font-bold text-slate-600">
                         Tahapan Pekerjaan
                     </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar" id="left-pane" onScroll={(e) => {
@@ -286,17 +331,63 @@ export default function GanttViewer({ nomorUlok, idToko }: { nomorUlok: string, 
                     const leftPane = document.getElementById('left-pane');
                     if (leftPane) leftPane.scrollTop = e.currentTarget.scrollTop;
                 }}>
-                    <div className="h-10 border-b border-slate-200 flex sticky top-0 bg-white z-10">
-                        {Array.from({ length: totalDaysToRender }).map((_, i) => (
-                            <div key={i} className="shrink-0 border-r border-slate-200 font-bold text-slate-500 flex items-center justify-center bg-slate-50" style={{ width: DAY_WIDTH }}>
-                                {i + 1}
-                            </div>
-                        ))}
+                    <div className="h-10 border-b-2 border-slate-300 flex sticky top-0 bg-white z-20" style={{ minWidth: totalChartWidth }}>
+                        {Array.from({ length: totalDaysToRender }).map((_, i) => {
+                            let label: string = String(i + 1);
+                            let isPengawasan = false;
+                            let isLiveDay = false;
+                            
+                            if (projectData?.useSpkDates && projectData?.spkStartDateObj) {
+                                const d = new Date(projectData.spkStartDateObj);
+                                d.setDate(d.getDate() + i);
+                                label = formatHeaderDate(d);
+                                
+                                const dd = String(d.getDate()).padStart(2, '0');
+                                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                const yyyy = d.getFullYear();
+                                const fullDateString = `${dd}/${mm}/${yyyy}`;
+                                
+                                const today = new Date();
+                                const td = String(today.getDate()).padStart(2, '0');
+                                const tm = String(today.getMonth() + 1).padStart(2, '0');
+                                const ty = today.getFullYear();
+                                
+                                if (dd === td && mm === tm && yyyy === ty) {
+                                    isLiveDay = true;
+                                }
+                                
+                                if (projectData?.pengawasanDates?.includes(fullDateString)) {
+                                    isPengawasan = true;
+                                }
+                            }
+                            return (
+                                <div key={i} className={`shrink-0 flex flex-col items-center border-r-2 border-slate-300 font-bold py-0.75 ${isLiveDay ? 'bg-green-50 text-green-700' : isPengawasan ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 text-slate-500'}`} style={{ width: DAY_WIDTH, fontSize: projectData?.useSpkDates ? '9px' : undefined }}>
+                                    <span>{label}</span>
+                                    {isPengawasan && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" title="Hari Pengawasan" />}
+                                    {isLiveDay && !isPengawasan && <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1" title="Hari Ini" />}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <div className="relative" style={{ width: totalChartWidth, height: svgHeight }}>
+                        {/* Kolom hijau samar Live Day */}
+                        {liveDayIndex !== -1 && (
+                            <div 
+                                className="absolute top-0 bottom-0 pointer-events-none"
+                                style={{ left: liveDayIndex * DAY_WIDTH, width: DAY_WIDTH, zIndex: 5, backgroundColor: 'rgba(34, 197, 94, 0.08)' }} 
+                            />
+                        )}
+                        {/* Garis Lurus Live Day ke Bawah */}
+                        {liveDayIndex !== -1 && (
+                            <div 
+                                className="absolute top-0 bottom-0 pointer-events-none"
+                                style={{ left: (liveDayIndex * DAY_WIDTH) + (DAY_WIDTH / 2), width: 2, zIndex: 16, backgroundColor: 'rgba(34, 197, 94, 0.7)' }} 
+                            />
+                        )}
+
                         {Array.from({ length: totalDaysToRender }).map((_, i) => (
-                            <div key={`col-${i}`} className="absolute top-0 bottom-0 border-r border-slate-100 z-0 pointer-events-none" style={{ left: (i + 1) * DAY_WIDTH, width: 1 }} />
+                            <div key={`col-${i}`} className="absolute top-0 bottom-0 border-r border-slate-200 z-0 pointer-events-none" style={{ left: (i + 1) * DAY_WIDTH, width: 1 }} />
                         ))}
                         
                         <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-visible">

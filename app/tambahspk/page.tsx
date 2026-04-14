@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-    Save, Loader2, Search, FilePlus, AlertCircle, CheckCircle,
+    Save, Loader2, Search, FilePlus, AlertCircle, CheckCircle, XCircle, AlertTriangle,
     CalendarPlus, CalendarClock, Clock, FileText, Link2, Info,
-    ChevronDown, Calendar, Hash, ArrowRight, UploadCloud, X, Image as ImageIcon
+    ChevronDown, Calendar, Hash, ArrowRight, UploadCloud, X, Image as ImageIcon, FileDown
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
 import {
@@ -17,6 +17,7 @@ import {
     type SPKListItem,
     type PertambahanSPKListItem,
     updatePertambahanSPK,
+    downloadPertambahanSPKLampiran,
 } from '@/lib/api';
 import { BRANCH_GROUPS } from '@/lib/constants';
 
@@ -87,6 +88,24 @@ export default function TambahSPKPage() {
 
     // ── Status info ──────────────────────────────────────────────────────
     const [statusMsg, setStatusMsg] = useState({ text: '', type: '' as '' | 'info' | 'success' | 'warning' | 'error' });
+
+    // ── Revision States ──────────────────────────────────────────────────
+    const [originalRejectedForm, setOriginalRejectedForm] = useState<{
+        pertambahan_hari: string;
+        alasan_perpanjangan: string;
+    } | null>(null);
+
+    const [rejectedModal, setRejectedModal] = useState<{
+        isOpen: boolean;
+        alasanPenolakan: string;
+    }>({ isOpen: false, alasanPenolakan: '' });
+
+    const isRevisiUnchanged = useMemo(() => {
+        if (!originalRejectedForm) return false;
+        if (fileLampiran) return false;
+        return originalRejectedForm.pertambahan_hari === pertambahanHari &&
+               originalRejectedForm.alasan_perpanjangan === alasanPerpanjangan;
+    }, [originalRejectedForm, pertambahanHari, alasanPerpanjangan, fileLampiran]);
 
     // ════════════════════════════════════════════════════════════════════
     //   DERIVED VALUES
@@ -217,6 +236,7 @@ export default function TambahSPKPage() {
         setAlasanPerpanjangan('');
         handleRemoveFile();
         setExistingPerpanjangan([]);
+        setOriginalRejectedForm(null);
 
         if (!spkId) {
             setSelectedSpk(null);
@@ -251,9 +271,17 @@ export default function TambahSPKPage() {
                     // Pre-fill data otomatis agar user bisa merevisi input sebelumnya
                     setPertambahanHari(latest.pertambahan_hari);
                     setAlasanPerpanjangan(latest.alasan_perpanjangan);
+                    setOriginalRejectedForm({
+                        pertambahan_hari: latest.pertambahan_hari,
+                        alasan_perpanjangan: latest.alasan_perpanjangan,
+                    });
+                    setRejectedModal({
+                        isOpen: true,
+                        alasanPenolakan: latest.alasan_penolakan || 'Tidak ada alasan yang diberikan.',
+                    });
                     setStatusMsg({
-                        text: `Pengajuan sebelumnya DITOLAK: "${latest.alasan_penolakan || '-'}". Silakan revisi pengajuan.`,
-                        type: 'error'
+                        text: "Data pengajuan yang ditolak telah dimuat. Ubah minimal 1 field lalu kirim ulang.",
+                        type: 'warning'
                     });
                 } else {
                     setStatusMsg({
@@ -282,6 +310,10 @@ export default function TambahSPKPage() {
     }
     if (!alasanPerpanjangan.trim()) {
         alert("Alasan perpanjangan wajib diisi.");
+        return;
+    }
+    if (originalRejectedForm && isRevisiUnchanged) {
+        alert("Harap ubah minimal 1 field sebelum mengirim revisi pengajuan. Data tidak boleh sama persis dengan pengajuan yang ditolak.");
         return;
     }
 
@@ -407,6 +439,19 @@ export default function TambahSPKPage() {
                                     </div>
                                 )}
 
+                                {/* Banner perubahan wajib saat revisi */}
+                                {originalRejectedForm && (
+                                    <div className={`p-3 rounded-lg flex items-center gap-2 text-xs font-semibold border mt-4 ${
+                                        isRevisiUnchanged
+                                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                            : 'bg-green-50 text-green-700 border-green-200'
+                                    }`}>
+                                        {isRevisiUnchanged
+                                            ? <><AlertTriangle className="w-4 h-4 shrink-0"/> Belum ada perubahan dari pengajuan yang ditolak. Ubah minimal 1 field agar tombol submit aktif.</>
+                                            : <><CheckCircle className="w-4 h-4 shrink-0"/> Perubahan terdeteksi. Anda bisa mengirim revisi pengajuan.</>
+                                        }
+                                    </div>
+                                )}
 
                                 {/* SPK Detail Card */}
                                 {selectedSpk && (
@@ -596,6 +641,36 @@ export default function TambahSPKPage() {
                                 </h3>
 
                                 <div className="space-y-4">
+                                    {existingPerpanjangan[0]?.link_lampiran_pendukung && (
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between mb-4 pointer-events-auto">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                                                    <FileText className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-800">Lampiran Perpanjangan Terakhir</p>
+                                                    <p className="text-xs text-slate-500">Terdapat file yang diunggah sebelumnya.</p>
+                                                </div>
+                                            </div>
+                                            <Button 
+                                                type="button"
+                                                variant="outline" 
+                                                className="border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                                                onClick={async () => {
+                                                    try {
+                                                        const id = existingPerpanjangan[0].id;
+                                                        await downloadPertambahanSPKLampiran(id);
+                                                    } catch (err: any) {
+                                                        alert(err.message || 'Gagal mengunduh lampiran');
+                                                    }
+                                                }}
+                                            >
+                                                <FileDown className="w-4 h-4 mr-2" />
+                                                Lihat Lampiran
+                                            </Button>
+                                        </div>
+                                    )}
+
                                     {!fileLampiran ? (
                                         <div className="relative group cross-fade duration-300">
                                             <input
@@ -660,9 +735,14 @@ export default function TambahSPKPage() {
                                         !selectedSpk ||
                                         !pertambahanHari ||
                                         !alasanPerpanjangan.trim() ||
-                                        isFormDisabled
+                                        isFormDisabled ||
+                                        isRevisiUnchanged
                                     }
-                                    className="w-full h-14 text-lg font-bold shadow-lg transition-all bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
+                                    className={`w-full h-14 text-lg font-bold shadow-lg transition-all ${
+                                        isRevisiUnchanged
+                                            ? 'bg-slate-400 cursor-not-allowed'
+                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    }`}
                                 >
                                     {isSubmitting
                                         ? <><Loader2 className="w-6 h-6 mr-2 animate-spin" /> Menyimpan Data...</>
@@ -675,6 +755,50 @@ export default function TambahSPKPage() {
                 </Card>
             </main>
 
+
+            {/* ════════════════════════════════════════════════════════════
+                MODAL: NOTIFIKASI DITOLAK
+            ════════════════════════════════════════════════════════════ */}
+            {rejectedModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center animate-in zoom-in-95 duration-300">
+                        {/* Icon */}
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                            <XCircle className="w-12 h-12 text-red-600" />
+                        </div>
+
+                        {/* Judul */}
+                        <h2 className="text-2xl font-bold text-slate-800 mb-1">Pengajuan Ditolak</h2>
+                        <p className="text-sm text-slate-500 mb-5">
+                            Pengajuan perpanjangan SPK untuk ULOK ini sebelumnya ditolak oleh Branch Manager.
+                        </p>
+
+                        {/* Alasan Penolakan */}
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-left">
+                            <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Alasan Penolakan</p>
+                            <p className="text-sm font-semibold text-red-800 leading-relaxed">
+                                &ldquo;{rejectedModal.alasanPenolakan}&rdquo;
+                            </p>
+                        </div>
+
+                        {/* Info */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex items-start gap-2 text-left">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-700 font-medium leading-relaxed">
+                                Data pengajuan lama telah dimuat secara otomatis. Anda <strong>wajib mengubah minimal 1 field</strong> sebelum bisa mengirim revisi.
+                            </p>
+                        </div>
+
+                        {/* Tombol */}
+                        <Button
+                            onClick={() => setRejectedModal(prev => ({ ...prev, isOpen: false }))}
+                            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold text-base rounded-xl"
+                        >
+                            Tutup &amp; Mulai Revisi
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL: SUKSES

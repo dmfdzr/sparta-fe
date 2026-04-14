@@ -7,15 +7,12 @@
 //   2.  RAB    — Types, CRUD, Download PDF, Approval
 //   3.  GANTT  — Types, Submit, List, Detail, Update, Lock, Delete,
 //               Day Items, Keterlambatan, Kecepatan, Pengawasan
-//   4.  OPNAME (Server opname)  — Toko, Items, Pending, History, Penalty,
-//               Upload, Submit, Action
-//   5.  OPNAME (Server sparta)  — Status item, Summary, Lock final,
-//               RAB data, PIC list
-//   6.  SPK    — Submit, Cek Status, Types, List, Detail, Approval
-//   7.  TAMBAH SPK     — Submit, Fetch Approved SPK, Types, List, Detail, Approval
+//   4.  SPK    — Submit, Cek Status, Types, List, Detail, Approval
+//   5.  TAMBAH SPK     — Submit, Fetch Approved SPK, Types, List, Detail, Approva
+//   6.  PIC PENGAWASAN — Submit, Fetch List, Fetch Detail, Update
 // =============================================================================
 
-import { API_URL, OPNAME_API_URL } from "./constants";
+import { API_URL } from "./constants";
 
 // =============================================================================
 // 1. GLOBAL — FETCH HELPER
@@ -207,9 +204,24 @@ export const checkRevisionStatus = async (email: string, cabang: string) => {
 
 /** Ambil data harga material/upah berdasarkan cabang dan lingkup pekerjaan. */
 export const fetchPricesData = async (cabang: string, lingkup: string) => {
-    const url = `https://sparta-backend-5hdj.onrender.com/get-data?cabang=${encodeURIComponent(cabang)}&lingkup=${encodeURIComponent(lingkup)}`;
+    const base = API_URL.replace(/\/$/, "");
+    const url = `${base}/get-data?cabang=${encodeURIComponent(cabang)}&lingkup=${encodeURIComponent(lingkup)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Gagal mengambil data harga (${res.status}).`);
+    return res.json();
+};
+
+/** Ambil daftar User Cabang (PIC) */
+export const fetchUserCabangList = async (
+    filters?: { cabang?: string; jabatan?: string }
+): Promise<{ status: string; data: any[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.cabang) params.append("cabang", filters.cabang);
+    if (filters?.jabatan) params.append("jabatan", filters.jabatan);
+    const url = `${base}/api/user_cabang${params.toString() ? `?${params}` : ""}`;
+    const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
+    if (!res.ok) throw new Error("Gagal mengambil data user cabang");
     return res.json();
 };
 
@@ -444,7 +456,8 @@ export type GanttDetailDayItem = {
 export type GanttDetailPengawasan = {
     id:                 number;
     id_gantt:           number;
-    kategori_pekerjaan: string;
+    kategori_pekerjaan?: string;
+    tanggal_pengawasan?: string;
 };
 
 export type GanttDetailDependency = {
@@ -585,6 +598,18 @@ export const lockGanttChart = async (id: number, email: string) => {
     return result;
 };
 
+/** Submit Hari Pengawasan ke Gantt */
+export const submitGanttPengawasan = async (id: number, tanggal_pengawasan: string[]) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/gantt/${id}/pengawasan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tanggal_pengawasan }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menyimpan tanggal pengawasan Gantt.");
+    return result;
+};
+
 /** Hapus Gantt Chart. */
 export const deleteGanttChart = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/gantt/${id}`, {
@@ -665,204 +690,7 @@ export const manageGanttPengawasan = async (
 };
 
 // =============================================================================
-// 4. OPNAME — Server Opname (OPNAME_API_URL)
-// =============================================================================
-
-/** Ambil daftar toko untuk opname berdasarkan role pengguna. */
-export const fetchOpnameStoreList = async (
-    email: string,
-    roleMode: "pic" | "kontraktor"
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    const endpoint = roleMode === "pic" ? "/api/toko" : "/api/toko_kontraktor";
-    return safeFetchJSON(`${base}${endpoint}?username=${encodeURIComponent(email)}`);
-};
-
-/** Ambil semua item opname untuk PIC (termasuk yang belum disubmit). */
-export const fetchOpnameItems = async (
-    kodeToko: string,
-    ulok: string,
-    lingkup: string
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(
-        `${base}/api/opname?kode_toko=${encodeURIComponent(kodeToko)}&no_ulok=${encodeURIComponent(ulok)}&lingkup=${encodeURIComponent(lingkup)}`
-    );
-};
-
-/** Ambil item opname yang sedang pending approval (untuk kontraktor). */
-export const fetchOpnamePending = async (
-    kodeToko: string,
-    ulok: string,
-    lingkup: string
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(
-        `${base}/api/opname/pending?kode_toko=${encodeURIComponent(kodeToko)}&no_ulok=${encodeURIComponent(ulok)}&lingkup=${encodeURIComponent(lingkup)}`
-    );
-};
-
-/** Ambil histori opname yang sudah final. */
-export const fetchOpnameHistory = async (
-    kodeToko: string,
-    ulok: string,
-    lingkup: string
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(
-        `${base}/api/opname/final?kode_toko=${encodeURIComponent(kodeToko)}&no_ulok=${encodeURIComponent(ulok)}&lingkup=${encodeURIComponent(lingkup)}`
-    );
-};
-
-/**
- * Cek apakah ada denda keterlambatan untuk ULOK dan lingkup tertentu.
- * Mengembalikan { terlambat: false } jika endpoint 404 / error.
- */
-export const fetchOpnamePenalty = async (ulok: string, lingkup: string) => {
-    try {
-        const base = OPNAME_API_URL.replace(/\/$/, "");
-        return await safeFetchJSON(
-            `${base}/api/cek_keterlambatan?no_ulok=${encodeURIComponent(ulok)}&lingkup_pekerjaan=${encodeURIComponent(lingkup)}`
-        );
-    } catch {
-        return { terlambat: false, hari_terlambat: 0 };
-    }
-};
-
-/** Upload foto bukti opname. */
-export const uploadOpnameImage = async (formData: FormData) => {
-    const res = await fetch(`${OPNAME_API_URL.replace(/\/$/, "")}/api/upload`, {
-        method: "POST",
-        body:   formData,
-    });
-    if (!res.ok) throw new Error("Gagal mengunggah foto.");
-    return res.json();
-};
-
-/** Submit satu item opname (oleh PIC). */
-export const submitOpnameItem = async (payload: any) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(`${base}/api/opname/item/submit`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-    });
-};
-
-/** Approve atau reject item opname (oleh kontraktor). */
-export const actionOpnameItem = async (
-    action: "approve" | "reject",
-    payload: any
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(`${base}/api/opname/${action}`, {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-    });
-};
-
-// =============================================================================
-// 5. OPNAME — Server Sparta (API_URL)
-// =============================================================================
-
-/**
- * Cek apakah opname untuk ULOK dan lingkup tertentu sudah final.
- * Mengembalikan { tanggal_opname_final: null } jika error.
- */
-export const checkStatusItemOpname = async (ulok: string, lingkup: string) => {
-    try {
-        return await safeFetchJSON(
-            `${API_URL.replace(/\/$/, "")}/api/check_status_item_opname?no_ulok=${encodeURIComponent(ulok)}&lingkup_pekerjaan=${encodeURIComponent(lingkup)}`
-        );
-    } catch {
-        return { tanggal_opname_final: null };
-    }
-};
-
-/** Proses kalkulasi summary opname (sebelum finalisasi). */
-export const processSummaryOpname = async (payload: any) => {
-    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/process_summary_opname`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-    });
-    if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Gagal memproses kalkulasi opname.");
-    }
-    return res.json();
-};
-
-/** Kunci / finalisasi opname. */
-export const lockOpnameFinal = async (payload: any) => {
-    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/opname_locked`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Gagal memfinalisasi opname.");
-    return data;
-};
-
-/** Ambil data RAB untuk keperluan cetak berita acara opname. */
-export const fetchOpnameRabData = async (
-    kodeToko: string,
-    noUlok: string,
-    lingkup: string
-) => {
-    const base = OPNAME_API_URL.replace(/\/$/, "");
-    return safeFetchJSON(
-        `${base}/api/rab?kode_toko=${encodeURIComponent(kodeToko)}&no_ulok=${encodeURIComponent(noUlok)}&lingkup=${encodeURIComponent(lingkup)}`
-    );
-};
-
-/** Ambil daftar nama PIC yang terlibat dalam opname ULOK tertentu. */
-export const fetchPicList = async (
-    noUlok: string,
-    lingkup: string,
-    kodeToko: string
-): Promise<string[]> => {
-    try {
-        const base = OPNAME_API_URL.replace(/\/$/, "");
-        const res = await fetch(
-            `${base}/api/pic-list?no_ulok=${encodeURIComponent(noUlok)}&lingkup=${encodeURIComponent(lingkup)}&kode_toko=${encodeURIComponent(kodeToko)}`
-        );
-        if (!res.ok) return [];
-        const json = await res.json();
-        return Array.isArray(json.pic_list) ? json.pic_list : [];
-    } catch {
-        return [];
-    }
-};
-
-/** Ambil data PIC dan kontraktor dari ULOK. */
-export const fetchPicKontraktorData = async (noUlok: string) => {
-    try {
-        const base = OPNAME_API_URL.replace(/\/$/, "");
-        const res = await fetch(`${base}/api/pic-kontraktor?no_ulok=${encodeURIComponent(noUlok)}`);
-        if (!res.ok) return { pic_username: "N/A", kontraktor_username: "N/A" };
-        return res.json();
-    } catch {
-        return { pic_username: "N/A", kontraktor_username: "N/A" };
-    }
-};
-
-/** Ambil data PIC dan kontraktor khusus konteks berita acara opname. */
-export const fetchPicKontraktorOpnameData = async (noUlok: string) => {
-    try {
-        const base = OPNAME_API_URL.replace(/\/$/, "");
-        const res = await fetch(`${base}/api/pic-kontraktor-opname?no_ulok=${encodeURIComponent(noUlok)}`);
-        if (!res.ok) return { pic_username: "N/A", kontraktor_username: "N/A", name: "" };
-        return res.json();
-    } catch {
-        return { pic_username: "N/A", kontraktor_username: "N/A", name: "" };
-    }
-};
-
-// =============================================================================
-// 6. SPK — Surat Perintah Kerja
+// 4. SPK — Surat Perintah Kerja
 // =============================================================================
 
 // --- Types ---
@@ -1026,7 +854,7 @@ export const processSPKApproval = async (
 };
 
 // =============================================================================
-// 7. PERTAMBAHAN SPK
+// 5. PERTAMBAHAN SPK
 // =============================================================================
 
 // --- Types ---
@@ -1241,6 +1069,40 @@ export const processPertambahanSPKApproval = async (
     return result;
 };
 
+/** Download file lampiran pendukung dari pertambahan SPK. */
+export const downloadPertambahanSPKLampiran = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pertambahan-spk/${id}/lampiran-pendukung`);
+    if (res.status === 404) throw new Error(`Data Pertambahan SPK atau lampiran tidak ditemukan.`);
+    if (res.status === 502) throw new Error(`Gagal mengambil file dari penyimpanan.`);
+    if (!res.ok) {
+        throw new Error(`Gagal mengunduh lampiran (${res.status}).`);
+    }
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `Lampiran_Pertambahan_SPK_${id}`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    } else {
+        const contentType = res.headers.get("Content-Type");
+        if (contentType?.includes("pdf")) filename += ".pdf";
+        else if (contentType?.includes("png")) filename += ".png";
+        else if (contentType?.includes("jpeg") || contentType?.includes("jpg")) filename += ".jpg";
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
 /** Hapus data pertambahan SPK. */
 export const deletePertambahanSPK = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pertambahan-spk/${id}`, {
@@ -1251,4 +1113,70 @@ export const deletePertambahanSPK = async (id: number) => {
     if (res.status === 404) throw new Error("Data pertambahan SPK tidak ditemukan.");
     if (!res.ok) throw new Error(result.message || "Gagal menghapus pertambahan SPK.");
     return result;
+};
+
+// =============================================================================
+// 6. PIC PENGAWASAN
+// =============================================================================
+
+// --- Types ---
+
+export type PICPengawasanPayload = {
+    nomor_ulok: string;
+    id_rab: number;
+    id_spk: number;
+    kategori_lokasi: string;
+    durasi: string;
+    tanggal_mulai_spk: string;
+    plc_building_support: string;
+    hari_pengawasan: number[];
+};
+
+export type PICPengawasanListItem = {
+    id: number;
+    nomor_ulok: string;
+    id_rab: number;
+    id_spk: number;
+    kategori_lokasi: string;
+    durasi: string;
+    tanggal_mulai_spk: string;
+    plc_building_support: string;
+    hari_pengawasan: number[];
+    created_at: string;
+};
+
+export type PICPengawasanListFilters = {
+    nomor_ulok?: string;
+    id_rab?: number;
+    id_spk?: number;
+};
+
+// --- Fungsi ---
+
+/** Submit data PIC Pengawasan baru. */
+export const submitPICPengawasan = async (payload: PICPengawasanPayload) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pic_pengawasan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 404) throw new Error(result.message || "Data referensi tidak ditemukan.");
+    if (res.status === 409) throw new Error(result.message || "Data PIC Pengawasan untuk ULOK/RAB/SPK ini sudah ada.");
+    if (res.status === 422) throw new Error(result.message || "Validasi gagal. Pastikan semua field terisi.");
+    if (!res.ok || result.status !== "success") throw new Error(result.message || "Gagal menyimpan data PIC Pengawasan.");
+    return result;
+};
+
+/** Ambil daftar PIC Pengawasan dengan filter opsional. */
+export const fetchPICPengawasanList = async (
+    filters?: PICPengawasanListFilters
+): Promise<{ status: string; data: PICPengawasanListItem[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    if (filters?.id_rab)     params.append("id_rab", filters.id_rab.toString());
+    if (filters?.id_spk)     params.append("id_spk", filters.id_spk.toString());
+    const url = `${base}/api/pic_pengawasan${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
 };

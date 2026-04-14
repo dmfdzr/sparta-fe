@@ -18,9 +18,6 @@ import {
 export const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "https://sparta-be.onrender.com";
 
-/** Server khusus Opname */
-export const OPNAME_API_URL = "https://opnamebnm-mgbe.onrender.com";
-
 // -----------------------------------------------------------------------------
 // KONFIGURASI MENU APLIKASI
 // Setiap menu memiliki id unik yang digunakan di ROLE_CONFIG untuk access control.
@@ -42,7 +39,7 @@ export const ALL_MENUS = [
         icon: FileSignature,
     },
     {
-        id: "menu-pengawasan",
+        id: "menu-inputpic",
         title: "PIC Pengawasan",
         desc: "Form input PIC pengawasan pekerjaan proyek.",
         href: "/inputpic",
@@ -132,20 +129,20 @@ export const ROLE_CONFIG: Record<string, string[]> = {
     ],
 
     "BRANCH BUILDING & MAINTENANCE MANAGER": [
-        "menu-spk", "menu-pengawasan", "menu-opname", "menu-tambahspk",
+        "menu-spk", "menu-opname", "menu-tambahspk",
         "menu-gantt", "menu-dokumentasi", "menu-svdokumen", "menu-sp",
         "menu-approval", "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING SUPPORT DOKUMENTASI": [
-        "menu-spk", "menu-pengawasan", "menu-opname", "menu-tambahspk",
+        "menu-spk", "menu-opname", "menu-tambahspk",
         "menu-gantt", "menu-dokumentasi", "menu-svdokumen", "menu-sp",
         "menu-daftardokumen",
     ],
 
     "BRANCH BUILDING COORDINATOR": [
         "menu-dokumentasi", "menu-svdokumen", "menu-gantt",
-        "menu-opname", "menu-sp", "menu-approval", "menu-daftardokumen",
+        "menu-opname", "menu-sp", "menu-approval", "menu-daftardokumen", "menu-inputpic"
     ],
 
     "BRANCH BUILDING SUPPORT": [

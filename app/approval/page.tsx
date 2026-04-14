@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
     ArrowLeft, Loader2, CheckCircle, XCircle,
     Search, FileText, ClipboardList, Eye,
-    AlertTriangle, FileDown, Building2, CalendarDays, User
+    AlertTriangle, FileDown, Building2, CalendarDays, User, RefreshCw
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
 import GanttViewer from '@/components/GanttViewer';
@@ -852,15 +852,26 @@ export default function ApprovalPage() {
                                     <p className="text-sm text-slate-500">Daftar pengajuan yang memerlukan tindakan Anda</p>
                                 </div>
                             </div>
-                            <div className="relative w-full md:w-72">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Cari toko / ULOK / email..."
-                                    className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                />
+                            <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                                <div className="relative w-full md:w-72">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari toko / ULOK / email..."
+                                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    className="h-10 w-full md:w-auto shrink-0 bg-white"
+                                    onClick={() => loadList(selectedType)}
+                                    disabled={isLoading}
+                                >
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                                    Refresh
+                                </Button>
                             </div>
                         </div>
 
@@ -1108,7 +1119,12 @@ export default function ApprovalPage() {
                                 {/* Visualisasi Gantt Chart - untuk RAB & SPK */}
                                 {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK') && selectedDetail.id_toko && (
                                     <div className="mb-6">
-                                        <GanttViewer nomorUlok={selectedDetail.nomor_ulok} idToko={selectedDetail.id_toko} />
+                                        <GanttViewer
+                                            nomorUlok={selectedDetail.nomor_ulok}
+                                            idToko={selectedDetail.id_toko}
+                                            spkStartDate={selectedDetail.tipe === 'SPK' ? selectedDetail.waktu_mulai : undefined}
+                                            spkDuration={selectedDetail.tipe === 'SPK' ? selectedDetail.durasi : undefined}
+                                        />
                                     </div>
                                 )}
 
@@ -1238,7 +1254,7 @@ export default function ApprovalPage() {
 
                                 {/* Sticky bottom bar */}
                                 {canActOnDetail && detailAsListItem && (
-                                    <div className="sticky bottom-6 flex justify-center">
+                                    <div className="sticky bottom-6 flex justify-center z-50">
                                         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl px-6 py-4 flex items-center gap-4 animate-in slide-in-from-bottom-2 duration-300">
                                             <span className="text-sm text-slate-600 font-medium hidden md:block">Ambil tindakan pada pengajuan ini:</span>
                                             <Button

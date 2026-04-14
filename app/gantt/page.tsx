@@ -14,7 +14,7 @@ import {
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
     updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko,
-    fetchRABList, fetchRABDetail
+    fetchRABList, fetchRABDetail, fetchSPKList
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
 import { API_URL } from '@/lib/constants';
@@ -82,14 +82,11 @@ function GanttBoard() {
     const [tasks, setTasks] = useState<any[]>([]);
     const [isApplying, setIsApplying] = useState(false);
 
-    // State Delay (PIC)
-    const [delayTaskIdx, setDelayTaskIdx] = useState<string>('');
-    const [delayDays, setDelayDays] = useState<number>(0);
-
-    const [speedTaskIdx, setSpeedTaskIdx] = useState<string>('');
-    const [speedDays, setSpeedDays] = useState<number>(0);
-
     const [rawDayGanttData, setRawDayGanttData] = useState<any[]>([]);
+
+    // SPK info for date-based headers
+    const [spkInfo, setSpkInfo] = useState<{ startDate: string; duration: number } | null>(null);
+    const [pengawasanDates, setPengawasanDates] = useState<string[]>([]);
 
     useEffect(() => {
         const role = sessionStorage.getItem('userRole');
@@ -302,7 +299,7 @@ function GanttBoard() {
 
         try {
             const { data } = await fetchGanttDetail(ganttId);
-            const { gantt, toko, kategori_pekerjaan, day_items, dependencies } = data;
+            const { gantt, toko, kategori_pekerjaan, day_items, dependencies, pengawasan } = data;
 
             let baseCategories: string[] = [];
             let rabDurationFallback = 0;
@@ -375,7 +372,26 @@ function GanttBoard() {
                 startDate:  projectStart.toISOString().split('T')[0],
             });
 
+            // Set pengawasan
+            const pDates = (pengawasan || [])
+                .map((p: any) => p.tanggal_pengawasan)
+                .filter(Boolean);
+            setPengawasanDates(pDates);
+
             setIsProjectLocked(['terkunci', 'locked', 'published'].includes(gantt.status.toLowerCase()));
+
+            // Fetch SPK info for date-based headers
+            try {
+                const spkRes = await fetchSPKList({ nomor_ulok: toko.nomor_ulok, status: 'SPK_APPROVED' });
+                const approvedSpk = (spkRes.data || []).find(s => s.status?.toUpperCase() === 'SPK_APPROVED');
+                if (approvedSpk && approvedSpk.waktu_mulai && approvedSpk.durasi) {
+                    setSpkInfo({ startDate: approvedSpk.waktu_mulai, duration: approvedSpk.durasi });
+                } else {
+                    setSpkInfo(null);
+                }
+            } catch {
+                setSpkInfo(null);
+            }
 
             // --- Normalisasi rawDayGanttData: map ke format lama (Kategori, h_awal, h_akhir)
             //     agar handlePICDelaySave, removeRange, & delay-select tidak perlu diubah ---
@@ -660,71 +676,7 @@ function GanttBoard() {
         }
     };
 
-    const handlePICDelaySave = async () => {
-        if (!selectedGanttId) return alert("Proyek belum dipilih.");
-        if (!delayTaskIdx || delayDays < 0) return alert("Pilih tahapan dan masukkan jumlah hari yang valid.");
-        
-        const item = rawDayGanttData[parseInt(delayTaskIdx)];
-        if (!item) return;
 
-        setIsApplying(true); // Tambahkan loading state agar tombol disable saat proses
-        try {
-            // Payload baru sesuai spesifikasi No. 8
-            const payload = {
-                kategori_pekerjaan: item.Kategori.toUpperCase(),
-                h_awal: item.h_awal,
-                h_akhir: item.h_akhir,
-                keterlambatan: delayDays.toString() // Diubah menjadi string sesuai aturan API
-            };
-            
-            await updateGanttDelay(selectedGanttId, payload);
-            
-            alert("Keterlambatan berhasil diterapkan.");
-            
-            // Reset form delay dan refresh data chart
-            setDelayTaskIdx('');
-            setDelayDays(0);
-            loadGanttDetail(selectedGanttId);
-
-        } catch (err: any) {
-            console.error("Gagal update keterlambatan:", err);
-            alert(`Gagal menyimpan: ${err.message}`);
-        } finally {
-            setIsApplying(false);
-        }
-    };
-
-    const handlePICSpeedSave = async () => {
-        if (!selectedGanttId) return alert("Proyek belum dipilih.");
-        if (!speedTaskIdx || speedDays < 0) return alert("Pilih tahapan dan masukkan jumlah hari yang valid.");
-        
-        const item = rawDayGanttData[parseInt(speedTaskIdx)];
-        if (!item) return;
-
-        setIsApplying(true);
-        try {
-            const payload = {
-                kategori_pekerjaan: item.Kategori.toUpperCase(),
-                h_awal: item.h_awal,
-                h_akhir: item.h_akhir,
-                kecepatan: speedDays.toString()
-            };
-            
-            await updateGanttSpeed(selectedGanttId, payload);
-            
-            alert("Percepatan (Kecepatan) berhasil diterapkan.");
-            
-            setSpeedTaskIdx('');
-            setSpeedDays(0);
-            loadGanttDetail(selectedGanttId);
-
-        } catch (err: any) {
-            console.error("Gagal update kecepatan:", err);
-            alert(`Gagal menyimpan: ${err.message}`);
-        } finally {
-            setIsApplying(false);
-        }
-    };
 
   // --- LOGIKA KALKULASI GRAFIK (RIPPLE EFFECT) ---
     const chartData = useMemo(() => {
@@ -761,7 +713,8 @@ function GanttBoard() {
                 });
             }
         });
-        const totalDaysToRender = Math.max(projectData.duration, maxTaskEndDay) + 5;
+        const baseDuration = spkInfo ? spkInfo.duration : projectData.duration;
+        const totalDaysToRender = baseDuration;
         const totalChartWidth = totalDaysToRender * DAY_WIDTH;
         const svgHeight = processedTasks.length * ROW_HEIGHT;
         const supervisionDays: Record<number, boolean> = {};
@@ -816,8 +769,28 @@ function GanttBoard() {
                 }
             }
         }
-        return { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, supervisionDays, svgLines };
-    }, [tasks, projectData]);
+        let liveDayIndex = -1;
+        if (spkInfo) {
+            const today = new Date();
+            const td = String(today.getDate()).padStart(2, '0');
+            const tm = String(today.getMonth() + 1).padStart(2, '0');
+            const ty = today.getFullYear();
+            
+            for (let i = 0; i < totalDaysToRender; i++) {
+                const d = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
+                d.setDate(d.getDate() + i);
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                if (dd === td && mm === tm && yyyy === ty) {
+                    liveDayIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        return { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, supervisionDays, svgLines, liveDayIndex };
+    }, [tasks, projectData, spkInfo]);
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
@@ -904,7 +877,13 @@ function GanttBoard() {
                             <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
                             <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Lingkup</p><p className="text-xl font-bold text-blue-900">{projectData.work}</p></div>
                             <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
-                            <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Durasi</p><p className="text-xl font-bold text-blue-900">{projectData.duration} Hari</p></div>
+                            <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Durasi {spkInfo ? '(SPK)' : '(RAB)'}</p><p className="text-xl font-bold text-blue-900">{spkInfo ? spkInfo.duration : projectData.duration} Hari</p></div>
+                            {spkInfo && (
+                                <>
+                                    <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
+                                    <div><p className="text-xs font-semibold text-green-600/70 uppercase tracking-wider mb-1">Tgl Mulai SPK</p><p className="text-xl font-bold text-green-800">{new Date(spkInfo.startDate.split('T')[0]).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p></div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -1002,69 +981,7 @@ function GanttBoard() {
                 </div>
             )}
 
-            {!isLoading && selectedUlok && appMode === 'pic' && isProjectLocked && tasks.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* FORM KETERLAMBATAN */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-red-600 mb-4 flex items-center"><Info className="w-5 h-5 mr-2" /> Input Keterlambatan Pengawasan</h3>
-                        <div className="flex flex-col md:flex-row gap-4 items-end">
-                            <div className="flex-1 space-y-2 w-full">
-                                <label className="text-sm font-semibold text-slate-600">Pilih Tahapan yang Terlambat</label>
-                                <select 
-                                    className="w-full p-3 border border-slate-300 rounded-md bg-slate-50 focus:bg-white outline-none"
-                                    value={delayTaskIdx}
-                                    onChange={(e) => {
-                                        setDelayTaskIdx(e.target.value);
-                                        if(e.target.value !== '') setDelayDays(parseInt(rawDayGanttData[parseInt(e.target.value)]?.keterlambatan || 0));
-                                    }}
-                                >
-                                    <option value="">-- Pilih Tahapan --</option>
-                                    {rawDayGanttData.map((d, idx) => (
-                                        <option key={idx} value={idx}>{d.Kategori} ({d.h_awal} - {d.h_akhir})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="w-full md:w-24 space-y-2">
-                                <label className="text-sm font-semibold text-slate-600">Hari (+)</label>
-                                <input type="number" className="w-full p-3 border border-slate-300 rounded-md font-bold text-slate-800 text-center outline-none focus:border-red-500" value={delayDays} onChange={(e) => setDelayDays(parseInt(e.target.value)||0)} min="0" />
-                            </div>
-                        </div>
-                        <Button onClick={handlePICDelaySave} disabled={isApplying} className="mt-4 w-full bg-red-600 hover:bg-red-700 shadow-sm font-bold">
-                            <Send className="w-4 h-4 mr-2" /> Simpan Keterlambatan
-                        </Button>
-                    </div>
 
-                    {/* FORM KECEPATAN (PERCEPATAN) */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-green-600 mb-4 flex items-center"><Info className="w-5 h-5 mr-2" /> Input Percepatan (Maju)</h3>
-                        <div className="flex flex-col md:flex-row gap-4 items-end">
-                            <div className="flex-1 space-y-2 w-full">
-                                <label className="text-sm font-semibold text-slate-600">Pilih Tahapan yang Lebih Cepat</label>
-                                <select 
-                                    className="w-full p-3 border border-slate-300 rounded-md bg-slate-50 focus:bg-white outline-none"
-                                    value={speedTaskIdx}
-                                    onChange={(e) => {
-                                        setSpeedTaskIdx(e.target.value);
-                                        if(e.target.value !== '') setSpeedDays(parseInt(rawDayGanttData[parseInt(e.target.value)]?.kecepatan || 0));
-                                    }}
-                                >
-                                    <option value="">-- Pilih Tahapan --</option>
-                                    {rawDayGanttData.map((d, idx) => (
-                                        <option key={idx} value={idx}>{d.Kategori} ({d.h_awal} - {d.h_akhir})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="w-full md:w-24 space-y-2">
-                                <label className="text-sm font-semibold text-slate-600">Hari (-)</label>
-                                <input type="number" className="w-full p-3 border border-slate-300 rounded-md font-bold text-slate-800 text-center outline-none focus:border-green-500" value={speedDays} onChange={(e) => setSpeedDays(parseInt(e.target.value)||0)} min="0" />
-                            </div>
-                        </div>
-                        <Button onClick={handlePICSpeedSave} disabled={isApplying} className="mt-4 w-full bg-green-600 hover:bg-green-700 shadow-sm font-bold">
-                            <Send className="w-4 h-4 mr-2" /> Simpan Percepatan
-                        </Button>
-                    </div>
-                </div>
-            )}
 
             <Card className="overflow-hidden shadow-md mb-8 border-slate-200">
                 <div className="p-4 bg-slate-100 border-b flex justify-center gap-6 text-sm font-medium">
@@ -1080,25 +997,75 @@ function GanttBoard() {
                         </div>
                     ) : chartData ? (
                         <div>
-                            <div className="flex sticky top-0 bg-white z-20 border-b border-slate-200 shadow-sm">
-                                <div className="w-62.5 shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r border-slate-200 sticky left-0 z-30">Tahapan</div>
+                            <div className="flex sticky top-0 bg-white z-20 border-b-2 border-slate-300 shadow-sm" style={{ minWidth: 250 + chartData.totalChartWidth }}>
+                                <div className="w-62.5 shrink-0 font-bold text-slate-600 p-2.5 bg-white border-r-[3px] border-slate-400 sticky left-0 z-30 shadow-[2px_0_10px_rgba(0,0,0,0.1)]">Tahapan</div>
                                 <div className="flex" style={{ width: chartData.totalChartWidth }}>
-                                    {Array.from({length: chartData.totalDaysToRender}).map((_, i) => {
-                                        return (
-                                            <div key={i} className="shrink-0 text-center border-r border-slate-100 py-1 text-xs font-bold bg-slate-50 text-slate-500" style={{ width: DAY_WIDTH }}>
-                                                {i+1}
-                                            </div>
-                                        )
-                                    })}
+                                {Array.from({length: chartData.totalDaysToRender}).map((_, i) => {
+                                    let label: string = String(i + 1);
+                                    let isPengawasan = false;
+                                    let isLiveDay = false;
+                                    
+                                    if (spkInfo) {
+                                        const d = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
+                                        d.setDate(d.getDate() + i);
+                                        const dd = String(d.getDate()).padStart(2, '0');
+                                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                        const yyyy = d.getFullYear();
+                                        label = `${dd}/${mm}`;
+                                        
+                                        const fullDateString = `${dd}/${mm}/${yyyy}`;
+                                        
+                                        const today = new Date();
+                                        const td = String(today.getDate()).padStart(2, '0');
+                                        const tm = String(today.getMonth() + 1).padStart(2, '0');
+                                        const ty = today.getFullYear();
+                                        
+                                        if (dd === td && mm === tm && yyyy === ty) {
+                                            isLiveDay = true;
+                                        }
+                                        if (pengawasanDates.includes(fullDateString)) {
+                                            isPengawasan = true;
+                                        }
+                                    }
+                                    return (
+                                        <div key={i} className={`shrink-0 flex flex-col items-center border-r-2 border-slate-300 py-1 font-bold ${isLiveDay ? 'bg-green-50 text-green-700' : isPengawasan ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 text-slate-500'}`} style={{ width: DAY_WIDTH, fontSize: spkInfo ? '9px' : '12px' }}>
+                                            <span>{label}</span>
+                                            {isPengawasan && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" title="Hari Pengawasan" />}
+                                            {isLiveDay && !isPengawasan && <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1" title="Hari Ini" />}
+                                        </div>
+                                    )
+                                })}
                                 </div>
                             </div>
                             
-                            <div className="relative">
+                            <div className="relative" style={{ minWidth: 250 + chartData.totalChartWidth }}>
+                                {/* Garis Live Day - kolom hijau samar full height */}
+                                {chartData.liveDayIndex !== -1 && (
+                                    <div 
+                                        className="absolute top-0 bottom-0 pointer-events-none"
+                                        style={{ left: 250 + (chartData.liveDayIndex * DAY_WIDTH), width: DAY_WIDTH, zIndex: 5, backgroundColor: 'rgba(34, 197, 94, 0.08)' }} 
+                                    />
+                                )}
+                                {chartData.liveDayIndex !== -1 && (
+                                    <div 
+                                        className="absolute top-0 bottom-0 pointer-events-none"
+                                        style={{ left: 250 + (chartData.liveDayIndex * DAY_WIDTH) + (DAY_WIDTH / 2), width: 2, zIndex: 16, backgroundColor: 'rgba(34, 197, 94, 0.7)' }} 
+                                    />
+                                )}
+
+                                {/* Garis pemisah tegas antara Tahapan Pekerjaan dan Hari */}
+                                <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 250, borderRight: '3px solid #94a3b8', zIndex: 18, boxShadow: '2px 0 8px rgba(0,0,0,0.1)' }} />
+
+                                {/* Garis vertikal pembatas kolom - full height */}
+                                {Array.from({ length: chartData.totalDaysToRender }).map((_, ci) => (
+                                    <div key={`vl-${ci}`} className="absolute top-0 bottom-0 pointer-events-none z-0" style={{ left: 250 + ((ci + 1) * DAY_WIDTH), borderRight: '1px solid #e2e8f0' }} />
+                                ))}
+
                                 {chartData.processedTasks.map((task: any, idx: number) => {
                                     const shift = task.computed.shift || 0;
                                     return (
-                                        <div key={task.id} className="flex border-b border-slate-50 hover:bg-slate-50/50" style={{ height: ROW_HEIGHT }}>
-                                            <div className="w-62.5 shrink-0 px-2.5 py-1 bg-white border-r border-slate-200 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.02)] flex flex-col justify-center">
+                                        <div key={task.id} className="flex hover:bg-slate-50/50" style={{ height: ROW_HEIGHT, borderBottom: '1px solid #cbd5e1', minWidth: 250 + chartData.totalChartWidth }}>
+                                            <div className="w-62.5 shrink-0 px-2.5 py-1 bg-white border-r-[3px] border-slate-400 sticky left-0 z-20 flex flex-col justify-center shadow-[2px_0_10px_rgba(0,0,0,0.1)]">
                                                 <span className="text-[13px] font-semibold text-slate-800 leading-tight">{task.name}</span>
                                             </div>
                                             <div className="relative" style={{ width: chartData.totalChartWidth }}>
@@ -1150,9 +1117,8 @@ function GanttBoard() {
                 </div>
             </Card>
 
-            {projectData && !isLoading && tasks.length > 0 && (
+            {projectData && !isLoading && tasks.length > 0 && appMode === 'kontraktor' && !isProjectLocked && (
                 <div className="sticky bottom-4 z-50 bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] flex flex-col md:flex-row gap-4 justify-end">
-                    {appMode === 'kontraktor' && !isProjectLocked && (
                         <>
                             {/* Tombol Hapus Draft */}
                             {selectedGanttId && (
@@ -1169,12 +1135,6 @@ function GanttBoard() {
                                 <Lock className="w-5 h-5 mr-2" /> {isApplying ? "Menyimpan..." : "Kunci & Publish Jadwal"}
                             </Button>
                         </>
-                    )}
-                    {appMode === 'pic' && isProjectLocked && (
-                        <Button onClick={handlePICDelaySave} className="h-12 bg-blue-600 hover:bg-blue-700 shadow-md font-bold px-8 text-[15px] w-full md:w-auto">
-                            <Send className="w-5 h-5 mr-2" /> Simpan Update Keterlambatan
-                        </Button>
-                    )}
                 </div>
             )}
         </main>
