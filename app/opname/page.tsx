@@ -203,7 +203,8 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             // Initialize inputs - pre-fill with RAB volume, check existing opname
             const inputs: typeof opnameInputs = {};
             (items || []).forEach((item: RABDetailItem) => {
-                const existing = existingData.find(o => o.id_rab_item === item.id);
+                // Gunakan Number() untuk menghindari type mismatch string vs number
+                const existing = existingData.find(o => Number(o.id_rab_item) === Number(item.id));
                 inputs[item.id] = {
                     volume_akhir: existing ? String(existing.volume_akhir) : String(item.volume),
                     desain: existing?.desain || '',
@@ -249,11 +250,21 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
     // Group items by category — only show items that haven't been submitted yet OR were rejected
     const groupedItems = useMemo(() => {
+        // Build Set dari id_rab_item yang sudah di-opname dengan status blocking
+        // Menggunakan Number() untuk menghindari type mismatch string vs number
+        const blockedRabItemIds = new Set<number>();
+        existingOpname.forEach(o => {
+            const status = (o.status || '').toLowerCase();
+            // Samakan dengan modal Gantt: pending, disetujui, selesai, progress dianggap sudah diproses
+            if (['pending', 'disetujui', 'selesai', 'progress'].includes(status)) {
+                blockedRabItemIds.add(Number(o.id_rab_item));
+            }
+        });
+
         const map = new Map<string, RABDetailItem[]>();
         rabItems.forEach(item => {
-            const existing = existingOpname.find(o => o.id_rab_item === item.id);
-            // Hide items with status pending or disetujui
-            if (existing && ['pending', 'disetujui'].includes(existing.status?.toLowerCase())) return;
+            // Skip item yang sudah di-opname dengan status pending/disetujui
+            if (blockedRabItemIds.has(Number(item.id))) return;
             // Allow: no existing record (new) or status ditolak (revision)
 
             const cat = item.kategori_pekerjaan;
@@ -265,7 +276,8 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
     // Helper: check if an item was previously rejected
     const getRejectedOpname = (rabItemId: number) => {
-        return existingOpname.find(o => o.id_rab_item === rabItemId && o.status?.toLowerCase() === 'ditolak');
+        // Gunakan Number() untuk menghindari type mismatch string vs number
+        return existingOpname.find(o => Number(o.id_rab_item) === Number(rabItemId) && o.status?.toLowerCase() === 'ditolak');
     };
 
     // Check if all items are approved (for Opname Final button)
@@ -361,10 +373,10 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                 volume_akhir: volAkhir,
                 selisih_volume: selisihVol,
                 total_selisih: totalSelisih,
-                desain: input.desain || undefined,
-                kualitas: input.kualitas || undefined,
-                spesifikasi: input.spesifikasi || undefined,
-                catatan: input.catatan || undefined,
+                desain: input.desain || null,
+                kualitas: input.kualitas || null,
+                spesifikasi: input.spesifikasi || null,
+                catatan: input.catatan || null,
             };
 
             if (input.file) {
@@ -776,7 +788,8 @@ function OpnameHistoryView({ opnameList, rabItems }: { opnameList: OpnameItem[];
                     </thead>
                     <tbody>
                         {opnameList.map(item => {
-                            const rabItem = rabItems.find(r => r.id === item.id_rab_item);
+                            // Gunakan Number() untuk menghindari type mismatch string vs number
+                            const rabItem = rabItems.find(r => Number(r.id) === Number(item.id_rab_item));
                             return (
                                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                                     <td className="py-3 pr-4 font-semibold text-slate-700">

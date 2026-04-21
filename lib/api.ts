@@ -735,8 +735,9 @@ export const fetchPengawasanList = async (filters?: { id_gantt?: number; status?
 export type OpnameItem = {
     id:              number;
     id_toko:         number;
+    id_opname_final: number;
     id_rab_item:     number;
-    status:          'progress' | 'selesai' | 'terlambat' | string;
+    status:          'pending' | 'disetujui' | 'ditolak' | string;
     volume_akhir:    number;
     selisih_volume:  number;
     total_selisih:   number;
@@ -772,9 +773,10 @@ export type OpnameItem = {
 };
 
 export type OpnameListFilters = {
-    id_toko?:     number;
-    id_rab_item?: number;
-    status?:      string;
+    id_toko?:         number;
+    id_opname_final?: number;
+    id_rab_item?:     number;
+    status?:          string;
 };
 
 // --- Fungsi ---
@@ -813,9 +815,10 @@ export const fetchOpnameList = async (
 ): Promise<{ status: string; data: OpnameItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
-    if (filters?.id_toko)     params.append("id_toko", filters.id_toko.toString());
-    if (filters?.id_rab_item) params.append("id_rab_item", filters.id_rab_item.toString());
-    if (filters?.status)      params.append("status", filters.status);
+    if (filters?.id_toko)         params.append("id_toko", filters.id_toko.toString());
+    if (filters?.id_opname_final) params.append("id_opname_final", filters.id_opname_final.toString());
+    if (filters?.id_rab_item)     params.append("id_rab_item", filters.id_rab_item.toString());
+    if (filters?.status)          params.append("status", filters.status);
     const url = `${base}/api/opname${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url);
 };

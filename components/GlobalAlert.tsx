@@ -69,7 +69,7 @@ export function GlobalAlert() {
 
   return (
     <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
-      <AlertDialogContent className="max-w-[400px] rounded-3xl border-0 shadow-2xl p-0 overflow-hidden animate-in zoom-in-95 duration-300">
+      <AlertDialogContent className="max-w-100 rounded-3xl border-0 shadow-2xl p-0 overflow-hidden animate-in zoom-in-95 duration-300">
         <div className={cn("p-8 flex flex-col items-center text-center gap-4", getThemeClass())}>
           <div className="bg-white/80 p-4 rounded-full shadow-sm">
             {getIcon()}

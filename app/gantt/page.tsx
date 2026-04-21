@@ -1821,12 +1821,25 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     let latestRabItems = rabItems;
                     let existingOpnameItems: any[] = [];
 
-                    try {
-                        const opnames = await fetchOpnameList({ id_toko });
-                        existingOpnameItems = opnames.data || [];
-                    } catch (e) {
-                        console.warn("Gagal mendapatkan status opname existing:", e);
+                    // Ambil daftar opname yg sudah ada untuk toko ini
+                    if (id_toko) {
+                        try {
+                            const opnames = await fetchOpnameList({ id_toko });
+                            existingOpnameItems = opnames.data || [];
+                        } catch (e) {
+                            console.warn("Gagal mendapatkan status opname existing:", e);
+                        }
                     }
+
+                    // Build Set dari id_rab_item yang sudah di-opname dengan status blocking
+                    // Menggunakan Number() untuk menghindari type mismatch string vs number
+                    const blockedRabItemIds = new Set<number>();
+                    existingOpnameItems.forEach((op: any) => {
+                        const status = (op.status || '').toLowerCase();
+                        if (['pending', 'disetujui'].includes(status)) {
+                            blockedRabItemIds.add(Number(op.id_rab_item));
+                        }
+                    });
 
                     // Fetch fresh RAB data directly from GET api/rab/:id to guarantee satuan exists
                     const idRab = rabItems?.[0]?.id_rab;
@@ -1842,10 +1855,27 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     }
 
                     const merged = data.map((p: any) => {
-                        const rItem = latestRabItems.find((r: any) => r.kategori_pekerjaan.toUpperCase() === p.kategori_pekerjaan.toUpperCase() && r.jenis_pekerjaan.toUpperCase() === p.jenis_pekerjaan.toUpperCase());
+                        // Coba gunakan id_rab_item langsung dari pengawasan jika tersedia
+                        let matchedRabItemId = p.id_rab_item ? Number(p.id_rab_item) : null;
+                        let rItem: any = null;
+
+                        if (matchedRabItemId) {
+                            // Cocokkan langsung via ID
+                            rItem = latestRabItems.find((r: any) => Number(r.id) === matchedRabItemId);
+                        }
+
+                        // Fallback: cocokkan via nama kategori + jenis pekerjaan
+                        if (!rItem) {
+                            rItem = latestRabItems.find((r: any) =>
+                                r.kategori_pekerjaan?.toUpperCase() === p.kategori_pekerjaan?.toUpperCase() &&
+                                r.jenis_pekerjaan?.toUpperCase() === p.jenis_pekerjaan?.toUpperCase()
+                            );
+                            if (rItem) matchedRabItemId = Number(rItem.id);
+                        }
+
                         return {
                             ...p,
-                            id_rab_item: rItem?.id,
+                            id_rab_item: matchedRabItemId || rItem?.id,
                             volume_rab: parseFloat(rItem?.volume) || 0,
                             harga_material: parseFloat(rItem?.harga_material) || 0,
                             harga_upah: parseFloat(rItem?.harga_upah) || 0,
@@ -1854,11 +1884,8 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     }).filter((item: any) => {
                         if (!item.id_rab_item) return false;
                         
-                        // Validasi agar item yg sudah diajukan opname (pending/disetujui/selesai) tidak muncul lagi
-                        const opnameRecord = existingOpnameItems.find((op: any) => op.id_rab_item === item.id_rab_item);
-                        if (opnameRecord && ['pending', 'disetujui', 'selesai', 'progress'].includes(opnameRecord.status.toLowerCase())) {
-                            return false;
-                        }
+                        // Filter: item yg sudah diajukan opname (pending/disetujui) tidak muncul lagi
+                        if (blockedRabItemIds.has(Number(item.id_rab_item))) return false;
                         return true;
                     });
 
@@ -1906,14 +1933,27 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
         return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
     }, [completedItems]);
 
-    const isAllVerified = useMemo(() => {
+    // Tambahan Validasi isSubmitValid
+    const isSubmitValid = useMemo(() => {
         if (completedItems.length === 0) return false;
-        return completedItems.every(item => {
+        
+        for (const item of completedItems) {
             const input = opnameInputs[item.id];
-            return input && input.desain && input.kualitas && input.spesifikasi;
-        });
+            if (!input) return false;
+            
+            // 1. Validasi volume akhir tidak boleh kosong
+            if (input.volume_akhir === undefined || input.volume_akhir === null || input.volume_akhir === '') return false;
+            
+            // 2. Validasi verifikasi pekerjaan (semua dropdown wajib diisi)
+            if (!input.desain || input.desain === '') return false;
+            if (!input.kualitas || input.kualitas === '') return false;
+            if (!input.spesifikasi || input.spesifikasi === '') return false;
+        }
+        
+        return true;
     }, [completedItems, opnameInputs]);
 
+    // Refactor handleSubmit dengan parsing tipe data untuk menghindari API Rejection
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
@@ -1932,19 +1972,18 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                 const input = opnameInputs[item.id];
                 const volAkhir = parseFloat(input.volume_akhir) || 0;
                 const selisihVol = volAkhir - item.volume_rab;
-                const totalSelisih = selisihVol * (item.harga_material + item.harga_upah);
+                const totalSelisih = Math.round(selisihVol * (item.harga_material + item.harga_upah));
                 
                 itemsArray.push({
-                    id_toko: id_toko,
-                    id_rab_item: item.id_rab_item,
-                    status: 'pending', // default status of opname
+                    id_rab_item: Number(item.id_rab_item), // Force Number
+                    status: 'pending', // status default opname
                     volume_akhir: volAkhir,
                     selisih_volume: selisihVol,
                     total_selisih: totalSelisih,
-                    desain: input.desain || undefined,
-                    kualitas: input.kualitas || undefined,
-                    spesifikasi: input.spesifikasi || undefined,
-                    catatan: input.catatan || undefined
+                    desain: input.desain,
+                    kualitas: input.kualitas,
+                    spesifikasi: input.spesifikasi,
+                    catatan: input.catatan || "" // Hindari undefined value
                 });
                 
                 if (input.file) {
@@ -1971,10 +2010,11 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                 // Selalu kirim file_foto_opname_indexes agar mapping 100% presisi
                 const indexes = filesMap.map(f => f.index);
                 formData.append('file_foto_opname_indexes', JSON.stringify(indexes));
+                
                 await submitOpnameBulk(formData);
             } else {
                 await submitOpnameBulk({
-                    id_toko,
+                    id_toko: Number(id_toko),
                     email_pembuat: emailPembuat,
                     items: itemsArray
                 });
@@ -2138,7 +2178,11 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
 
                 <div className="p-5 border-t bg-white flex justify-end gap-3 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-10">
                     <Button variant="outline" className="font-semibold" onClick={onClose}>Kembali</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || groupedByCategory.length === 0 || !isAllVerified} className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md">
+                    <Button 
+                        onClick={handleSubmit} 
+                        disabled={isSubmitting || !isSubmitValid} 
+                        className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                         Submit Opname
                     </Button>
