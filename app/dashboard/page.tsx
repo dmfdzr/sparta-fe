@@ -174,7 +174,7 @@ export default function DashboardPage() {
 
                     {/* Sidebar footer */}
                     <div className="px-4 py-2.5 border-t border-slate-100 shrink-0">
-                        <p className="text-[10px] text-slate-300 text-center">SPARTA — Alfamart B&amp;M</p>
+                        <p className="text-[10px] text-slate-400 text-center">SPARTA Building — Alfamart</p>
                     </div>
                 </aside>
 

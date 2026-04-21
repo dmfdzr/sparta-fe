@@ -23,6 +23,8 @@ import {
     // Pertambahan SPK
     fetchPertambahanSPKList, fetchPertambahanSPKDetail, processPertambahanSPKApproval,
     type PertambahanSPKListItem, type PertambahanSPKDetailResponse,
+    // Opname Final
+    fetchOpnameFinalList, fetchOpnameFinalDetail, approveOpnameFinal, downloadOpnameFinalPdf,
 } from '@/lib/api';
 
 import { parseCurrency } from '@/lib/utils';
@@ -30,7 +32,7 @@ import { parseCurrency } from '@/lib/utils';
 // =============================================
 // TYPES INTERNAL
 // =============================================
-type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK';
+type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL';
 type ActiveView = 'menu' | 'list' | 'detail';
 
 
@@ -44,7 +46,7 @@ interface NormalizedListItem {
     total_nilai: number;
     email_pembuat: string;
     created_at: string;
-    _raw: RABListItem | SPKListItem | PertambahanSPKListItem;
+    _raw: RABListItem | SPKListItem | PertambahanSPKListItem | any;
     // Pertambahan SPK specific
     pertambahan_hari?: string;
     nomor_spk?: string;
@@ -120,6 +122,7 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
     RAB: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR'],
     SPK: ['BRANCH MANAGER'],
     PERTAMBAHAN_SPK: ['BRANCH MANAGER'],
+    OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR'],
 };
 
 const ROLE_TO_JABATAN: Record<string, 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR'> = {
@@ -164,6 +167,15 @@ const APPROVAL_CONFIG: Record<ApprovalType, {
         badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
         description: 'Perpanjangan hari SPK yang menunggu persetujuan.',
         emptyMsg: 'Tidak ada pengajuan pertambahan SPK yang menunggu persetujuan.',
+    },
+    OPNAME_FINAL: {
+        label: 'Approval Opname Final',
+        icon: <CheckCircle className="w-10 h-10" />,
+        color: 'text-indigo-700',
+        hoverBorder: 'hover:border-indigo-500',
+        badgeColor: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+        description: 'Opname Final yang menunggu persetujuan.',
+        emptyMsg: 'Tidak ada pengajuan Opname Final yang menunggu persetujuan.',
     },
 };
 
@@ -248,6 +260,20 @@ const normalizePertambahanSPKList = (items: PertambahanSPKListItem[]): Normalize
         nomor_spk:     p.nomor_spk,
         alasan_perpanjangan: p.alasan_perpanjangan,
         _raw: p,
+    }));
+
+const normalizeOpnameFinalList = (items: any[]): NormalizedListItem[] =>
+    items.map(o => ({
+        id: o.id,
+        tipe: 'OPNAME_FINAL' as ApprovalType,
+        nomor_ulok:    o.toko?.nomor_ulok || '-',
+        nama_toko:     o.toko?.nama_toko || '-',
+        cabang:        o.toko?.cabang || '-',
+        status:        o.status_opname_final,
+        total_nilai:   parseCurrency(parseFloat(o.grand_total_opname || "0")),
+        email_pembuat: o.email_pembuat,
+        created_at:    o.created_at,
+        _raw: o,
     }));
 
 // =============================================
@@ -390,6 +416,9 @@ export default function ApprovalPage() {
             } else if (type === 'PERTAMBAHAN_SPK') {
                 const res = await fetchPertambahanSPKList({ status_persetujuan: 'Menunggu Persetujuan' });
                 normalized = normalizePertambahanSPKList(res.data ?? []);
+            } else if (type === 'OPNAME_FINAL') {
+                const res = await fetchOpnameFinalList();
+                normalized = normalizeOpnameFinalList(res.data ?? []);
             }
 
             // Filter Berdasarkan Role & Jabatan & Cabang
@@ -533,6 +562,40 @@ export default function ApprovalPage() {
                     nomor_spk:         d.nomor_spk || d.spk?.nomor_spk,
                     items: [],
                 };
+            } else if (item.tipe === 'OPNAME_FINAL') {
+                const res = await fetchOpnameFinalDetail(item.id);
+                const d = res.data;
+                detail = {
+                    id: d.id,
+                    tipe: 'OPNAME_FINAL',
+                    nomor_ulok:        d.toko?.nomor_ulok || '-',
+                    id_toko:           d.id_toko,
+                    nama_toko:         d.toko?.nama_toko || '-',
+                    kode_toko:         d.toko?.kode_toko,
+                    alamat:            d.toko?.alamat,
+                    cabang:            d.toko?.cabang || '',
+                    lingkup_pekerjaan: d.toko?.lingkup_pekerjaan,
+                    status:            d.status_opname_final,
+                    total_nilai:       parseCurrency(parseFloat(d.grand_total_opname || "0")),
+                    email_pembuat:     d.email_pembuat,
+                    created_at:        d.created_at,
+                    alasan_penolakan:  d.alasan_penolakan,
+                    link_pdf_gabungan: d.link_pdf_opname,
+                    approval_koordinator: { pemberi: d.pemberi_persetujuan_koordinator, waktu: d.waktu_persetujuan_koordinator },
+                    approval_manager:     { pemberi: d.pemberi_persetujuan_manager,     waktu: d.waktu_persetujuan_manager },
+                    approval_direktur:    { pemberi: d.pemberi_persetujuan_direktur,    waktu: d.waktu_persetujuan_direktur },
+                    items: (d.items ?? []).map((it: any) => ({
+                        id: it.id,
+                        kategori:        it.rab_item?.kategori_pekerjaan || '-',
+                        jenis_pekerjaan: it.rab_item?.jenis_pekerjaan || '-',
+                        satuan:          it.rab_item?.satuan || '-',
+                        volume:          it.volume_akhir,
+                        harga_material:  it.rab_item?.harga_material || 0,
+                        harga_upah:      it.rab_item?.harga_upah || 0,
+                        total:           (it.volume_akhir * (it.rab_item?.harga_material || 0)) + (it.volume_akhir * (it.rab_item?.harga_upah || 0)),
+                        catatan:         it.catatan,
+                    })),
+                };
             }
 
             setSelectedDetail(detail);
@@ -564,6 +627,12 @@ export default function ApprovalPage() {
             } else if (item.tipe === 'PERTAMBAHAN_SPK') {
                 await processPertambahanSPKApproval(item.id as number, {
                     approver_email: userInfo.email,
+                    tindakan:       'APPROVE',
+                });
+            } else if (item.tipe === 'OPNAME_FINAL') {
+                await approveOpnameFinal(item.id as number, {
+                    approver_email: userInfo.email,
+                    jabatan:        jabatan ?? 'KOORDINATOR',
                     tindakan:       'APPROVE',
                 });
             }
@@ -615,6 +684,13 @@ export default function ApprovalPage() {
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
                 });
+            } else if (item.tipe === 'OPNAME_FINAL') {
+                await approveOpnameFinal(item.id as number, {
+                    approver_email:   userInfo.email,
+                    jabatan:          jabatan ?? 'KOORDINATOR',
+                    tindakan:         'REJECT',
+                    alasan_penolakan: rejectNote,
+                });
             }
             // Hapus item dari list karena sudah ditolak
             setListData(prev => prev.filter(d => d.id !== item.id));
@@ -641,6 +717,8 @@ export default function ApprovalPage() {
                 await downloadRABPdf(id);
             } else if (type === 'SPK') {
                 await downloadSPKPdf(id);
+            } else if (type === 'OPNAME_FINAL') {
+                await downloadOpnameFinalPdf(id);
             }
             showToast('PDF berhasil dibuka.', 'success');
         } catch (err: any) {
@@ -1001,6 +1079,20 @@ export default function ApprovalPage() {
                                             : <FileDown className="w-4 h-4 mr-2" />
                                         }
                                         {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download SPK (PDF)'}
+                                    </Button>
+                                )}
+                                {selectedDetail?.tipe === 'OPNAME_FINAL' && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-indigo-600 text-indigo-700 hover:bg-indigo-50 font-bold"
+                                        disabled={processingId === `pdf-${selectedDetail.id}`}
+                                        onClick={() => handleDownloadPDF(selectedDetail.id as number, 'OPNAME_FINAL')}
+                                    >
+                                        {processingId === `pdf-${selectedDetail.id}`
+                                            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            : <FileDown className="w-4 h-4 mr-2" />
+                                        }
+                                        {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download Opname (PDF)'}
                                     </Button>
                                 )}
                             </div>

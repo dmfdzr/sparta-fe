@@ -702,6 +702,19 @@ export const submitPengawasanBulk = async (payload: FormData | { items: any[] })
     return result;
 };
 
+/** Update Bulk Pengawasan (Items Pekerjaan dari Memo) */
+export const updatePengawasanBulk = async (payload: FormData | { items: any[] }) => {
+    const isFormData = payload instanceof FormData;
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pengawasan/bulk`, {
+        method: "PUT",
+        headers: isFormData ? {} : { "Content-Type": "application/json" },
+        body: isFormData ? payload : JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal mengupdate pengawasan bulk.");
+    return result;
+};
+
 /** Ambil daftar pengawasan selesai/seluruhnya */
 export const fetchPengawasanList = async (filters?: { id_gantt?: number; status?: string; tanggal?: string }) => {
     const params = new URLSearchParams();
@@ -765,6 +778,19 @@ export type OpnameListFilters = {
 };
 
 // --- Fungsi ---
+
+/** Single Submit Opname (POST /api/opname) */
+export const submitOpnameSingle = async (payload: FormData | Record<string, any>) => {
+    const isFormData = payload instanceof FormData;
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/opname`, {
+        method: "POST",
+        headers: isFormData ? {} : { "Content-Type": "application/json" },
+        body: isFormData ? payload : JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menyimpan opname.");
+    return result;
+};
 
 /** Bulk Submit Opname */
 export const submitOpnameBulk = async (payload: FormData | { items: any[] }) => {
@@ -858,12 +884,104 @@ export const deleteOpname = async (id: number) => {
 };
 
 // =============================================================================
+// 3b. OPNAME FINAL
+// =============================================================================
+
+/** List Opname Final headers */
+export const fetchOpnameFinalList = async (filters?: { status?: string; id_toko?: number; nomor_ulok?: string; cabang?: string }) => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
+    if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    if (filters?.cabang) params.append("cabang", filters.cabang);
+    const url = `${base}/api/final_opname${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
+};
+
+/** Detail Opname Final */
+export const fetchOpnameFinalDetail = async (id: number) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal memuat detail opname final (${res.status}): ${text.substring(0, 100)}`);
+    }
+    return res.json();
+};
+
+/** Kunci Opname Final — POST /api/final_opname/:id/kunci_opname_final */
+export const kunciOpnameFinal = async (id: number, payload: {
+    id_toko: number;
+    email_pembuat: string;
+    grand_total_opname: string;
+    grand_total_rab: string;
+    opname_item: any[];
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}/kunci_opname_final`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal mengunci opname final.");
+    return result;
+};
+
+/** Approval Opname Final — POST /api/final_opname/:id/approval */
+export const approveOpnameFinal = async (id: number, payload: {
+    approver_email: string;
+    jabatan: string;
+    tindakan: 'APPROVE' | 'REJECT';
+    alasan_penolakan?: string | null;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}/approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memproses approval opname final.");
+    return result;
+};
+
+/** Download PDF Opname Final */
+export const downloadOpnameFinalPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}/pdf`);
+    if (res.status === 404) throw new Error(`Data Opname Final dengan ID ${id} tidak ditemukan.`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal mengunduh PDF (${res.status}): ${text.substring(0, 100)}`);
+    }
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `OPNAME_FINAL_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
+
+// =============================================================================
 // 4. SPK — Surat Perintah Kerja
 // =============================================================================
 
 // --- Types ---
 
 export type SPKSubmitPayload = {
+    id_toko: number;
     nomor_ulok: string;
     email_pembuat: string;
     lingkup_pekerjaan: string;

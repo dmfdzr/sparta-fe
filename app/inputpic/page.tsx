@@ -9,6 +9,7 @@ import {
     ChevronDown, Info, Hash, Calendar, Clock, MapPin, Building2,
     Briefcase, Eye, BarChartHorizontal
 } from 'lucide-react';
+import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import AppNavbar from '@/components/AppNavbar';
 import {
     fetchSPKList, fetchRABList, fetchRABDetail,
@@ -498,6 +499,7 @@ function InteractiveGanttChart({
 
 export default function InputPICPage() {
     const router = useRouter();
+    const { showAlert } = useGlobalAlert();
 
     // ── Auth & User ──
     const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
@@ -547,8 +549,11 @@ export default function InputPICPage() {
         if (isAuth !== "true" || !role) { router.push('/auth'); return; }
 
         if (role.toUpperCase() !== 'BRANCH BUILDING COORDINATOR') {
-            alert("Hanya Branch Building Coordinator yang dapat mengakses halaman ini.");
-            router.push('/dashboard');
+            showAlert({
+                message: "Hanya Branch Building Coordinator yang dapat mengakses halaman ini.",
+                type: "warning",
+                onConfirm: () => router.push('/dashboard')
+            });
             return;
         }
 
@@ -675,15 +680,24 @@ export default function InputPICPage() {
         if (!selectedSpk || !picName.trim()) return;
 
         if (!rabDetail?.id) {
-            alert("Data RAB belum dimuat. Pastikan ULOK memiliki RAB yang disetujui.");
+            showAlert({
+                message: "Data RAB belum dimuat. Pastikan ULOK memiliki RAB yang disetujui.",
+                type: "warning"
+            });
             return;
         }
 
         if (requiredDays > 0 && selectedDays.length !== requiredDays) {
-            alert(`Sesuai dengan kategori lokasi ULOK (${rabDetail.kategori_lokasi}), jumlah pemilihan hari pengawasan harus persis ${requiredDays} hari. Saat ini Anda baru memilih ${selectedDays.length} hari.`);
+            showAlert({
+                message: `Sesuai dengan kategori lokasi ULOK (${rabDetail.kategori_lokasi}), jumlah pemilihan hari pengawasan harus persis ${requiredDays} hari. Saat ini Anda baru memilih ${selectedDays.length} hari.`,
+                type: "warning"
+            });
             return;
         } else if (requiredDays === 0 && selectedDays.length === 0) {
-            alert("Silakan pilih minimal satu hari pengawasan di kalender Gantt.");
+            showAlert({
+                message: "Silakan pilih minimal satu hari pengawasan di kalender Gantt.",
+                type: "warning"
+            });
             return;
         }
 
@@ -732,7 +746,10 @@ export default function InputPICPage() {
             await submitPICPengawasan(payloadPIC);
             setShowSuccessModal(true);
         } catch (err: any) {
-            alert(err.message);
+            showAlert({
+                message: err.message || "Gagal menyimpan data PIC Pengawasan.",
+                type: "error"
+            });
         } finally {
             setIsSubmitting(false);
         }

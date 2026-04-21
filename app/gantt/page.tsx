@@ -18,6 +18,7 @@ import {
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
 import { API_URL } from '@/lib/constants';
+import { useGlobalAlert } from '@/context/GlobalAlertContext';
 
 // Aturan pengawasan sudah ditiadakan
 
@@ -58,6 +59,7 @@ function formatDateID(date: Date) {
 function GanttBoard() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { showAlert } = useGlobalAlert();
     
     const urlUlok = searchParams.get('ulok');
     const urlIdToko = searchParams.get('id_toko');
@@ -101,8 +103,7 @@ function GanttBoard() {
         const email = sessionStorage.getItem('loggedInUserEmail'); 
 
         if (!role) {
-            alert("Sesi Anda telah habis. Silakan login kembali.");
-            router.push('/auth');
+            showAlert({ message: "Sesi Anda telah habis. Silakan login kembali.", type: "warning", onConfirm: () => router.push('/auth') });
             return;
         }
 
@@ -118,8 +119,7 @@ function GanttBoard() {
             currentAppMode = 'pic';
             setAppMode('pic');
         } else {
-            alert("Anda tidak memiliki akses.");
-            router.push('/dashboard');
+            showAlert({ message: "Anda tidak memiliki akses.", type: "error", onConfirm: () => router.push('/dashboard') });
             return;
         }
 
@@ -170,6 +170,7 @@ function GanttBoard() {
             setSelectedGanttId(null);
             setIsProjectLocked(false);
             setSelectedUlok(formatUlokWithDash(toko.nomor_ulok));
+            setSpkInfo(null);
             
             const rData: any = rab;
             const rDuration = rData?.durasi_pekerjaan ? parseInt(String(rData.durasi_pekerjaan).replace(/\D/g, '')) || 1 : 1;
@@ -214,7 +215,7 @@ function GanttBoard() {
             if (fallbackIdToko) {
                  loadDataByToko(fallbackIdToko);
             } else {
-                 alert(`Gagal memuat data RAB: ${err.message}`);
+                 showAlert({ message: `Gagal memuat data RAB: ${err.message}`, type: "error" });
             }
         } finally {
             setIsLoading(false);
@@ -237,9 +238,10 @@ function GanttBoard() {
                 setSelectedGanttId(null);
                 setIsProjectLocked(false);
                 setSelectedUlok(formatUlokWithDash(toko.nomor_ulok));
+                setSpkInfo(null);
                 
                 if (!validRabId) {
-                    alert("Info: RAB belum disetujui atau belum ada untuk toko ini.");
+                    showAlert({ message: "Info: RAB belum disetujui atau belum ada untuk toko ini.", type: "info" });
                 }
 
                 let finalCategories = filtered_categories || [];
@@ -297,7 +299,7 @@ function GanttBoard() {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Gagal memuat data Toko: ${err.message}`);
+            showAlert({ message: `Gagal memuat data Toko: ${err.message}`, type: "error" });
         } finally {
             setIsLoading(false);
         }
@@ -485,7 +487,7 @@ function GanttBoard() {
 
         } catch (err: any) {
             console.error(err);
-            alert(`Sistem: ${err.message}`);
+            showAlert({ message: `Sistem: ${err.message}`, type: "error" });
             setProjectData(null);
             setTasks([]);
         } finally {
@@ -678,15 +680,15 @@ function GanttBoard() {
             }
 
             if (status === 'Terkunci') {
-                alert("Berhasil! Jadwal telah dikunci.");
+                showAlert({ message: "Berhasil! Jadwal telah dikunci.", type: "success" });
                 router.push('/dashboard');
             } else {
-                alert("Draft berhasil disimpan.");
+                showAlert({ message: "Draft berhasil disimpan.", type: "success" });
                 const newGanttId = selectedGanttId || submitRes?.data?.id;
                 if (newGanttId) loadGanttDetail(newGanttId);
             }
         } catch (e: any) {
-            alert(`Gagal menyimpan data: ${e.message}`);
+            showAlert({ message: `Gagal menyimpan data: ${e.message}`, type: "error" });
             console.error(e);
         } finally {
             setIsApplying(false);
@@ -702,7 +704,7 @@ function GanttBoard() {
         setIsApplying(true);
         try {
             await deleteGanttChart(selectedGanttId);
-            alert("Draft jadwal berhasil dihapus.");
+            showAlert({ message: "Draft jadwal berhasil dihapus.", type: "success" });
             
             // Reset tampilan ke awal
             setSelectedGanttId(null);
@@ -712,7 +714,7 @@ function GanttBoard() {
             // Refresh list dropdown (Opsional)
             window.location.reload(); 
         } catch (error: any) {
-            alert(`Gagal menghapus: ${error.message}`);
+            showAlert({ message: `Gagal menghapus: ${error.message}`, type: "error" });
         } finally {
             setIsApplying(false);
         }
@@ -756,7 +758,7 @@ function GanttBoard() {
             }
         });
         const baseDuration = spkInfo ? spkInfo.duration : projectData.duration;
-        const totalDaysToRender = baseDuration;
+        const totalDaysToRender = Math.max(baseDuration, maxTaskEndDay);
         const totalChartWidth = totalDaysToRender * DAY_WIDTH;
         const svgHeight = processedTasks.length * ROW_HEIGHT;
         const supervisionDays: Record<number, boolean> = {};
@@ -862,7 +864,13 @@ function GanttBoard() {
                             ) : (
                                 <select 
                                     className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
-                                    value={selectedGanttId ? `gantt-${selectedGanttId}` : (urlIdToko ? `toko-${urlIdToko}` : '')}
+                                    value={(() => {
+                                        const targetTokoId = projectData?.id_toko ? projectData.id_toko : (urlIdToko ? parseInt(urlIdToko) : null);
+                                        if (!targetTokoId) return '';
+                                        
+                                        const ganttMatch = availableProjects.find(p => p.id === selectedGanttId || p.id_toko === targetTokoId);
+                                        return ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${targetTokoId}`;
+                                    })()}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         if (!val) return;
@@ -874,10 +882,8 @@ function GanttBoard() {
                                                 const newUrl = new URL(window.location.href);
                                                 newUrl.searchParams.set('id_toko', proj.id_toko.toString());
                                                 window.history.pushState({}, '', newUrl.toString());
-                                                loadGanttDetail(gId);
-                                            } else {
-                                                loadGanttDetail(gId);
                                             }
+                                            loadGanttDetail(gId);
                                         } else if (val.startsWith('toko-')) {
                                             const tId = parseInt(val.replace('toko-', ''));
                                             const newUrl = new URL(window.location.href);
@@ -918,10 +924,10 @@ function GanttBoard() {
                             <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Nama Toko</p><p className="text-xl font-bold text-blue-900">{projectData.store}</p></div>
                             <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
                             <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Lingkup</p><p className="text-xl font-bold text-blue-900">{projectData.work}</p></div>
-                            <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
-                            <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Durasi {spkInfo ? '(SPK)' : '(RAB)'}</p><p className="text-xl font-bold text-blue-900">{spkInfo ? spkInfo.duration : projectData.duration} Hari</p></div>
                             {spkInfo && (
                                 <>
+                                    <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
+                                    <div><p className="text-xs font-semibold text-blue-600/70 uppercase tracking-wider mb-1">Durasi (SPK)</p><p className="text-xl font-bold text-blue-900">{spkInfo.duration} Hari</p></div>
                                     <div className="h-10 w-px bg-blue-200 hidden md:block"></div>
                                     <div><p className="text-xs font-semibold text-green-600/70 uppercase tracking-wider mb-1">Tgl Mulai SPK</p><p className="text-xl font-bold text-green-800">{new Date(spkInfo.startDate.split('T')[0]).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p></div>
                                 </>
@@ -1230,6 +1236,7 @@ function GanttBoard() {
 
 // Komponen Modal Diekstraksi untuk memisahkan state/kalkulasi
 function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasanHistory, onClose, selectedGanttId, spkInfo, onSuccess }: any) {
+    const { showAlert } = useGlobalAlert();
     const [liveHistory, setLiveHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null }>>({});
@@ -1250,49 +1257,63 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         const formattedDate = `${yyyy}-${mm}-${dd}`;
 
         import('@/lib/api').then(({ fetchPengawasanList }) => {
-            fetchPengawasanList({ id_gantt: selectedGanttId, tanggal: formattedDate })
-                .then(res => {
-                    const data = res.data || [];
-                    setLiveHistory(data);
-                    
-                    const initial: Record<string, any> = {};
-                    data.forEach((p: any) => {
-                        if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
-                            const key = `${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`;
-                            if (p.status.toLowerCase() !== 'selesai') {
-                                initial[key] = {
-                                    status: p.status.charAt(0).toUpperCase() + p.status.slice(1), 
-                                    // p.keterlambatan dari DB Gantt. Tetapi GET /api/pengawasan mungkin gak punya "keterlambatan".
-                                    // Jadi default 0, ini cuma ngaruh kalau di-expand
-                                    lateDays: p.keterlambatan ? parseInt(p.keterlambatan) : 0,
-                                    catatan: p.catatan || '',
-                                    file: null, 
-                                    dokumentasiUrl: p.dokumentasi || null
-                                };
-                            }
+            Promise.all([
+                fetchPengawasanList({ id_gantt: selectedGanttId, tanggal: formattedDate }),
+                fetchPengawasanList({ id_gantt: selectedGanttId })
+            ])
+            .then(([resLive, resAll]) => {
+                const dataLive = resLive.data || [];
+                const dataAll = resAll.data || [];
+
+                setLiveHistory(dataLive);
+                
+                const initial: Record<string, any> = {};
+                dataLive.forEach((p: any) => {
+                    if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
+                        const key = `${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`;
+                        if (p.status.toLowerCase() !== 'selesai') {
+                            initial[key] = {
+                                status: p.status.charAt(0).toUpperCase() + p.status.slice(1), 
+                                lateDays: p.keterlambatan ? parseInt(p.keterlambatan) : 0,
+                                catatan: p.catatan || '',
+                                file: null, 
+                                dokumentasiUrl: p.dokumentasi || null
+                            };
                         }
-                    });
-                    setMemoInputs(initial);
-                })
-                .catch(err => console.error("Gagal mendapatkan live pengawasan history:", err))
-                .finally(() => setIsLoadingHistory(false));
+                    }
+                });
+                setMemoInputs(initial);
+
+                const map = new Map<string, string>();
+                const idMap = new Map<string, number>();
+                
+                dataAll.forEach((p: any) => {
+                    if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
+                        const key = `${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`;
+                        
+                        // Selalu catat ID terbaru dari item tersebut
+                        if (p.id) idMap.set(key, p.id);
+
+                        if (map.get(key) === 'Selesai' && p.status.toLowerCase() !== 'selesai') {
+                            // Pertahankan status Selesai jika sebelumnya sudah pernah Selesai
+                        } else {
+                            map.set(key, p.status.charAt(0).toUpperCase() + p.status.slice(1));
+                        }
+                    }
+                });
+                setLatestStatusMapState(map);
+                setLatestIdMapState(idMap);
+            })
+            .catch(err => console.error("Gagal mendapatkan pengawasan history:", err))
+            .finally(() => setIsLoadingHistory(false));
         });
     }, [selectedGanttId, spkInfo, activeHeaderClick]);
+    
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [latestStatusMapState, setLatestStatusMapState] = useState<Map<string, string>>(new Map());
+    const [latestIdMapState, setLatestIdMapState] = useState<Map<string, number>>(new Map());
 
-    const latestStatusMap = useMemo(() => {
-        const map = new Map<string, string>();
-        if (pengawasanHistory) {
-            pengawasanHistory.forEach((p: any) => {
-                if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
-                    map.set(`${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`, p.status);
-                }
-            });
-        }
-        return map;
-    }, [pengawasanHistory]);
-
-    const hasSelesaiItems = Array.from(latestStatusMap.values()).some((s: string) => s.toLowerCase() === 'selesai');
+    const hasSelesaiItems = Array.from(latestStatusMapState.values()).some((s: string) => s.toLowerCase() === 'selesai');
 
     const memoConfig = useMemo(() => {
         if (!chartData || !activeHeaderClick) return [];
@@ -1339,12 +1360,15 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             
             const filteredItems = catItems.filter((item: any) => {
                  const key = `${task.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`;
-                 const latestStatus = latestStatusMap.get(key);
+                 const latestStatus = latestStatusMapState.get(key);
                  
-                 // Jika item ini sudah pernah dilabeli Selesai di db, jgn dimunculkan
-                 if (latestStatus === 'Selesai') return false;
                  // Jika gantung, teruskan
                  if (latestStatus === 'Progress' || latestStatus === 'Terlambat') return true;
+                 
+                 // Jika Selesai, tampilkan saat jadwalnya memang aktif hari ini, atau jika barusan di-submit hari ini
+                 const wasFinishedToday = liveHistory.some((lh: any) => lh.kategori_pekerjaan.toUpperCase() === task.name.toUpperCase() && lh.jenis_pekerjaan.toUpperCase() === item.jenis_pekerjaan.toUpperCase() && lh.status.toLowerCase() === 'selesai');
+                 if (latestStatus === 'Selesai' && wasFinishedToday) return true;
+                 
                  // Kalau belum pernah ada histori yg nggantung, ikut jadwal Gantt:
                  return isScheduledToday;
             });
@@ -1354,7 +1378,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 items: filteredItems
             };
         }).filter((d: any) => d.items.length > 0);
-    }, [chartData, activeHeaderClick, rabItems, latestStatusMap]);
+    }, [chartData, activeHeaderClick, rabItems, latestStatusMapState]);
     const handleSetStatus = (catName: string, itemJenis: string, status: string) => {
         setIsDirty(true);
         const key = `${catName}|${itemJenis}`;
@@ -1401,6 +1425,33 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         }));
     };
 
+    const isSubmitValid = useMemo(() => {
+        if (memoConfig.length === 0) return false;
+        if (!isDirty) return false;
+
+        for (const cat of memoConfig) {
+            if (!cat.items) continue;
+            for (const item of cat.items) {
+                const isAlreadySelesai = latestStatusMapState.get(`${cat.category.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`) === 'Selesai';
+                if (isAlreadySelesai) continue;
+
+                const key = `${cat.category.name}|${item.jenis_pekerjaan}`;
+                const input = memoInputs[key];
+                
+                if (!input || !input.status) {
+                    return false;
+                }
+                
+                if (input.status === 'Terlambat') {
+                    if (input.lateDays === undefined || input.lateDays === null || input.lateDays <= 0) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }, [memoConfig, memoInputs, latestStatusMapState, isDirty]);
+
     const getDateStr = (dayIndexOffset: number) => {
         if (!spkInfo) return '';
         const d = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
@@ -1411,17 +1462,51 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         return `${dd}/${mm}/${yyyy}`;
     };
 
+    const isLastSupervisionDay = useMemo(() => {
+        if (!pengawasanHistory || pengawasanHistory.length === 0 || !spkInfo || !activeHeaderClick) return false;
+        
+        const datesInNumeric = pengawasanHistory
+            .map((p: any) => p.tanggal_pengawasan)
+            .filter(Boolean)
+            .map((dStr: string) => {
+                const parts = dStr.split('/');
+                if(parts.length === 3) {
+                    return parseInt(`${parts[2]}${parts[1]}${parts[0]}`, 10);
+                }
+                return 0;
+            })
+            .filter((val: number) => val > 0)
+            .sort((a: number, b: number) => a - b);
+            
+        if (datesInNumeric.length === 0) return false;
+        const maxDate = datesInNumeric[datesInNumeric.length - 1];
+        
+        const offset = activeHeaderClick.dayIndex || 0;
+        const dDate = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
+        dDate.setDate(dDate.getDate() + offset);
+        const yyyy = dDate.getFullYear();
+        const mm = String(dDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(dDate.getDate()).padStart(2, '0');
+        const currentNumeric = parseInt(`${yyyy}${mm}${dd}`, 10);
+        
+        return maxDate === currentNumeric;
+    }, [pengawasanHistory, spkInfo, activeHeaderClick]);
+
     const handleSubmit = async () => {
         if (!selectedGanttId) {
-            alert('Draft belum disimpan permanen. Simpan Gantt Chart terlebih dahulu.');
+            showAlert({ message: 'Draft belum disimpan permanen. Simpan Gantt Chart terlebih dahulu.', type: 'warning' });
             return;
         }
 
         setIsSubmitting(true);
         try {
             // 1. Submit pengawasan bulk
-            const itemsArray: any[] = [];
-            const filesMap: { index: number, file: File }[] = [];
+            const itemsArrayInsert: any[] = [];
+            const filesMapInsert: { index: number, file: File }[] = [];
+            
+            const itemsArrayUpdate: any[] = [];
+            const filesMapUpdate: { index: number, file: File }[] = [];
+
             let catsLate = new Map<string, number>();
 
             const entriesToSubmit = Object.entries(memoInputs).filter(([_, val]) => val.status);
@@ -1435,20 +1520,32 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             const dd = String(dDate.getDate()).padStart(2, '0');
             const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-            entriesToSubmit.forEach(([key, val], idx) => {
+            entriesToSubmit.forEach(([key, val]) => {
                 const [catName, itemJenis] = key.split('|');
+                const upperKey = `${catName.toUpperCase()}|${itemJenis.toUpperCase()}`;
+                const existingId = latestIdMapState.get(upperKey);
                 
-                itemsArray.push({
-                    id_gantt: selectedGanttId,
-                    tanggal_pengawasan: formattedDate,
-                    kategori_pekerjaan: catName,
-                    jenis_pekerjaan: itemJenis,
-                    status: typeof val.status === 'string' ? val.status.toLowerCase() : val.status, 
-                    catatan: val.catatan || '-'
-                });
-
-                if (val.file) {
-                    filesMap.push({ index: idx, file: val.file });
+                if (existingId) {
+                    itemsArrayUpdate.push({
+                        id: existingId,
+                        status: typeof val.status === 'string' ? val.status.toLowerCase() : val.status, 
+                        catatan: val.catatan || '-'
+                    });
+                    if (val.file) {
+                        filesMapUpdate.push({ index: itemsArrayUpdate.length - 1, file: val.file });
+                    }
+                } else {
+                    itemsArrayInsert.push({
+                        id_gantt: selectedGanttId,
+                        tanggal_pengawasan: formattedDate,
+                        kategori_pekerjaan: catName,
+                        jenis_pekerjaan: itemJenis,
+                        status: typeof val.status === 'string' ? val.status.toLowerCase() : val.status, 
+                        catatan: val.catatan || '-'
+                    });
+                    if (val.file) {
+                        filesMapInsert.push({ index: itemsArrayInsert.length - 1, file: val.file });
+                    }
                 }
                 
                 if (val.status === 'Terlambat' && (val.lateDays || 0) > 0) {
@@ -1456,45 +1553,57 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 }
             });
 
-            if (itemsArray.length > 0) {
-                const { submitPengawasanBulk } = await import('@/lib/api');
-                
-                console.log('=== DEBUG MEMO PENGAWASAN SUBMIT ===');
-                console.log('Total items:', itemsArray.length);
-                console.log('Items payload:', JSON.stringify(itemsArray, null, 2));
-                console.log('Files attached:', filesMap.length, filesMap.map(f => ({ index: f.index, name: f.file.name, size: f.file.size, type: f.file.type })));
-                console.log('Kategori terlambat:', Object.fromEntries(catsLate));
-                console.log('Mode pengiriman:', filesMap.length > 0 ? 'FormData (multipart)' : 'JSON');
-                console.log('====================================');
+            const { submitPengawasanBulk, updatePengawasanBulk } = await import('@/lib/api');
 
-                if (filesMap.length > 0) {
-                    // Ada file → kirim sebagai FormData (multipart/form-data)
+            // --- A. Eksekusi INSERT (POST) ---
+            if (itemsArrayInsert.length > 0) {
+                if (filesMapInsert.length > 0) {
                     const formData = new FormData();
-                    formData.append('items', JSON.stringify(itemsArray));
-                    
-                    // Append setiap file
-                    filesMap.forEach(f => {
+                    formData.append('items', JSON.stringify(itemsArrayInsert));
+                    filesMapInsert.forEach(f => {
                         formData.append('file_dokumentasi', f.file);
                     });
-
-                    // Selalu kirim file_dokumentasi_indexes agar mapping 100% presisi dan tidak terkena fallback "1-file-for-all"
-                    const indexes = filesMap.map(f => f.index);
+                    const indexes = filesMapInsert.map(f => f.index);
                     formData.append('file_dokumentasi_indexes', JSON.stringify(indexes));
-                    console.log('file_dokumentasi_indexes:', JSON.stringify(indexes));
                     
                     try {
                         await submitPengawasanBulk(formData);
                     } catch(e: any) { 
-                        console.warn("Pengawasan bulk API call error:", e); 
+                        console.warn("Pengawasan bulk INSERT API call error:", e); 
                         throw e;
                     }
                 } else {
-                    // Tidak ada file → kirim sebagai JSON biasa
-                    console.log('JSON body:', JSON.stringify({ items: itemsArray }, null, 2));
                     try {
-                        await submitPengawasanBulk({ items: itemsArray });
+                        await submitPengawasanBulk({ items: itemsArrayInsert });
                     } catch(e: any) { 
-                        console.warn("Pengawasan bulk API call error:", e); 
+                        console.warn("Pengawasan bulk INSERT API call error:", e); 
+                        throw e;
+                    }
+                }
+            }
+
+            // --- B. Eksekusi UPDATE (PUT) ---
+            if (itemsArrayUpdate.length > 0) {
+                if (filesMapUpdate.length > 0) {
+                    const formData = new FormData();
+                    formData.append('items', JSON.stringify(itemsArrayUpdate));
+                    filesMapUpdate.forEach(f => {
+                        formData.append('rev_file_dokumentasi', f.file);
+                    });
+                    const indexes = filesMapUpdate.map(f => f.index);
+                    formData.append('rev_file_dokumentasi_indexes', JSON.stringify(indexes));
+                    
+                    try {
+                        await updatePengawasanBulk(formData);
+                    } catch(e: any) { 
+                        console.warn("Pengawasan bulk UPDATE API call error:", e); 
+                        throw e;
+                    }
+                } else {
+                    try {
+                        await updatePengawasanBulk({ items: itemsArrayUpdate });
+                    } catch(e: any) { 
+                        console.warn("Pengawasan bulk UPDATE API call error:", e); 
                         throw e;
                     }
                 }
@@ -1517,7 +1626,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
             onSuccess();
         } catch (err: any) {
-            alert(`Gagal menyimpan: ${err.message}`);
+            showAlert({ message: `Gagal menyimpan: ${err.message}`, type: "error" });
         } finally {
             setIsSubmitting(false);
         }
@@ -1532,7 +1641,9 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                             <Calendar className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-xl text-slate-800 leading-tight">Memo Pengawasan</h2>
+                            <h2 className="font-bold text-xl text-slate-800 leading-tight">
+                                {isLastSupervisionDay ? "Serah Terima" : "Memo Pengawasan"}
+                            </h2>
                             <p className="text-sm text-slate-500 font-medium">{activeHeaderClick.dateString}</p>
                         </div>
                     </div>
@@ -1584,6 +1695,12 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                 <p className="font-semibold text-slate-700">{item.jenis_pekerjaan}</p>
                                                             </td>
                                                             <td className="p-4 align-middle w-90">
+                                                                {latestStatusMapState.get(`${d.category.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`) === 'Selesai' ? (
+                                                                    <div className="flex items-center justify-center p-2.5 rounded-lg bg-green-50 border border-green-200/60 shadow-sm w-full">
+                                                                        <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                                                                        <span className="font-bold text-green-700 text-sm">Telah Selesai</span>
+                                                                    </div>
+                                                                ) : (
                                                                 <div className="flex flex-col gap-2">
                                                                     <div className="flex gap-2">
                                                                         <button 
@@ -1650,6 +1767,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                         </div>
                                                                     )}
                                                                 </div>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     );
@@ -1675,7 +1793,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                     </div>
                     <div className="flex gap-3">
                         <Button variant="outline" className="font-semibold" onClick={onClose}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={isSubmitting || memoConfig.length === 0 || !isDirty} className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md">
+                        <Button onClick={handleSubmit} disabled={isSubmitting || !isSubmitValid} className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md">
                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                             Simpan
                         </Button>
@@ -1688,6 +1806,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
 // Komponen OpnameModal
 function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGanttId, onSuccess }: any) {
+    const { showAlert } = useGlobalAlert();
     const [completedItems, setCompletedItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [opnameInputs, setOpnameInputs] = useState<Record<string, any>>({});
@@ -1695,11 +1814,19 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
 
     useEffect(() => {
         setIsLoading(true);
-        import('@/lib/api').then(({ fetchPengawasanList, fetchRABDetail }) => {
+        import('@/lib/api').then(({ fetchPengawasanList, fetchRABDetail, fetchOpnameList }) => {
             fetchPengawasanList({ id_gantt: selectedGanttId, status: 'selesai' })
                 .then(async res => {
                     const data = res.data || [];
                     let latestRabItems = rabItems;
+                    let existingOpnameItems: any[] = [];
+
+                    try {
+                        const opnames = await fetchOpnameList({ id_toko });
+                        existingOpnameItems = opnames.data || [];
+                    } catch (e) {
+                        console.warn("Gagal mendapatkan status opname existing:", e);
+                    }
 
                     // Fetch fresh RAB data directly from GET api/rab/:id to guarantee satuan exists
                     const idRab = rabItems?.[0]?.id_rab;
@@ -1719,12 +1846,21 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                         return {
                             ...p,
                             id_rab_item: rItem?.id,
-                            volume_rab: rItem?.volume || 0,
-                            harga_material: rItem?.harga_material || 0,
-                            harga_upah: rItem?.harga_upah || 0,
+                            volume_rab: parseFloat(rItem?.volume) || 0,
+                            harga_material: parseFloat(rItem?.harga_material) || 0,
+                            harga_upah: parseFloat(rItem?.harga_upah) || 0,
                             satuan: rItem?.satuan || '',
                         };
-                    }).filter((item: any) => item.id_rab_item);
+                    }).filter((item: any) => {
+                        if (!item.id_rab_item) return false;
+                        
+                        // Validasi agar item yg sudah diajukan opname (pending/disetujui/selesai) tidak muncul lagi
+                        const opnameRecord = existingOpnameItems.find((op: any) => op.id_rab_item === item.id_rab_item);
+                        if (opnameRecord && ['pending', 'disetujui', 'selesai', 'progress'].includes(opnameRecord.status.toLowerCase())) {
+                            return false;
+                        }
+                        return true;
+                    });
 
                     setCompletedItems(merged);
                     
@@ -1744,7 +1880,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("Gagal memuat list pengawasan selesai.");
+                    showAlert({ message: "Gagal memuat list pengawasan selesai.", type: "error" });
                 })
                 .finally(() => setIsLoading(false));
         });
@@ -1770,6 +1906,14 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
         return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
     }, [completedItems]);
 
+    const isAllVerified = useMemo(() => {
+        if (completedItems.length === 0) return false;
+        return completedItems.every(item => {
+            const input = opnameInputs[item.id];
+            return input && input.desain && input.kualitas && input.spesifikasi;
+        });
+    }, [completedItems, opnameInputs]);
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
@@ -1786,7 +1930,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                 itemsArray.push({
                     id_toko: id_toko,
                     id_rab_item: item.id_rab_item,
-                    status: 'progress', // default status of opname
+                    status: 'pending', // default status of opname
                     volume_akhir: volAkhir,
                     selisih_volume: selisihVol,
                     total_selisih: totalSelisih,
@@ -1803,7 +1947,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
             });
             
             if (itemsArray.length === 0) {
-                alert("Tidak ada item untuk di-opname.");
+                showAlert({ message: "Tidak ada item untuk di-opname.", type: "warning" });
                 setIsSubmitting(false);
                 return;
             }
@@ -1815,19 +1959,18 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                 filesMap.forEach(f => {
                     formData.append('file_foto_opname', f.file);
                 });
-                if (filesMap.length < itemsArray.length) {
-                    const indexes = filesMap.map(f => f.index);
-                    formData.append('file_foto_opname_indexes', JSON.stringify(indexes));
-                }
+                // Selalu kirim file_foto_opname_indexes agar mapping 100% presisi
+                const indexes = filesMap.map(f => f.index);
+                formData.append('file_foto_opname_indexes', JSON.stringify(indexes));
                 await submitOpnameBulk(formData);
             } else {
                 await submitOpnameBulk({ items: itemsArray });
             }
             
-            alert('Data Opname berhasil disimpan!');
+            showAlert({ message: 'Data Opname berhasil disimpan!', type: 'success' });
             onSuccess();
         } catch(e: any) {
-             alert(`Gagal menyimpan: ${e.message}`);
+             showAlert({ message: `Gagal menyimpan: ${e.message}`, type: "error" });
         } finally {
              setIsSubmitting(false);
         }
@@ -1884,7 +2027,10 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                                             <div key={j} className="border border-slate-200 p-4 rounded-lg bg-slate-50 flex flex-col gap-4">
                                                 <div className="font-bold text-slate-800 border-b border-slate-200 pb-2 flex justify-between items-center">
                                                     <span>{item.jenis_pekerjaan}</span>
-                                                    <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-1 rounded">Harga Satuan: {formatRp(hargaSatuan)}</span>
+                                                    <div className="flex gap-2">
+                                                        <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-1 rounded">Material: {formatRp(item.harga_material)}</span>
+                                                        <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-1 rounded">Upah: {formatRp(item.harga_upah)}</span>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
                                                     
@@ -1930,21 +2076,24 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                                                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b pb-1 mb-2">Verifikasi Pekerjaan</h4>
                                                         <div>
                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Desain</label>
-                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.desain || 'Sesuai'} onChange={(e)=>handleSetOpname(item.id, 'desain', e.target.value)}>
+                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.desain || ''} onChange={(e)=>handleSetOpname(item.id, 'desain', e.target.value)}>
+                                                                <option value="">-- Pilih --</option>
                                                                 <option value="Sesuai">Sesuai</option>
                                                                 <option value="Tidak Sesuai">Tidak Sesuai</option>
                                                             </select>
                                                         </div>
                                                         <div>
                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Kualitas</label>
-                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.kualitas || 'Baik'} onChange={(e)=>handleSetOpname(item.id, 'kualitas', e.target.value)}>
+                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.kualitas || ''} onChange={(e)=>handleSetOpname(item.id, 'kualitas', e.target.value)}>
+                                                                <option value="">-- Pilih --</option>
                                                                 <option value="Baik">Baik</option>
                                                                 <option value="Tidak Baik">Tidak Baik</option>
                                                             </select>
                                                         </div>
                                                         <div>
                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Spesifikasi</label>
-                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.spesifikasi || 'Sesuai'} onChange={(e)=>handleSetOpname(item.id, 'spesifikasi', e.target.value)}>
+                                                            <select className="w-full p-1.5 border border-slate-300 rounded mt-1 text-xs focus:border-blue-500 focus:outline-none bg-slate-50" value={input.spesifikasi || ''} onChange={(e)=>handleSetOpname(item.id, 'spesifikasi', e.target.value)}>
+                                                                <option value="">-- Pilih --</option>
                                                                 <option value="Sesuai">Sesuai</option>
                                                                 <option value="Tidak Sesuai">Tidak Sesuai</option>
                                                             </select>
@@ -1976,7 +2125,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
 
                 <div className="p-5 border-t bg-white flex justify-end gap-3 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-10">
                     <Button variant="outline" className="font-semibold" onClick={onClose}>Kembali</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || groupedByCategory.length === 0} className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md">
+                    <Button onClick={handleSubmit} disabled={isSubmitting || groupedByCategory.length === 0 || !isAllVerified} className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md">
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                         Submit Opname
                     </Button>

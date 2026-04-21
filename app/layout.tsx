@@ -36,6 +36,9 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+import { GlobalAlertProvider } from "@/context/GlobalAlertContext";
+import { GlobalAlert } from "@/components/GlobalAlert";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,7 +52,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <GlobalAlertProvider>
+          {children}
+          <GlobalAlert />
+        </GlobalAlertProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

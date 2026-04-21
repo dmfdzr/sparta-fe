@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Save, Loader2, Search, FileText, AlertCircle, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
+import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import { fetchKontraktorList, fetchSPKList, submitSPK, fetchRABList } from '@/lib/api';
 
 const getCabangCode = (cabangName: string) => {
@@ -49,6 +50,7 @@ type RevisiFormSnapshot = {
 
 export default function SPKPage() {
     const router = useRouter();
+    const { showAlert } = useGlobalAlert();
 
     const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
     const [isLoading, setIsLoading] = useState(false);
@@ -102,7 +104,8 @@ export default function SPKPage() {
 
         const picRoles = ['BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT'];
         if (!picRoles.includes(role.toUpperCase())) {
-            alert("Hanya PIC yang dapat membuat SPK."); router.push('/dashboard'); return;
+            showAlert({ message: "Hanya PIC yang dapat membuat SPK.", type: "warning", onConfirm: () => router.push('/dashboard') });
+            return;
         }
 
         const name = email.split('@')[0].toUpperCase();
@@ -121,6 +124,7 @@ export default function SPKPage() {
             const filteredRabs = listRab.filter((r: any) => r.cabang?.toUpperCase() === cabang.toUpperCase());
             
             const mappedData = filteredRabs.map((r: any) => ({
+                "id_toko": r.id_toko || r.toko?.id,
                 "Nomor Ulok": r.nomor_ulok,
                 "Lingkup_Pekerjaan": r.lingkup_pekerjaan || "-",
                 "Cabang": r.cabang,
@@ -133,7 +137,7 @@ export default function SPKPage() {
             
             setApprovedRabs(mappedData);
         } catch (error: any) {
-            alert("Gagal memuat data RAB: " + error.message);
+            showAlert({ message: "Gagal memuat data RAB: " + error.message, type: "error" });
         } finally {
             setIsLoading(false);
         }
@@ -275,13 +279,14 @@ export default function SPKPage() {
 
         // Validasi perubahan untuk SPK_REJECTED
         if (revisiData.isRevisi && !hasFormChangedFromOriginal()) {
-            alert("Harap ubah minimal 1 field sebelum mengirim revisi SPK. Data tidak boleh sama persis dengan SPK yang ditolak.");
+            showAlert({ message: "Harap ubah minimal 1 field sebelum mengirim revisi SPK. Data tidak boleh sama persis dengan SPK yang ditolak.", type: "warning" });
             return;
         }
 
         const fullPAR = `${form.par_no}/PROPNDEV-${form.kode_cabang}-${form.par_bulan}-${form.par_tahun}`;
 
         const payload = {
+            id_toko: parseInt(selectedRabObj["id_toko"], 10),
             nomor_ulok: selectedRabObj["Nomor Ulok"],
             email_pembuat: userInfo.email,
             lingkup_pekerjaan: selectedRabObj["Lingkup_Pekerjaan"],
@@ -301,7 +306,7 @@ export default function SPKPage() {
             await submitSPK(payload);
             setShowSuccessModal(true);
         } catch (err: any) {
-            alert(err.message);
+            showAlert({ message: err.message || "Gagal menyimpan SPK.", type: "error" });
         } finally {
             setIsSubmitting(false);
         }

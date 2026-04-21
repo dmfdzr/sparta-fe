@@ -10,6 +10,7 @@ import {
     ChevronDown, Calendar, Hash, ArrowRight, UploadCloud, X, Image as ImageIcon, FileDown
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
+import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import {
     fetchSPKList,
     fetchPertambahanSPKList,
@@ -61,6 +62,7 @@ const addDays = (dateStr: string, days: number): string => {
 
 export default function TambahSPKPage() {
     const router = useRouter();
+    const { showAlert } = useGlobalAlert();
 
     // ── Auth & User ──────────────────────────────────────────────────────
     const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
@@ -153,8 +155,7 @@ export default function TambahSPKPage() {
             'BRANCH BUILDING SUPPORT DOKUMENTASI',
         ];
         if (!allowedRoles.includes(role.toUpperCase())) {
-            alert("Anda tidak memiliki akses ke halaman ini.");
-            router.push('/dashboard');
+            showAlert({ message: "Anda tidak memiliki akses ke halaman ini.", type: "error", onConfirm: () => router.push('/dashboard') });
             return;
         }
 
@@ -305,15 +306,15 @@ export default function TambahSPKPage() {
     e.preventDefault();
     if (!selectedSpk) return;
     if (!pertambahanHari || parseInt(pertambahanHari) <= 0) {
-        alert("Pertambahan hari harus lebih dari 0.");
+        showAlert({ message: "Pertambahan hari harus lebih dari 0.", type: "warning" });
         return;
     }
     if (!alasanPerpanjangan.trim()) {
-        alert("Alasan perpanjangan wajib diisi.");
+        showAlert({ message: "Alasan perpanjangan wajib diisi.", type: "warning" });
         return;
     }
     if (originalRejectedForm && isRevisiUnchanged) {
-        alert("Harap ubah minimal 1 field sebelum mengirim revisi pengajuan. Data tidak boleh sama persis dengan pengajuan yang ditolak.");
+        showAlert({ message: "Harap ubah minimal 1 field sebelum mengirim revisi pengajuan. Data tidak boleh sama persis dengan pengajuan yang ditolak.", type: "warning" });
         return;
     }
 
@@ -342,7 +343,7 @@ export default function TambahSPKPage() {
         
         setShowSuccessModal(true);
     } catch (err: any) {
-        alert(err.message);
+        showAlert({ message: err.message || "Gagal menyimpan pengajuan.", type: "error" });
     } finally {
         setIsSubmitting(false);
     }
@@ -661,7 +662,7 @@ export default function TambahSPKPage() {
                                                         const id = existingPerpanjangan[0].id;
                                                         await downloadPertambahanSPKLampiran(id);
                                                     } catch (err: any) {
-                                                        alert(err.message || 'Gagal mengunduh lampiran');
+                                                        showAlert({ message: err.message || 'Gagal mengunduh lampiran', type: "error" });
                                                     }
                                                 }}
                                             >
