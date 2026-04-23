@@ -16,6 +16,7 @@ import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import {
     fetchRABList, fetchRABDetail, fetchTokoList,
     fetchOpnameList, fetchOpnameDetail, updateOpname, submitOpnameBulk, kunciOpnameFinal,
+    downloadOpnameFoto,
     fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList,
     type OpnameItem, type RABDetailItem, type RABDetailToko, type RABListItem,
 } from '@/lib/api';
@@ -1107,6 +1108,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [downloadingFotoId, setDownloadingFotoId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
 
     // Load all opname + RAB list
@@ -1280,6 +1282,18 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
             }, 300);
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const handleDownloadFoto = async (opnameItemId: number) => {
+        setDownloadingFotoId(opnameItemId);
+        try {
+            await downloadOpnameFoto(opnameItemId);
+            showAlert({ message: 'Foto opname berhasil diunduh.', type: 'success' });
+        } catch (err: any) {
+            showAlert({ message: `Gagal mengunduh foto: ${err.message || 'Terjadi kesalahan.'}`, type: 'error' });
+        } finally {
+            setDownloadingFotoId(null);
         }
     };
 
@@ -1518,10 +1532,18 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                                                                         )}
 
                                                                         {item.foto && (
-                                                                            <a href={item.foto} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-[11px] text-blue-600 hover:text-blue-800 font-semibold">
-                                                                                <Camera className="w-3 h-3" /> Lihat Foto
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDownloadFoto(item.id)}
+                                                                                disabled={downloadingFotoId === item.id}
+                                                                                className="inline-flex items-center gap-1 mt-2 text-[11px] text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                            >
+                                                                                {downloadingFotoId === item.id
+                                                                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                                                    : <Camera className="w-3 h-3" />}
+                                                                                {downloadingFotoId === item.id ? 'Mengunduh...' : 'Lihat Foto'}
                                                                                 <ExternalLink className="w-3 h-3" />
-                                                                            </a>
+                                                                            </button>
                                                                         )}
                                                                     </div>
 
