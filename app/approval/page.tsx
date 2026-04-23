@@ -92,6 +92,7 @@ interface NormalizedDetail {
         harga_upah: number;
         total: number;
         catatan?: string | null;
+        foto?: string | null;
     }>;
     // Pertambahan SPK specific
     pertambahan_hari?: string;
@@ -434,7 +435,12 @@ export default function ApprovalPage() {
                 normalized = normalizePertambahanSPKList(res.data ?? []);
             } else if (type === 'OPNAME_FINAL') {
                 const res = await fetchOpnameFinalList();
-                normalized = normalizeOpnameFinalList(res.data ?? []);
+                const opnameListRaw = Array.isArray(res.data)
+                    ? res.data
+                    : Array.isArray((res.data as any)?.opname_final)
+                        ? (res.data as any).opname_final
+                        : [];
+                normalized = normalizeOpnameFinalList(opnameListRaw);
             }
 
             // Filter Berdasarkan Role & Jabatan & Cabang
@@ -583,39 +589,42 @@ export default function ApprovalPage() {
                 };
             } else if (item.tipe === 'OPNAME_FINAL') {
                 const res = await fetchOpnameFinalDetail(item.id);
-                const d = res.data;
+                const payload = res?.data ?? {};
+                const header = payload.opname_final ?? payload;
+                const toko = payload.toko ?? {};
+                const detailItems = Array.isArray(payload.items) ? payload.items : [];
                 detail = {
-                    id: d.id,
+                    id: header.id,
                     tipe: 'OPNAME_FINAL',
-                    nomor_ulok:        d.toko?.nomor_ulok || '-',
-                    id_toko:           d.id_toko,
-                    nama_toko:         d.toko?.nama_toko || '-',
-                    kode_toko:         d.toko?.kode_toko,
-                    alamat:            d.toko?.alamat,
-                    cabang:            d.toko?.cabang || '',
-                    lingkup_pekerjaan: d.toko?.lingkup_pekerjaan,
-                    status:            d.status_opname_final,
-                    total_nilai:       parseCurrency(parseFloat(d.grand_total_opname || "0")),
-                    email_pembuat:     d.email_pembuat,
-                    created_at:        d.created_at,
-                    alasan_penolakan:  d.alasan_penolakan,
-                    link_pdf_gabungan: d.link_pdf_opname,
-                    approval_koordinator: { pemberi: d.pemberi_persetujuan_koordinator, waktu: d.waktu_persetujuan_koordinator },
-                    approval_manager:     { pemberi: d.pemberi_persetujuan_manager,     waktu: d.waktu_persetujuan_manager },
-                    approval_direktur:    { pemberi: d.pemberi_persetujuan_direktur,    waktu: d.waktu_persetujuan_direktur },
-                    items: (d.items ?? []).map((it: any) => {
-                        const vol = parseCurrency(it.volume_akhir);
-                        const mat = parseCurrency(it.rab_item?.harga_material);
-                        const upah = parseCurrency(it.rab_item?.harga_upah);
+                    nomor_ulok:        toko.nomor_ulok || item.nomor_ulok || '-',
+                    id_toko:           header.id_toko ?? toko.id,
+                    nama_toko:         toko.nama_toko || item.nama_toko || '-',
+                    kode_toko:         toko.kode_toko,
+                    alamat:            toko.alamat,
+                    cabang:            toko.cabang || item.cabang || '',
+                    lingkup_pekerjaan: toko.lingkup_pekerjaan,
+                    status:            header.status_opname_final,
+                    total_nilai:       parseCurrency(header.grand_total_opname),
+                    email_pembuat:     header.email_pembuat,
+                    created_at:        header.created_at,
+                    alasan_penolakan:  header.alasan_penolakan,
+                    link_pdf_gabungan: header.link_pdf_opname,
+                    approval_koordinator: { pemberi: header.pemberi_persetujuan_koordinator, waktu: header.waktu_persetujuan_koordinator },
+                    approval_manager:     { pemberi: header.pemberi_persetujuan_manager,     waktu: header.waktu_persetujuan_manager },
+                    approval_direktur:    { pemberi: header.pemberi_persetujuan_direktur,    waktu: header.waktu_persetujuan_direktur },
+                    items: detailItems.map((it: any) => {
+                        const vol = parseCurrency(it.volume_akhir ?? it.volume);
+                        const mat = parseCurrency(it.harga_material ?? it.rab_item?.harga_material);
+                        const upah = parseCurrency(it.harga_upah ?? it.rab_item?.harga_upah);
                         return {
                             id: it.id,
-                            kategori:        it.rab_item?.kategori_pekerjaan || '-',
-                            jenis_pekerjaan: it.rab_item?.jenis_pekerjaan || '-',
-                            satuan:          it.rab_item?.satuan || '-',
+                            kategori:        it.kategori_pekerjaan || it.rab_item?.kategori_pekerjaan || '-',
+                            jenis_pekerjaan: it.jenis_pekerjaan || it.rab_item?.jenis_pekerjaan || '-',
+                            satuan:          it.satuan || it.rab_item?.satuan || '-',
                             volume:          vol,
                             harga_material:  mat,
                             harga_upah:      upah,
-                            total:           vol * (mat + upah),
+                            total:           parseCurrency(it.total_harga_opname) || (vol * (mat + upah)),
                             catatan:         it.catatan,
                             foto:            it.foto || null,
                         };
@@ -1364,7 +1373,7 @@ export default function ApprovalPage() {
                                                 </tbody>
                                                 <tfoot className="bg-slate-100 border-t border-slate-300">
                                                     <tr>
-                                                        <td colSpan={7} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
+                                                        <td colSpan={8} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
                                                         <td className="p-3 font-extrabold text-slate-800 text-right">
                                                             {formatRupiah(selectedDetail.items.reduce((s, r) => s + (r.total ?? 0), 0))}
                                                         </td>
