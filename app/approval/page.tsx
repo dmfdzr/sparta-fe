@@ -630,11 +630,11 @@ export default function ApprovalPage() {
                             harga_material:  mat,
                             harga_upah:      upah,
                             total:           parseCurrency(it.total_harga_opname) || (vol * (mat + upah)),
-                            desain:          it.desain,
-                            kualitas:        it.kualitas,
-                            spesifikasi:     it.spesifikasi,
-                            catatan:         it.catatan,
-                            foto:            it.foto || null,
+                            desain:          it.desain ?? it.opname_desain ?? null,
+                            kualitas:        it.kualitas ?? it.opname_kualitas ?? null,
+                            spesifikasi:     it.spesifikasi ?? it.opname_spesifikasi ?? null,
+                            catatan:         it.catatan ?? it.opname_catatan ?? null,
+                            foto:            it.foto ?? it.opname_foto ?? null,
                         };
                     }),
                 };
@@ -1377,22 +1377,18 @@ export default function ApprovalPage() {
                                                             <td className="p-3 font-semibold text-slate-600 border-r text-xs">{row.kategori}</td>
                                                             <td className="p-3 text-slate-800 border-r">{row.jenis_pekerjaan}</td>
                                                             <td className="p-3 text-center border-r">
-                                                                {row.foto ? (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                                                        disabled={downloadingFotoId === row.id}
-                                                                        onClick={() => handleDownloadOpnameFoto(row.id)}
-                                                                    >
-                                                                        {downloadingFotoId === row.id
-                                                                            ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                                                                            : <FileDown className="w-3.5 h-3.5 mr-1" />}
-                                                                        Download
-                                                                    </Button>
-                                                                ) : (
-                                                                    <span className="text-[10px] text-slate-400">Tidak ada foto</span>
-                                                                )}
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                                                    disabled={!row.foto || downloadingFotoId === row.id}
+                                                                    onClick={() => handleDownloadOpnameFoto(row.id)}
+                                                                >
+                                                                    {downloadingFotoId === row.id
+                                                                        ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                                                                        : <FileDown className="w-3.5 h-3.5 mr-1" />}
+                                                                    {row.foto ? 'Download' : 'Tidak ada foto'}
+                                                                </Button>
                                                             </td>
                                                             <td className="p-3 text-slate-500 text-xs border-r">{row.desain || '-'}</td>
                                                             <td className="p-3 text-slate-500 text-xs border-r">{row.kualitas || '-'}</td>
