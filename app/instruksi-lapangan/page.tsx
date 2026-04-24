@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Save, Loader2, Upload, X } from 'lucide-react';
-import { fetchTokoList, fetchPricesData, submitInstruksiLapangan, fetchInstruksiLapanganList, fetchInstruksiLapanganDetail } from '@/lib/api';
+import { fetchTokoList, fetchTokoDetail, fetchPricesData, submitInstruksiLapangan, fetchInstruksiLapanganList, fetchInstruksiLapanganDetail } from '@/lib/api';
 
 const toRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(num || 0);
 
@@ -48,12 +48,20 @@ export default function InstruksiLapanganPage() {
         });
     }, [router]);
 
-    const handleTokoChange = async (nomorUlok: string) => {
-        const toko = tokoList.find(t => t.nomor_ulok === nomorUlok);
-        setSelectedToko(toko || null);
-        setTableRows([]);
-        if (toko && toko.lingkup_pekerjaan) {
-            try {
+    const handleTokoChange = async (tokoIdStr: string) => {
+        const tokoId = Number(tokoIdStr);
+        const tokoItem = tokoList.find(t => t.id === tokoId);
+        if (!tokoItem) return;
+
+        try {
+            // Fetch toko detail based on ID
+            const resDetail = await fetchTokoDetail(tokoId);
+            const toko = resDetail.data;
+
+            setSelectedToko(toko || null);
+            setTableRows([]);
+            
+            if (toko && toko.lingkup_pekerjaan) {
                 let scope = toko.lingkup_pekerjaan;
                 if (scope.toUpperCase() === 'SIPIL') scope = 'Sipil';
                 if (scope.toUpperCase() === 'ME') scope = 'ME';
@@ -61,7 +69,7 @@ export default function InstruksiLapanganPage() {
                 setPrices(priceData);
 
                 // Cek apakah ada IL yang ditolak untuk revisi
-                const listRes = await fetchInstruksiLapanganList({ nomor_ulok: nomorUlok });
+                const listRes = await fetchInstruksiLapanganList({ nomor_ulok: toko.nomor_ulok });
                 const rejectedIL = listRes.data?.find((il: any) => il.status.toUpperCase().includes('DITOLAK'));
                 
                 if (rejectedIL) {
@@ -95,9 +103,10 @@ export default function InstruksiLapanganPage() {
                     
                     showAlert("Info", "Memuat data Instruksi Lapangan yang ditolak sebelumnya untuk revisi.", "info");
                 }
-            } catch (error: any) {
-                showAlert("Error", error.message, "error");
+                }
             }
+        } catch (error: any) {
+            showAlert("Error", error.message, "error");
         }
     };
 
@@ -212,7 +221,7 @@ export default function InstruksiLapanganPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {tokoList.map(toko => (
-                                                <SelectItem key={toko.nomor_ulok} value={toko.nomor_ulok}>
+                                                <SelectItem key={toko.id} value={String(toko.id)}>
                                                     {toko.nomor_ulok} - {toko.nama_toko} ({toko.lingkup_pekerjaan})
                                                 </SelectItem>
                                             ))}

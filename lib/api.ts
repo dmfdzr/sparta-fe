@@ -293,7 +293,7 @@ export const fetchRABDetail = async (
 
 /** Ambil detail Toko berdasarkan ID untuk menarik kolom alamat yang kosong pada revisi. */
 export const fetchTokoDetail = async (id: number) => {
-    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/toko/${id}`);
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/toko/detail?id=${id}`);
     if (!res.ok) {
         if (res.status === 404) throw new Error("Data toko tidak ditemukan.");
         throw new Error(`Gagal memuat detail Toko (${res.status})`);
