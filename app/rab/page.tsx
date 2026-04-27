@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 // Import AppNavbar
 import AppNavbar from '@/components/AppNavbar';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -548,17 +549,7 @@ export default function RABPage() {
       />
 
       <main className="max-w-350 mx-auto p-4 md:p-8 mt-4">
-        {isRevisionLoading && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm transition-all duration-300">
-            <div className="bg-white p-5 rounded-2xl shadow-xl flex items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
-              <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
-              <div className="flex flex-col">
-                <span className="font-bold text-slate-800 text-lg">Memuat Data Revisi...</span>
-                <span className="text-sm text-slate-500">Mempersiapkan rincian form Anda</span>
-              </div>
-            </div>
-          </div>
-        )}
+        <LoadingOverlay isVisible={isRevisionLoading} title="Memuat Data Revisi..." subtitle="Mempersiapkan rincian form Anda" />
         <form onSubmit={handleSubmit}>
           <Card className="mb-8 shadow-sm">
             <CardHeader className="border-b bg-slate-50/50 pb-4"><CardTitle className="text-red-700">Data & Identitas Proyek</CardTitle></CardHeader>
