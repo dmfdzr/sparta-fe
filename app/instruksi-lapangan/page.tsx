@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AppNavbar from '@/components/AppNavbar';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { Plus, Trash2, Save, Loader2, Upload, X } from 'lucide-react';
 import { fetchTokoList, fetchTokoDetail, fetchPricesData, submitInstruksiLapangan, fetchInstruksiLapanganList, fetchInstruksiLapanganDetail } from '@/lib/api';
 
 const toRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(num || 0);
+const formatAngka = (num: number) => (num || num === 0) ? num.toLocaleString('id-ID') : '0';
 
 export default function InstruksiLapanganPage() {
     const router = useRouter();
@@ -28,6 +30,7 @@ export default function InstruksiLapanganPage() {
     const lampiranFileRef = useRef<HTMLInputElement>(null);
 
     const [isLoading, setIsLoading] = useState(false);
+    const [isTokoLoading, setIsTokoLoading] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertMessage, setAlertMessage] = useState<{title: string, desc: string, type: 'info' | 'error' | 'success' | 'warning'}>({ title: "", desc: "", type: "info" });
 
@@ -53,6 +56,7 @@ export default function InstruksiLapanganPage() {
         const tokoItem = tokoList.find(t => t.id === tokoId);
         if (!tokoItem) return;
 
+        setIsTokoLoading(true);
         try {
             // Fetch toko detail based on ID
             const resDetail = await fetchTokoDetail(tokoId);
@@ -92,6 +96,8 @@ export default function InstruksiLapanganPage() {
                             volume: Number(it.volume),
                             hargaMaterial: isMatCond ? 0 : Number(it.harga_material),
                             hargaUpah: (isMatCond || isUpahCond) ? 0 : Number(it.harga_upah),
+                            isKondisional: isMatCond || isUpahCond,
+                            catatan: it.catatan || '',
                         };
                     });
                     
@@ -106,6 +112,8 @@ export default function InstruksiLapanganPage() {
             }
         } catch (error: any) {
             showAlert("Error", error.message, "error");
+        } finally {
+            setIsTokoLoading(false);
         }
     };
 
@@ -127,7 +135,7 @@ export default function InstruksiLapanganPage() {
     };
 
     const addRow = (category: string) => {
-        setTableRows(prev => [...prev, { id: Date.now() + Math.random(), category, jenisPekerjaan: '', satuan: '', volume: 0, hargaMaterial: 0, hargaUpah: 0 }]);
+        setTableRows(prev => [...prev, { id: Date.now() + Math.random(), category, jenisPekerjaan: '', satuan: '', volume: 0, hargaMaterial: 0, hargaUpah: 0, isKondisional: false, catatan: '' }]);
     };
 
     const removeRow = (id: number) => setTableRows(prev => prev.filter(row => row.id !== id));
@@ -143,6 +151,7 @@ export default function InstruksiLapanganPage() {
                         const isMatCond = itemData["Harga Material"] === "Kondisional";
                         const isUpahCond = itemData["Harga Upah"] === "Kondisional";
                         
+                        updatedRow.isKondisional = isMatCond || isUpahCond;
                         updatedRow.hargaMaterial = isMatCond ? 0 : parseFloat(itemData["Harga Material"]) || 0;
                         updatedRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : parseFloat(itemData["Harga Upah"]) || 0;
                         if (updatedRow.satuan === 'Ls') updatedRow.volume = 1;
@@ -181,7 +190,8 @@ export default function InstruksiLapanganPage() {
                 satuan: row.satuan,
                 volume: Number(row.volume),
                 harga_material: Number(row.hargaMaterial),
-                harga_upah: Number(row.hargaUpah)
+                harga_upah: Number(row.hargaUpah),
+                catatan: row.catatan || ''
             }));
 
         if (detailItems.length === 0) {
@@ -220,6 +230,7 @@ export default function InstruksiLapanganPage() {
             />
 
             <main className="max-w-7xl mx-auto p-4 md:p-8 mt-4">
+                <LoadingOverlay isVisible={isTokoLoading} title="Memuat Data Toko..." subtitle="Menyiapkan detail & item pekerjaan" />
                 <form onSubmit={handleSubmit}>
                     <Card className="mb-8 shadow-sm">
                         <CardHeader className="border-b bg-slate-50/50 pb-4">
@@ -274,6 +285,7 @@ export default function InstruksiLapanganPage() {
                             <h2 className="text-xl font-bold text-slate-800 border-b-2 border-red-500 pb-2 inline-block">Detail Instruksi Lapangan</h2>
                             {categories.map((category) => {
                                 const itemsInCategory = tableRows.filter(r => r.category === category);
+                                const subTotal = itemsInCategory.reduce((acc, row) => acc + (row.volume * (row.hargaMaterial + row.hargaUpah)), 0);
                                 const selectedJobs = itemsInCategory.map(r => r.jenisPekerjaan).filter(Boolean);
 
                                 return (
@@ -283,52 +295,88 @@ export default function InstruksiLapanganPage() {
                                         </div>
                                         {itemsInCategory.length > 0 && (
                                             <div className="overflow-x-auto">
-                                                <table className="w-full text-sm text-left border-collapse min-w-max">
+                                                <table className="w-full text-sm text-left border-collapse min-w-275">
                                                     <thead className="bg-red-50 text-red-700 text-xs text-center border-b border-red-200">
                                                         <tr>
-                                                            <th className="p-2 border border-red-100">Jenis Pekerjaan</th>
-                                                            <th className="p-2 border border-red-100 w-24">Volume</th>
-                                                            <th className="p-2 border border-red-100 w-32">Satuan</th>
-                                                            <th className="p-2 border border-red-100 w-32">Harga Material</th>
-                                                            <th className="p-2 border border-red-100 w-32">Harga Upah</th>
-                                                            <th className="p-2 border border-red-100 w-16">Aksi</th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-10">No</th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 min-w-50">Jenis Pekerjaan</th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-16">Satuan</th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-24">Volume (a)</th>
+                                                            <th colSpan={2} className="p-2 border border-red-100">Harga Satuan (Rp)</th>
+                                                            <th colSpan={2} className="p-2 border border-red-100">Total Harga Satuan (Rp)</th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-36">Total Harga (Rp)<br/><span className="font-normal">(f=d+e)</span></th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-48">Catatan Tambahan<br/><span className="font-normal">(Opsional)</span></th>
+                                                            <th rowSpan={2} className="p-2 border border-red-100 w-16">Aksi</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th className="p-2 border border-red-100 w-32 bg-red-50/50">Material (b)</th>
+                                                            <th className="p-2 border border-red-100 w-32 bg-red-50/50">Upah (c)</th>
+                                                            <th className="p-2 border border-red-100 w-32 bg-red-50/50">Material (d=a×b)</th>
+                                                            <th className="p-2 border border-red-100 w-32 bg-red-50/50">Upah (e=a×c)</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {itemsInCategory.map((row) => (
-                                                            <tr key={row.id} className="hover:bg-slate-50 border-b border-slate-100">
+                                                        {itemsInCategory.map((row, index) => (
+                                                            <tr key={row.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                                                                <td className="p-2 border-r border-slate-100 text-center font-medium text-slate-500">{index + 1}</td>
                                                                 <td className="p-2 border-r border-slate-100">
-                                                                    <select className="w-full p-2 border border-slate-300 rounded-md bg-white outline-none" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
+                                                                    <select className="w-full p-2 border border-slate-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xs" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
                                                                         <option value="">-- Pilih --</option>
                                                                         {prices[category]?.map((p: any) => {
                                                                             const jobName = p["Jenis Pekerjaan"];
                                                                             const isSelectedElsewhere = selectedJobs.includes(jobName) && row.jenisPekerjaan !== jobName;
-                                                                            return <option key={jobName} value={jobName} disabled={isSelectedElsewhere}>{jobName}</option>;
+                                                                            return <option key={jobName} value={jobName} title={jobName} disabled={isSelectedElsewhere} className={isSelectedElsewhere ? "text-slate-300 bg-slate-50" : ""}>{jobName}</option>;
                                                                         })}
                                                                     </select>
                                                                 </td>
+                                                                <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium">{row.satuan}</td>
                                                                 <td className="p-2 border-r border-slate-100">
-                                                                    <Input type="number" min="0" step="any" className="h-9 px-2 text-center" value={row.volume || ''} onChange={(e) => updateRow(row.id, 'volume', parseFloat(e.target.value) || 0)} readOnly={row.satuan === 'Ls'} />
+                                                                    <Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs ${row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={row.satuan === 'Ls'} />
                                                                 </td>
-                                                                <td className="p-2 border-r border-slate-100 text-center font-medium">{row.satuan}</td>
-                                                                <td className="p-2 border-r border-slate-100 text-right">{toRupiah(row.hargaMaterial)}</td>
-                                                                <td className="p-2 border-r border-slate-100 text-right">{toRupiah(row.hargaUpah)}</td>
+                                                                <td className="p-2 border-r border-slate-100">
+                                                                    <Input type="text" className="h-9 px-2 text-right transition-colors text-xs bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" value={formatAngka(row.hargaMaterial)} readOnly tabIndex={-1} />
+                                                                </td>
+                                                                <td className="p-2 border-r border-slate-100">
+                                                                    <Input type="text" className={`h-9 px-2 text-right transition-colors text-xs ${!row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={!row.isKondisional} />
+                                                                </td>
+                                                                <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs">{toRupiah(row.volume * row.hargaMaterial)}</td>
+                                                                <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs">{toRupiah(row.volume * row.hargaUpah)}</td>
+                                                                <td className="p-2 border-r border-slate-100 text-right font-bold text-slate-800 bg-slate-100 text-xs">{toRupiah(row.volume * (row.hargaMaterial + row.hargaUpah))}</td>
+                                                                <td className="p-2 border-r border-slate-100">
+                                                                    <Input type="text" placeholder="Catatan..." className="h-9 px-2 text-xs bg-white border-slate-300 focus-visible:ring-blue-500" value={row.catatan || ''} onChange={(e) => updateRow(row.id, 'catatan', e.target.value)} />
+                                                                </td>
                                                                 <td className="p-2 text-center">
-                                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(row.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeRow(row.id)}>
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </Button>
                                                                 </td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
+                                                    <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                                                        <tr>
+                                                            <td colSpan={11} className="p-3 text-center bg-white border-b border-slate-200">
+                                                                <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 w-full max-w-sm" onClick={() => addRow(category)}>
+                                                                    <Plus className="w-4 h-4 mr-1" /> Tambah Item Pekerjaan
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colSpan={8} className="p-3 text-right font-bold text-slate-600">Sub Total {category}:</td>
+                                                            <td className="p-3 text-right font-bold text-red-700 whitespace-nowrap">{toRupiah(subTotal)}</td>
+                                                            <td colSpan={2}></td>
+                                                        </tr>
+                                                    </tfoot>
                                                 </table>
                                             </div>
                                         )}
-                                        <div className="p-4 bg-white border-t border-slate-100">
-                                            <Button type="button" variant="outline" onClick={() => addRow(category)} className="w-full md:w-auto text-blue-600 border-blue-200 hover:bg-blue-50">
-                                                <Plus className="w-4 h-4 mr-2" /> Tambah Item {category}
-                                            </Button>
-                                        </div>
+                                        {itemsInCategory.length === 0 && (
+                                            <div className="p-6 text-center">
+                                                <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400" onClick={() => addRow(category)}>
+                                                    <Plus className="w-4 h-4 mr-1" /> Tambah Item Pekerjaan
+                                                </Button>
+                                            </div>
+                                        )}
                                     </Card>
                                 );
                             })}
@@ -361,10 +409,10 @@ export default function InstruksiLapanganPage() {
                     )}
 
                     <div className="flex justify-end gap-4 mt-8">
-                        <Button type="button" variant="outline" onClick={() => router.push('/dashboard')} className="min-w-[120px]">
+                        <Button type="button" variant="outline" onClick={() => router.push('/dashboard')} className="min-w-30">
                             Batal
                         </Button>
-                        <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-white min-w-[140px]">
+                        <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-white min-w-35">
                             {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : <><Save className="mr-2 h-4 w-4" /> Simpan</>}
                         </Button>
                     </div>

@@ -12,6 +12,7 @@ import {
     Building2, ClipboardList, ArrowLeft, ExternalLink, RefreshCw, Lock
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
+import InstruksiLapanganModal from '@/components/InstruksiLapanganModal';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import {
     fetchRABList, fetchRABDetail, fetchTokoList,
@@ -118,6 +119,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showInstruksiModal, setShowInstruksiModal] = useState(false);
     const [submittingItemId, setSubmittingItemId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState<'form' | 'history'>('form');
@@ -639,16 +641,25 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             <main className="max-w-6xl mx-auto p-4 md:p-8 mt-4 pb-24">
                 <Card className="shadow-sm border-slate-200 relative z-10">
                     {/* Header */}
-                    <div className="p-6 border-b border-slate-100 bg-white rounded-t-xl flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                            <CheckSquare className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <h2 className="text-xl font-bold text-slate-800">Opname Final</h2>
-                            <p className="text-sm text-slate-500">Isi volume akhir dan verifikasi pekerjaan proyek.</p>
+                    <div className="p-6 border-b border-slate-100 bg-white rounded-t-xl flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="flex items-center gap-3 flex-1">
+                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                                <CheckSquare className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">Opname Final</h2>
+                                <p className="text-sm text-slate-500">Isi volume akhir dan verifikasi pekerjaan proyek.</p>
+                            </div>
                         </div>
                         {selectedRab && (
                             <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowInstruksiModal(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-bold border border-indigo-200 transition-colors"
+                                    title="Buat Instruksi Lapangan untuk toko ini"
+                                >
+                                    <FileText className="w-4 h-4 inline mr-1" />Instruksi Lapangan
+                                </button>
                                 <button
                                     onClick={() => setActiveView('form')}
                                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'form' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
@@ -841,9 +852,9 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                         )}
                                                                                     </div>
                                                                                     <div className="flex flex-wrap gap-1.5">
-                                                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-medium">Sat: {item.satuan}</span>
-                                                                                        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-medium">Mat: {formatRp(hMaterial)}</span>
-                                                                                        <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-medium">Upah: {formatRp(hUpah)}</span>
+                                                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-medium">Satuan : {item.satuan}</span>
+                                                                                        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-medium">Material : {formatRp(hMaterial)}</span>
+                                                                                        <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-medium">Upah : {formatRp(hUpah)}</span>
                                                                                     </div>
                                                                                 </div>
                                                                                 {rejectedRecord?.catatan && (
@@ -857,12 +868,9 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
                                                                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
                                                                                     {/* Col 1: Volume & Cost */}
-                                                                                    <div className="space-y-3 bg-white p-3 rounded border border-slate-200 shadow-sm">
+                                                                                    <div className="space-y-3 bg-white p-3 rounded border border-slate-200 shadow-sm flex flex-col">
                                                                                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b pb-1 mb-2">Volume & Biaya</h4>
-                                                                                        <div className="flex justify-between items-center text-xs text-slate-600">
-                                                                                            <span>Vol RAB:</span>
-                                                                                            <span className="font-bold">{item.volume} <span className="text-[10px] text-slate-400 ml-0.5">{item.satuan}</span></span>
-                                                                                        </div>
+                                                                                        
                                                                                         <div>
                                                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Volume Akhir *</label>
                                                                                             <div className="relative mt-1">
@@ -875,26 +883,32 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                                 />
                                                                                                 {item.satuan && <span className="absolute right-3 top-2.5 text-[10px] text-slate-400 font-bold uppercase">{item.satuan}</span>}
                                                                                             </div>
-                                                                                            <div className="text-[10px] text-right mt-1 text-slate-500">
-                                                                                                Selisih: <span className={`font-bold ${selisih > 0 ? 'text-blue-600' : (selisih < 0 ? 'text-red-600' : '')}`}>
-                                                                                                    {selisih > 0 ? '+' + selisih : selisih} {item.satuan}
-                                                                                                </span>
-                                                                                            </div>
                                                                                         </div>
-                                                                                        <div className="bg-slate-50 p-2 rounded border border-slate-100 text-[11px] space-y-1.5 mt-2">
-                                                                                            <div className="flex justify-between">
-                                                                                                <span className="text-slate-500">Total RAB:</span>
-                                                                                                <span className="font-medium">{formatRp(totalHargaRAB)}</span>
+
+                                                                                        <div className="grid grid-cols-2 gap-px bg-slate-200 text-[10px] rounded border border-slate-200 overflow-hidden mt-3">
+                                                                                            <div className="p-2 bg-white">
+                                                                                                <div className="text-slate-400 uppercase font-bold tracking-wider mb-0.5">Vol RAB</div>
+                                                                                                <div className="font-semibold text-slate-700">{item.volume} <span className="font-normal text-slate-400">{item.satuan}</span></div>
                                                                                             </div>
-                                                                                            <div className="flex justify-between">
-                                                                                                <span className="text-slate-700 font-semibold">Total Opname:</span>
-                                                                                                <span className="font-bold text-slate-800">{formatRp(totalHargaBaru)}</span>
+                                                                                            <div className="p-2 bg-slate-50/50">
+                                                                                                <div className="text-slate-400 uppercase font-bold tracking-wider mb-0.5">Selisih Vol</div>
+                                                                                                <div className={`font-bold ${selisih > 0 ? 'text-blue-600' : (selisih < 0 ? 'text-red-600' : 'text-slate-600')}`}>
+                                                                                                    {selisih > 0 ? '+' : ''}{selisih}
+                                                                                                </div>
                                                                                             </div>
-                                                                                            <div className="flex justify-between border-t pt-1 border-slate-200">
-                                                                                                <span className="text-slate-600">Selisih:</span>
-                                                                                                <span className={`font-bold ${selisihHarga > 0 ? 'text-blue-600' : (selisihHarga < 0 ? 'text-red-600' : 'text-slate-500')}`}>
+                                                                                            <div className="p-2 bg-white">
+                                                                                                <div className="text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total RAB</div>
+                                                                                                <div className="font-semibold text-slate-700">{formatRp(totalHargaRAB)}</div>
+                                                                                            </div>
+                                                                                            <div className="p-2 bg-white">
+                                                                                                <div className="text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total Opname</div>
+                                                                                                <div className="font-bold text-slate-800">{formatRp(totalHargaBaru)}</div>
+                                                                                            </div>
+                                                                                            <div className="p-2 bg-slate-50/50 col-span-2">
+                                                                                                <div className="text-slate-400 uppercase font-bold tracking-wider mb-0.5">Selisih Biaya</div>
+                                                                                                <div className={`font-bold text-xs ${selisihHarga > 0 ? 'text-blue-600' : (selisihHarga < 0 ? 'text-red-600' : 'text-slate-600')}`}>
                                                                                                     {selisihHarga > 0 ? '+' : ''}{formatRp(selisihHarga)}
-                                                                                                </span>
+                                                                                                </div>
                                                                                             </div>
                                                                                         </div>
                                                                                     </div>
@@ -1002,9 +1016,15 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                         )}
                     </CardContent>
                 </Card>
-            </main>
-
-
+        </main>
+        
+        {showInstruksiModal && (
+            <InstruksiLapanganModal 
+                onClose={() => setShowInstruksiModal(false)} 
+                onSuccess={() => setShowInstruksiModal(false)} 
+                initialTokoId={selectedRab?.id_toko}
+            />
+        )}
         </>
     );
 }
@@ -1478,44 +1498,42 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                                                                                 <StatusBadge status={item.status} />
                                                                             </div>
                                                                             <div className="flex flex-wrap gap-1.5">
-                                                                                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-medium">Sat: {rabRef?.satuan || item.rab_item?.satuan}</span>
-                                                                                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-medium">Mat: {formatRp(Number(rabRef?.harga_material || item.rab_item?.harga_material || 0))}</span>
-                                                                                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-medium">Upah: {formatRp(Number(rabRef?.harga_upah || item.rab_item?.harga_upah || 0))}</span>
+                                                                                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-medium">Satuan : {rabRef?.satuan || item.rab_item?.satuan}</span>
+                                                                                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-medium">Material : {formatRp(Number(rabRef?.harga_material || item.rab_item?.harga_material || 0))}</span>
+                                                                                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-medium">Upah : {formatRp(Number(rabRef?.harga_upah || item.rab_item?.harga_upah || 0))}</span>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1.5 text-xs text-slate-600">
-                                                                            <div>
-                                                                                <span className="text-slate-400">Vol RAB: </span>
-                                                                                <span className="font-semibold">{volRab}</span>
-                                                                                <span className="text-slate-400 ml-0.5">{rabRef?.satuan || item.rab_item?.satuan}</span>
+                                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-slate-200 text-xs rounded-lg border border-slate-200 overflow-hidden mt-3">
+                                                                            <div className="p-2.5 bg-white">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Vol RAB</div>
+                                                                                <div className="font-semibold text-slate-700">{volRab} <span className="text-[10px] font-normal text-slate-400">{rabRef?.satuan || item.rab_item?.satuan}</span></div>
                                                                             </div>
-                                                                            <div>
-                                                                                <span className="text-slate-400">Vol Akhir: </span>
-                                                                                <span className="font-bold text-slate-800">{item.volume_akhir}</span>
-                                                                                <span className="text-slate-400 ml-0.5">{rabRef?.satuan || item.rab_item?.satuan}</span>
+                                                                            <div className="p-2.5 bg-white">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Vol Akhir</div>
+                                                                                <div className="font-bold text-slate-800">{item.volume_akhir} <span className="text-[10px] font-normal text-slate-400">{rabRef?.satuan || item.rab_item?.satuan}</span></div>
                                                                             </div>
-                                                                            <div>
-                                                                                <span className="text-slate-400">Selisih Vol: </span>
-                                                                                <span className={`font-bold ${item.selisih_volume > 0 ? 'text-blue-600' : (item.selisih_volume < 0 ? 'text-red-600' : '')}`}>
+                                                                            <div className="p-2.5 bg-slate-50">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Selisih Vol</div>
+                                                                                <div className={`font-bold ${item.selisih_volume > 0 ? 'text-blue-600' : (item.selisih_volume < 0 ? 'text-red-600' : 'text-slate-600')}`}>
                                                                                     {item.selisih_volume > 0 ? '+' : ''}{item.selisih_volume}
-                                                                                </span>
+                                                                                </div>
                                                                             </div>
-                                                                            <div>
-                                                                                <span className="text-slate-400">Total RAB: </span>
-                                                                                <span className="font-semibold">{formatRp(rabRef?.total_harga || (volRab * ((rabRef?.harga_material || 0) + (rabRef?.harga_upah || 0))))}</span>
+                                                                            <div className="p-2.5 bg-white">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total RAB</div>
+                                                                                <div className="font-semibold text-slate-700">{formatRp(rabRef?.total_harga || (volRab * ((rabRef?.harga_material || 0) + (rabRef?.harga_upah || 0))))}</div>
                                                                             </div>
-                                                                            <div>
-                                                                                <span className="text-slate-400">Total Opname: </span>
-                                                                                <span className="font-bold text-slate-800">
+                                                                            <div className="p-2.5 bg-white">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total Opname</div>
+                                                                                <div className="font-bold text-slate-800">
                                                                                     {formatRp(Number(item.total_harga_opname) || (Number(item.volume_akhir) * ((Number(rabRef?.harga_material || item.rab_item?.harga_material || 0)) + (Number(rabRef?.harga_upah || item.rab_item?.harga_upah || 0)))))}
-                                                                                </span>
+                                                                                </div>
                                                                             </div>
-                                                                            <div>
-                                                                                <span className="text-slate-400">Selisih Biaya: </span>
-                                                                                <span className={`font-bold ${item.total_selisih > 0 ? 'text-blue-600' : (item.total_selisih < 0 ? 'text-red-600' : '')}`}>
-                                                                                    {formatRp(item.total_selisih)}
-                                                                                </span>
+                                                                            <div className="p-2.5 bg-slate-50">
+                                                                                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Selisih Biaya</div>
+                                                                                <div className={`font-bold ${item.total_selisih > 0 ? 'text-blue-600' : (item.total_selisih < 0 ? 'text-red-600' : 'text-slate-600')}`}>
+                                                                                    {item.total_selisih > 0 ? '+' : ''}{formatRp(item.total_selisih)}
+                                                                                </div>
                                                                             </div>
                                                                         </div>
 

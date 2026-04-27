@@ -7,15 +7,15 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save } from 'lucide-react'; 
+import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText } from 'lucide-react'; 
 import { 
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
     updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko,
     fetchRABList, fetchRABDetail, fetchSPKList
 } from '@/lib/api';
-import type { GanttListItem } from '@/lib/api';
 import { API_URL } from '@/lib/constants';
+import InstruksiLapanganModal from '@/components/InstruksiLapanganModal';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 
 const DAY_WIDTH = 40;
@@ -1123,6 +1123,7 @@ function GanttBoard() {
                 onClose={() => setShowMemoModal(false)} 
                 selectedGanttId={selectedGanttId}
                 spkInfo={spkInfo}
+                id_toko={projectData?.id_toko}
                 onSuccess={() => {
                     setShowMemoModal(false);
                     setShowOpnameModal(true);
@@ -1152,12 +1153,14 @@ function GanttBoard() {
 }
 
 // Komponen Modal Diekstraksi untuk memisahkan state/kalkulasi
-function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasanHistory, onClose, selectedGanttId, spkInfo, onSuccess }: any) {
+function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasanHistory, onClose, selectedGanttId, spkInfo, id_toko, onSuccess }: any) {
     const { showAlert } = useGlobalAlert();
+    const router = useRouter();
     const [liveHistory, setLiveHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null }>>({});
     const [isDirty, setIsDirty] = useState(false);
+    const [showInstruksiModal, setShowInstruksiModal] = useState(false);
     
     useEffect(() => {
         if (!selectedGanttId || !spkInfo || !activeHeaderClick) {
@@ -1555,6 +1558,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
     };
 
     return (
+        <>
         <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-slate-50 flex flex-col rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-in zoom-in-95">
                 <div className="p-5 border-b flex justify-between items-center bg-white">
@@ -1569,7 +1573,16 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                             <p className="text-sm text-slate-500 font-medium">{activeHeaderClick.dateString}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><X className="w-6 h-6"/></button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowInstruksiModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold border border-indigo-200 transition-colors"
+                        >
+                            <FileText className="w-3.5 h-3.5" />
+                            Instruksi Lapangan
+                        </button>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><X className="w-6 h-6"/></button>
+                    </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -1723,6 +1736,15 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 </div>
             </div>
         </div>
+
+        {showInstruksiModal && (
+            <InstruksiLapanganModal 
+                onClose={() => setShowInstruksiModal(false)} 
+                onSuccess={() => setShowInstruksiModal(false)} 
+                initialTokoId={id_toko}
+            />
+        )}
+        </>
     );
 }
 
