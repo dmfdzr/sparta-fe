@@ -116,6 +116,7 @@ export default function LoginPage() {
         sessionStorage.setItem("userRole", mappedRole);
         sessionStorage.setItem("nama_lengkap", namaLengkapFromAPI);
         sessionStorage.setItem("nama_pt", namaPtFromAPI);
+        sessionStorage.setItem("alamat_cabang", result?.data?.alamat_cabang || "");
 
         setTimeout(() => {
           router.push("/dashboard"); 

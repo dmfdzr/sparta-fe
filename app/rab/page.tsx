@@ -77,6 +77,7 @@ export default function RABPage() {
   useEffect(() => {
     const userCabang = sessionStorage.getItem('loggedInUserCabang')?.toUpperCase();
     const userEmail = sessionStorage.getItem('loggedInUserEmail');
+    const userAlamatCabang = sessionStorage.getItem('alamat_cabang') || '';
 
     if (!userCabang) {
       router.push('/auth');
@@ -86,7 +87,7 @@ export default function RABPage() {
     setAvailableCabang(BRANCH_GROUPS[userCabang] || [userCabang]);
     let defaultLokasiCabang = userCabang === 'CIKOKOL' ? "KZ01" : (BRANCH_TO_ULOK[userCabang] || "KODE");
 
-    setFormData(prev => ({ ...prev, cabang: userCabang, lokasiCabang: defaultLokasiCabang }));
+    setFormData(prev => ({ ...prev, cabang: userCabang, lokasiCabang: defaultLokasiCabang, alamatCabang: userAlamatCabang }));
 
     if (userEmail && userCabang) {
         checkRevisionStatus(userEmail, userCabang).then(result => {
@@ -678,7 +679,7 @@ export default function RABPage() {
                   </Select>
                 </div>
                 <div className="space-y-2 lg:col-span-3"><Label>Alamat Lengkap <span className="text-red-500">*</span></Label><Input name="alamat" value={formData.alamat} onChange={handleInputChange} placeholder="Masukkan alamat lengkap proyek" className="bg-white" required /></div>
-                <div className="space-y-2 lg:col-span-3"><Label>Alamat Cabang / Office <span className="text-xs text-slate-400 font-normal">(Opsional - Untuk Kop SPH)</span></Label><Input name="alamatCabang" value={formData.alamatCabang || ''} onChange={handleInputChange} placeholder="Masukkan alamat cabang / office" className="bg-white" /></div>
+                <div className="space-y-2 lg:col-span-3"><Label>Alamat Cabang / Office <span className="text-xs text-slate-400 font-normal">(Otomatis dari data cabang)</span></Label><Input name="alamatCabang" value={formData.alamatCabang || ''} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} placeholder="-" /></div>
                 
                 <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="space-y-2"><Label>Cabang <span className="text-red-500">*</span></Label><Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} /></div>
