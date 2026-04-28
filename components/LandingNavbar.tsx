@@ -12,7 +12,7 @@ export default function LandingNavbar() {
         />
         
         <h1 className="text-xl md:text-4xl font-black text-center tracking-tighter animate-in fade-in zoom-in duration-700 delay-300 drop-shadow-lg">
-          SPARTA
+          SPARTA Building
         </h1>
         
         <img 
