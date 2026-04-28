@@ -1196,7 +1196,7 @@ export const downloadSPKPdf = async (id: number): Promise<boolean> => {
 
 /** Ambil daftar kontraktor untuk SPK (filter per Cabang). */
 export const fetchKontraktorList = async (cabang?: string): Promise<string[]> => {
-    const url = `https://sparta-be.onrender.com/api/get_kontraktor${cabang ? `?cabang=${encodeURIComponent(cabang)}` : ""}`;
+    const url = `https://sparta-be-8bnw.onrender.com/api/get_kontraktor${cabang ? `?cabang=${encodeURIComponent(cabang)}` : ""}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Gagal mengambil daftar kontraktor (${res.status}).`);
     return res.json(); // Returns string[] directly
