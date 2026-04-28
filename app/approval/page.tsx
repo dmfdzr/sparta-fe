@@ -1442,29 +1442,26 @@ export default function ApprovalPage() {
                                             <table className="w-full text-sm text-left border-collapse">
                                                 <thead className="bg-slate-100 text-slate-700 border-b">
                                                     <tr>
-                                                        <th className="p-3 border-r font-semibold text-center">Kategori</th>
-                                                        <th className="p-3 border-r font-semibold min-w-50 text-center">Jenis Pekerjaan</th>
+                                                        <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Kategori</th>
+                                                        <th className="p-3 border-r font-semibold min-w-50 text-center whitespace-nowrap">Jenis Pekerjaan</th>
                                                         {selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' && (
                                                             <>
-                                                                <th className="p-3 border-r font-semibold text-center">Dokumentasi</th>
-                                                                <th className="p-3 border-r font-semibold min-w-32 text-center">Desain</th>
-                                                                <th className="p-3 border-r font-semibold min-w-32 text-center">Kualitas</th>
-                                                                <th className="p-3 border-r font-semibold min-w-32 text-center">Spesifikasi</th>
+                                                                <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Dokumentasi</th>
                                                                 <th className="p-3 border-r font-semibold min-w-32 text-center">Catatan</th>
                                                             </>
                                                         )}
-                                                        <th className="p-3 border-r font-semibold text-center">Volume</th>
-                                                        <th className="p-3 border-r font-semibold text-center">Satuan</th>
-                                                        <th className="p-3 border-r font-semibold text-center">Harga Material</th>
-                                                        <th className="p-3 border-r font-semibold text-center">Harga Upah</th>
-                                                        <th className="p-3 font-semibold text-center">Total</th>
+                                                        <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Volume</th>
+                                                        <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Satuan</th>
+                                                        <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Harga Material</th>
+                                                        <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Harga Upah</th>
+                                                        <th className="p-3 font-semibold text-center whitespace-nowrap">Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     {selectedDetail.items.map(row => (
                                                         <tr key={row.id} className="hover:bg-slate-50">
-                                                            <td className="p-3 font-semibold text-slate-600 border-r text-xs">{row.kategori}</td>
-                                                            <td className="p-3 text-slate-800 border-r">{row.jenis_pekerjaan}</td>
+                                                            <td className="p-3 font-semibold text-slate-600 border-r text-xs whitespace-nowrap">{row.kategori}</td>
+                                                            <td className="p-3 text-slate-800 border-r whitespace-nowrap">{row.jenis_pekerjaan}</td>
                                                             {selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' && (
                                                                 <>
                                                                     <td className="p-3 text-center border-r">
@@ -1481,25 +1478,22 @@ export default function ApprovalPage() {
                                                                             {row.foto ? 'Download' : 'Tidak ada foto'}
                                                                         </Button>
                                                                     </td>
-                                                                    <td className="p-3 text-slate-500 text-xs border-r">{row.desain || '-'}</td>
-                                                                    <td className="p-3 text-slate-500 text-xs border-r">{row.kualitas || '-'}</td>
-                                                                    <td className="p-3 text-slate-500 text-xs border-r">{row.spesifikasi || '-'}</td>
                                                                     <td className="p-3 text-slate-500 italic text-xs border-r">{row.catatan || '-'}</td>
                                                                 </>
                                                             )}
-                                                            <td className="p-3 text-center font-bold border-r">{row.volume}</td>
-                                                            <td className="p-3 text-center text-slate-500 border-r">{row.satuan}</td>
-                                                            <td className="p-3 text-right text-slate-500 border-r">{formatRupiah(row.harga_material)}</td>
-                                                            <td className="p-3 text-right text-slate-500 border-r">{formatRupiah(row.harga_upah)}</td>
-                                                            <td className="p-3 text-right font-bold text-slate-800">{formatRupiah(row.total)}</td>
+                                                            <td className="p-3 text-center font-bold border-r whitespace-nowrap">{row.volume}</td>
+                                                            <td className="p-3 text-center text-slate-500 border-r whitespace-nowrap">{row.satuan}</td>
+                                                            <td className="p-3 text-right font-medium text-slate-700 border-r whitespace-nowrap">{formatRupiah(row.harga_material || 0)}</td>
+                                                            <td className="p-3 text-right font-medium text-slate-700 border-r whitespace-nowrap">{formatRupiah(row.harga_upah || 0)}</td>
+                                                            <td className="p-3 text-right font-bold text-slate-800 whitespace-nowrap">{formatRupiah(row.total || 0)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot className="bg-slate-100 border-t border-slate-300">
                                                     <tr>
-                                                        <td colSpan={selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' ? 11 : 6} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
-                                                        <td className="p-3 font-extrabold text-slate-800 text-right">
-                                                            {formatRupiah(selectedDetail.items.reduce((s, r) => s + (r.total ?? 0), 0))}
+                                                        <td colSpan={selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' ? 8 : 6} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
+                                                        <td className="p-3 font-extrabold text-slate-800 text-right whitespace-nowrap">
+                                                            {formatRupiah(selectedDetail.items.reduce((s, r) => s + Number(r.total ?? 0), 0))}
                                                         </td>
                                                     </tr>
                                                 </tfoot>

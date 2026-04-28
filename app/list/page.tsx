@@ -1068,37 +1068,37 @@ export default function DaftarDokumenPage() {
                                             <table className="w-full text-sm">
                                                 <thead className="bg-slate-50 text-slate-500">
                                                     <tr>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">No</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Kategori</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Jenis Pekerjaan</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs min-w-32">Catatan</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Satuan</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Volume</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Material</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Upah</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs">Total</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">No</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Kategori</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Jenis Pekerjaan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs min-w-48">Catatan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Satuan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Volume</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Material</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Upah</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {selectedDetail.items.map((item, idx) => (
                                                         <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                                                            <td className="px-4 py-2.5 text-slate-400">{idx + 1}</td>
-                                                            <td className="px-4 py-2.5 text-slate-600 font-medium text-xs">{item.kategori}</td>
-                                                            <td className="px-4 py-2.5 text-slate-700">{item.jenis_pekerjaan}</td>
+                                                            <td className="px-4 py-2.5 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
+                                                            <td className="px-4 py-2.5 text-slate-600 font-medium text-xs whitespace-nowrap">{item.kategori}</td>
+                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.jenis_pekerjaan}</td>
                                                             <td className="px-4 py-2.5 text-slate-500 italic text-xs">{item.catatan || '-'}</td>
-                                                            <td className="px-4 py-2.5 text-slate-500">{item.satuan}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-600">{item.volume}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-600">{formatRupiah(item.harga_material)}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-600">{formatRupiah(item.harga_upah)}</td>
-                                                            <td className="px-4 py-2.5 text-right font-semibold text-slate-800">{formatRupiah(item.total)}</td>
+                                                            <td className="px-4 py-2.5 text-center text-slate-500 whitespace-nowrap">{item.satuan}</td>
+                                                            <td className="px-4 py-2.5 text-center text-slate-600 whitespace-nowrap">{item.volume}</td>
+                                                            <td className="px-4 py-2.5 text-right text-slate-600 whitespace-nowrap">{formatRupiah(item.harga_material)}</td>
+                                                            <td className="px-4 py-2.5 text-right text-slate-600 whitespace-nowrap">{formatRupiah(item.harga_upah)}</td>
+                                                            <td className="px-4 py-2.5 text-right font-semibold text-slate-800 whitespace-nowrap">{formatRupiah(item.total)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot className="bg-slate-100 border-t border-slate-300">
                                                     <tr>
-                                                        <td colSpan={7} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
-                                                        <td className="p-3 font-extrabold text-slate-800 text-right">
-                                                            {formatRupiah((selectedDetail.items || []).reduce((s, r) => s + (r.total ?? 0), 0))}
+                                                        <td colSpan={8} className="p-3 font-bold text-slate-700 text-right">GRAND TOTAL</td>
+                                                        <td className="p-3 font-extrabold text-slate-800 text-right whitespace-nowrap">
+                                                            {formatRupiah((selectedDetail.items || []).reduce((s, r) => s + Number(r.total ?? 0), 0))}
                                                         </td>
                                                     </tr>
                                                 </tfoot>

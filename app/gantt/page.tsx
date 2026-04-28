@@ -1252,7 +1252,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 const s = parseInt(r.start) + shift - 1;
                 const e = parseInt(r.end) + shift - 1 + (parseInt(r.keterlambatan) || 0);
                 
-                if (s <= day) isScheduledToday = true;
+                if (s <= day && day <= e) isScheduledToday = true;
                 
                 // Cek apakah hari terakhir kategori ini bertepatan dengan hari pengawasan
                 if (day === e) {
@@ -2021,6 +2021,21 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     grand_total_rab: String(Math.round(grandTotalRab)),
                     items: itemsArray
                 });
+            }
+
+            // Trigger API Berkas Serah Terima
+            try {
+                const { API_URL } = await import('@/lib/constants');
+                const pdfRes = await fetch(`${API_URL.replace(/\/$/, "")}/api/create_pdf_serah_terima`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_toko: Number(id_toko) })
+                });
+                if (!pdfRes.ok) {
+                    console.warn("Gagal trigger PDF serah terima:", await pdfRes.text());
+                }
+            } catch (pdfErr) {
+                console.error("Error trigger PDF serah terima:", pdfErr);
             }
             
             showAlert({ 

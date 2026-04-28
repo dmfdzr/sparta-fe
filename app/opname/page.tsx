@@ -17,7 +17,7 @@ import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import {
     fetchRABList, fetchRABDetail, fetchTokoList,
     fetchOpnameList, fetchOpnameDetail, updateOpname, submitOpnameBulk, kunciOpnameFinal,
-    downloadOpnameFoto,
+    downloadOpnameFoto, fetchOpnameFinalList,
     fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList,
     type OpnameItem, type RABDetailItem, type RABDetailToko, type RABListItem,
 } from '@/lib/api';
@@ -137,6 +137,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
     // Expanded categories
     const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+    const [isOpnameFinalLocked, setIsOpnameFinalLocked] = useState(false);
 
     // Load RAB list
     useEffect(() => {
@@ -178,6 +179,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             setTokoDetail(null);
             setOpnameInputs({});
             setExistingOpname([]);
+            setIsOpnameFinalLocked(false);
             return;
         }
 
@@ -202,6 +204,18 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             } catch {
                 setExistingOpname([]);
             }
+
+            // Check opname final status
+            let lockedOpnameFinal = false;
+            try {
+                const finalRes = await fetchOpnameFinalList({ id_toko: rab.id_toko, aksi: 'terkunci' });
+                if (finalRes.data && finalRes.data.length > 0) {
+                    lockedOpnameFinal = true;
+                }
+            } catch {
+                // ignore
+            }
+            setIsOpnameFinalLocked(lockedOpnameFinal);
 
             // Initialize inputs - pre-fill with RAB volume, check existing opname
             const inputs: typeof opnameInputs = {};
@@ -316,7 +330,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                     id: item.id, // existing opname item id for upsert
                     id_toko: selectedRab.id_toko,
                     id_rab_item: Number(item.id_rab_item),
-                    status: 'pending',
+                    status: item.status || 'disetujui',
                     volume_akhir: item.volume_akhir,
                     selisih_volume: item.selisih_volume,
                     total_selisih: item.total_selisih,
@@ -325,7 +339,6 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                     kualitas: item.kualitas || undefined,
                     spesifikasi: item.spesifikasi || undefined,
                     catatan: item.catatan || undefined,
-                    foto: item.foto || undefined,
                 };
             });
 
@@ -722,6 +735,18 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                             )}
                         </div>
 
+                        {isOpnameFinalLocked && (
+                            <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 flex items-start gap-3">
+                                <Lock className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-red-800 text-sm">Opname Final Terkunci</h4>
+                                    <p className="text-xs text-red-600 mt-1">
+                                        Proyek ini sudah berstatus Opname Final dan aksi sudah terkunci. Anda tidak dapat mensubmit item opname baru.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Project Info */}
                         {isLoadingDetail && (
                             <div className="flex justify-center items-center py-16 text-slate-500">
@@ -988,7 +1013,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                     <Button
                                                                                         size="sm"
                                                                                         onClick={() => handleSubmitItem(item)}
-                                                                                        disabled={isSubmitting || !input.volume_akhir || !input.desain || !input.kualitas || !input.spesifikasi || (!input.file && !input.existing_foto)}
+                                                                                        disabled={isOpnameFinalLocked || isSubmitting || !input.volume_akhir || !input.desain || !input.kualitas || !input.spesifikasi || (!input.file && !input.existing_foto)}
                                                                                         className="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-5 py-2 h-auto shadow-md hover:shadow-lg transition-all"
                                                                                     >
                                                                                         {isItemSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
@@ -1054,14 +1079,14 @@ function OpnameHistoryView({ opnameList, rabItems }: { opnameList: OpnameItem[];
                 <table className="w-full text-sm text-left">
                     <thead>
                         <tr className="border-b-2 border-slate-200 text-[11px] text-slate-500 uppercase tracking-wider">
-                            <th className="pb-3 pr-4">Jenis Pekerjaan</th>
-                            <th className="pb-3 pr-4 text-center">Vol RAB</th>
-                            <th className="pb-3 pr-4 text-center">Vol Akhir</th>
-                            <th className="pb-3 pr-4 text-center">Selisih</th>
-                            <th className="pb-3 pr-4 text-center">Desain</th>
-                            <th className="pb-3 pr-4 text-center">Kualitas</th>
-                            <th className="pb-3 pr-4 text-center">Status</th>
-                            <th className="pb-3">Tanggal</th>
+                            <th className="pb-3 pr-4 whitespace-nowrap">Jenis Pekerjaan</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Vol RAB</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Vol Akhir</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Selisih</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Desain</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Kualitas</th>
+                            <th className="pb-3 pr-4 text-center whitespace-nowrap">Status</th>
+                            <th className="pb-3 whitespace-nowrap">Tanggal</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1070,29 +1095,29 @@ function OpnameHistoryView({ opnameList, rabItems }: { opnameList: OpnameItem[];
                             const rabItem = rabItems.find(r => Number(r.id) === Number(item.id_rab_item));
                             return (
                                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                    <td className="py-3 pr-4 font-semibold text-slate-700">
+                                    <td className="py-3 pr-4 font-semibold text-slate-700 whitespace-nowrap">
                                         <div className="text-[10px] text-slate-400 uppercase">{rabItem?.kategori_pekerjaan || item.rab_item?.kategori_pekerjaan || '-'}</div>
                                         {rabItem?.jenis_pekerjaan || item.rab_item?.jenis_pekerjaan || '-'}
                                     </td>
-                                    <td className="py-3 pr-4 text-center">{rabItem?.volume || item.rab_item?.volume || '-'}</td>
-                                    <td className="py-3 pr-4 text-center font-bold">{item.volume_akhir}</td>
-                                    <td className={`py-3 pr-4 text-center font-bold ${item.selisih_volume > 0 ? 'text-blue-600' : (item.selisih_volume < 0 ? 'text-red-600' : 'text-slate-500')}`}>
+                                    <td className="py-3 pr-4 text-center whitespace-nowrap">{rabItem?.volume || item.rab_item?.volume || '-'}</td>
+                                    <td className="py-3 pr-4 text-center font-bold whitespace-nowrap">{item.volume_akhir}</td>
+                                    <td className={`py-3 pr-4 text-center font-bold whitespace-nowrap ${item.selisih_volume > 0 ? 'text-blue-600' : (item.selisih_volume < 0 ? 'text-red-600' : 'text-slate-500')}`}>
                                         {item.selisih_volume > 0 ? '+' : ''}{item.selisih_volume}
                                     </td>
-                                    <td className="py-3 pr-4 text-center">
+                                    <td className="py-3 pr-4 text-center whitespace-nowrap">
                                         <span className={`text-xs font-semibold ${item.desain === 'Sesuai' ? 'text-green-600' : 'text-red-600'}`}>
                                             {item.desain || '-'}
                                         </span>
                                     </td>
-                                    <td className="py-3 pr-4 text-center">
+                                    <td className="py-3 pr-4 text-center whitespace-nowrap">
                                         <span className={`text-xs font-semibold ${item.kualitas === 'Baik' ? 'text-green-600' : 'text-red-600'}`}>
                                             {item.kualitas || '-'}
                                         </span>
                                     </td>
-                                    <td className="py-3 pr-4 text-center">
+                                    <td className="py-3 pr-4 text-center whitespace-nowrap">
                                         <StatusBadge status={item.status} />
                                     </td>
-                                    <td className="py-3 text-xs text-slate-500">{formatTanggalShort(item.created_at)}</td>
+                                    <td className="py-3 text-xs text-slate-500 whitespace-nowrap">{formatTanggalShort(item.created_at)}</td>
                                 </tr>
                             );
                         })}
