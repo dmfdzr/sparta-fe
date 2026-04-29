@@ -735,12 +735,12 @@ export default function RABPage() {
                         type="file"
                         ref={asuransiFileRef}
                         className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
+                        accept=".pdf"
                         onChange={handleAsuransiFileChange}
                       />
                     </label>
                   )}
-                  <p className="text-[10px] text-slate-400">Format: PDF, JPG, PNG (Maks. 5MB)</p>
+                  <p className="text-[10px] text-slate-400">Format: PDF (Maks. 5MB)</p>
                 </div>
               </div>
             </CardContent>
