@@ -155,16 +155,16 @@ export default function GanttViewer({ nomorUlok, idToko, spkStartDate, spkDurati
                         ?? Object.entries(categoryRangesMap).find(([k]) => tName.includes(k) || k.includes(tName))?.[1]
                         ?? [];
 
-                    const parentIds: number[] = [];
-                    (depMap[tName] || []).forEach(parentName => {
-                        const parentObj = generatedTasks.find(t => t.name.toLowerCase().trim() === parentName);
-                        if (parentObj) parentIds.push(parentObj.id);
+                    const childIds: number[] = [];
+                    (depMap[tName] || []).forEach(childName => {
+                        const childObj = generatedTasks.find(t => t.name.toLowerCase().trim() === childName);
+                        if (childObj) childIds.push(childObj.id);
                     });
 
                     return {
                         ...task,
                         ranges:       matchedRanges.length > 0 ? matchedRanges : [{ start: '', end: '', keterlambatan: 0 }],
-                        dependencies: parentIds,
+                        dependencies: childIds,
                     };
                 });
 
@@ -390,7 +390,7 @@ export default function GanttViewer({ nomorUlok, idToko, spkStartDate, spkDurati
                             <div key={`col-${i}`} className="absolute top-0 bottom-0 border-r border-slate-200 z-0 pointer-events-none" style={{ left: (i + 1) * DAY_WIDTH, width: 1 }} />
                         ))}
                         
-                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-visible">
+                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-20 overflow-visible">
                             <defs>
                                 <marker id="depArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
                                     <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6" />

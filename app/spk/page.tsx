@@ -133,6 +133,7 @@ export default function SPKPage() {
                 "Proyek": r.proyek || "-",
                 "Alamat": r.toko?.alamat || "-",
                 "Grand Total Final": r.grand_total_final || r.grand_total || 0,
+                "Durasi_Pekerjaan": r.durasi_pekerjaan || "",
             }));
             
             setApprovedRabs(mappedData);
@@ -170,7 +171,8 @@ export default function SPKPage() {
                 nomor_ulok: ulokStr, 
                 kode_cabang: getCabangCode(selected.Cabang),
                 nama_toko: selected["Nama_Toko"] || selected["nama_toko"] || '',
-                kode_toko: selected["Kode_Toko"] || selected["kode_toko"] || ''
+                kode_toko: selected["Kode_Toko"] || selected["kode_toko"] || '',
+                durasi: selected["Durasi_Pekerjaan"] || ''
             }));
             
             setSpkMsg({ text: "Memuat Kontraktor dan Status SPK...", type: "info" });
@@ -470,16 +472,14 @@ export default function SPKPage() {
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-700">Durasi (Hari) *</label>
                                         <input
-                                            type="number"
+                                            type="text"
                                             required
-                                            min={1}
-                                            max={365}
-                                            placeholder="Masukkan jumlah hari..."
-                                            className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                            readOnly
+                                            className="w-full p-2.5 border border-slate-300 rounded-lg bg-slate-100 text-slate-600 font-bold outline-none cursor-not-allowed"
                                             value={form.durasi}
-                                            onChange={e => setForm({...form, durasi: e.target.value})}
+                                            placeholder="Otomatis dari RAB"
                                         />
-                                        <p className="text-xs text-slate-500 mt-1">Masukkan jumlah hari kalender pelaksanaan.</p>
+                                        <p className="text-xs text-slate-500 mt-1">Otomatis diambil dari data RAB yang dipilih.</p>
                                     </div>
                                 </div>
                             </div>

@@ -582,7 +582,10 @@ export const updateGanttChart = async (id: number, payload: GanttUpdatePayload) 
     const result = await res.json();
     if (res.status === 404) throw new Error("Gantt Chart tidak ditemukan.");
     if (res.status === 409) throw new Error("Gantt Chart sudah terkunci dan tidak dapat diubah.");
-    if (!res.ok) throw new Error(result.message || `Gagal memperbarui (${res.status}).`);
+    if (!res.ok) {
+        const errorDetails = result.errors ? JSON.stringify(result.errors) : "";
+        throw new Error(`${result.message || 'Gagal memperbarui'} ${errorDetails}`.trim());
+    }
     return result;
 };
 

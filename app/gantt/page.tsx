@@ -575,7 +575,7 @@ function GanttBoard() {
                     day_items: day_items,
                     kategori_pekerjaan: [], 
                     pengawasan: [],
-                    dependencies: []
+                    dependencies: dependencies
                 };
 
                 await updateGanttChart(selectedGanttId, updatePayload);
@@ -1074,10 +1074,10 @@ function GanttBoard() {
                                     )
                                 })}
 
-                                <svg className="absolute top-0 pointer-events-none z-0" style={{ left: 250, width: chartData.totalChartWidth, height: chartData.svgHeight }}>
+                                <svg className="absolute top-0 pointer-events-none z-20 overflow-visible" style={{ left: 250, width: chartData.totalChartWidth, height: chartData.svgHeight }}>
                                     <defs>
                                         <marker id="depArrow" viewBox="0 0 10 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto">
-                                            <path d="M0,0 L10,3 L0,6 Z" className="fill-blue-500" />
+                                            <path d="M0,0 L10,3 L0,6 Z" fill="#3b82f6" />
                                         </marker>
                                     </defs>
                                     {chartData.svgLines}
