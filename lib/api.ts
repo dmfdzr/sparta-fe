@@ -351,6 +351,24 @@ export const downloadRABPdf = async (id: number): Promise<boolean> => {
     return true;
 };
 
+/** Update status RAB (penolakan otomatis oleh HEAD OFFICE). */
+export const updateRABStatus = async (payload: {
+    id_toko: number;
+    id_rab: number;
+    status: string;
+}): Promise<any> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/rab/update-status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 400) throw new Error(result.message || "Status yang dikirim bukan status penolakan yang valid.");
+    if (res.status === 404) throw new Error(result.message || "RAB atau data user tidak ditemukan.");
+    if (res.status === 409) throw new Error(result.message || "id_toko tidak cocok dengan data RAB.");
+    if (!res.ok) throw new Error(result.message || "Gagal memperbarui status RAB.");
+    return result;
+};
 /** Proses approval atau reject RAB. */
 export const processRABApproval = async (
     id: number,
@@ -715,14 +733,33 @@ export const updatePengawasanBulk = async (payload: FormData | { items: any[] })
 };
 
 /** Ambil daftar pengawasan selesai/seluruhnya */
-export const fetchPengawasanList = async (filters?: { id_gantt?: number; status?: string; tanggal?: string }) => {
+export const fetchPengawasanList = async (filters?: { 
+    id_gantt?: number; 
+    status?: string; 
+    tanggal?: string;
+    kategori_pekerjaan?: string;
+    jenis_pekerjaan?: string;
+}) => {
     const params = new URLSearchParams();
     if (filters?.id_gantt) params.append("id_gantt", filters.id_gantt.toString());
     if (filters?.status) params.append("status", filters.status);
     if (filters?.tanggal) params.append("tanggal", filters.tanggal);
+    if (filters?.kategori_pekerjaan) params.append("kategori_pekerjaan", filters.kategori_pekerjaan);
+    if (filters?.jenis_pekerjaan) params.append("jenis_pekerjaan", filters.jenis_pekerjaan);
     
     const url = `${API_URL.replace(/\/$/, "")}/api/pengawasan${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url);
+};
+
+/** Ambil detail pengawasan berdasarkan ID */
+export const fetchPengawasanDetail = async (id: number): Promise<any> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pengawasan/${id}`);
+    if (res.status === 404) throw new Error(`Data Pengawasan dengan ID ${id} tidak ditemukan.`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal memuat detail Pengawasan (${res.status}): ${text.substring(0, 100)}`);
+    }
+    return res.json();
 };
 
 // =============================================================================
@@ -1623,3 +1660,4 @@ export const downloadInstruksiLapanganPdf = async (id: number): Promise<boolean>
     document.body.removeChild(a);
     return true;
 };
+

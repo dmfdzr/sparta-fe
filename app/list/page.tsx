@@ -11,7 +11,7 @@ import {
     ArrowLeft, Loader2, Search, FileText, FileSignature,
     Eye, FileDown, Building2, CalendarDays, User, XCircle,
     CheckCircle, Hash, Clock, ChevronRight, Filter,
-    RefreshCw, AlertTriangle, Download, FilePlus,
+    RefreshCw, AlertTriangle, Download, FilePlus, CheckSquare,
 } from 'lucide-react';
 
 import {
@@ -21,13 +21,16 @@ import {
     type SPKListItem, type SPKDetailResponse,
     fetchPertambahanSPKList, fetchPertambahanSPKDetail,
     type PertambahanSPKListItem,
+    fetchOpnameFinalList, fetchOpnameFinalDetail, downloadOpnameFinalPdf,
+    fetchPengawasanList, fetchPengawasanDetail,
+    updateRABStatus,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
 
 // =============================================================================
 // TYPES
 // =============================================================================
-type DokumenKategori = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK';
+type DokumenKategori = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL' | 'PENGAWASAN';
 type ActiveView = 'menu' | 'list' | 'detail';
 
 interface NormalizedDoc {
@@ -69,6 +72,7 @@ interface NormalizedDetail {
     email_pembuat: string;
     total_nilai: number;
     created_at: string;
+    id_toko?: number;
     // RAB specific
     alamat?: string;
     lingkup_pekerjaan?: string;
@@ -121,6 +125,17 @@ interface NormalizedDetail {
     tanggal_spk_akhir_setelah_perpanjangan?: string;
     disetujui_oleh?: string;
     waktu_persetujuan_detail?: string;
+    // Opname Final specific
+    grand_total_opname?: string;
+    grand_total_rab?: string;
+    // Pengawasan specific
+    id_gantt?: number;
+    id_pengawasan_gantt?: number;
+    kategori_pekerjaan?: string;
+    jenis_pekerjaan?: string;
+    catatan?: string | null;
+    dokumentasi?: string | null;
+    link_pdf_pengawasan?: string | null;
 }
 
 // =============================================================================
@@ -169,6 +184,28 @@ const KATEGORI_CONFIG: Record<DokumenKategori, {
         hoverBorder: 'hover:border-emerald-400',
         badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
         description: 'Daftar pengajuan perpanjangan hari SPK.',
+    },
+    OPNAME_FINAL: {
+        label: 'Opname Final',
+        fullLabel: 'Opname Final',
+        icon: <CheckSquare className="w-10 h-10" />,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        borderColor: 'border-orange-200',
+        hoverBorder: 'hover:border-orange-400',
+        badgeColor: 'bg-orange-100 text-orange-700 border-orange-200',
+        description: 'Daftar dokumen Opname Final.',
+    },
+    PENGAWASAN: {
+        label: 'Pengawasan',
+        fullLabel: 'Dokumen Pengawasan',
+        icon: <Eye className="w-10 h-10" />,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-50',
+        borderColor: 'border-indigo-200',
+        hoverBorder: 'hover:border-indigo-400',
+        badgeColor: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+        description: 'Daftar dokumen laporan pengawasan.',
     },
 };
 
@@ -315,6 +352,36 @@ const normalizePertambahanSPKDocs = (items: PertambahanSPKListItem[]): Normalize
         dibuat_oleh: p.dibuat_oleh,
     }));
 
+const normalizeOpnameFinalDocs = (items: any[]): NormalizedDoc[] =>
+    items.map(o => ({
+        id: o.id,
+        tipe: 'OPNAME_FINAL' as DokumenKategori,
+        nomor_ulok:    o.toko?.nomor_ulok ?? '-',
+        nama_toko:     o.toko?.nama_toko  ?? '-',
+        cabang:        o.toko?.cabang     ?? '-',
+        proyek:        o.toko?.proyek     ?? '-',
+        status:        o.status_opname_final,
+        email_pembuat: o.email_pembuat,
+        total_nilai:   parseCurrency(o.grand_total_opname),
+        created_at:    o.created_at,
+        link_pdf:      o.link_pdf_opname ?? null,
+    }));
+
+const normalizePengawasanDocs = (items: any[]): NormalizedDoc[] =>
+    items.map(p => ({
+        id: p.id,
+        tipe: 'PENGAWASAN' as DokumenKategori,
+        nomor_ulok:    '-',
+        nama_toko:     p.kategori_pekerjaan ? `${p.kategori_pekerjaan} - ${p.jenis_pekerjaan}` : '-',
+        cabang:        '-',
+        proyek:        '-',
+        status:        p.status,
+        email_pembuat: '-',
+        total_nilai:   0,
+        created_at:    p.created_at,
+        link_pdf:      p.berkas_pengawasan?.link_pdf_pengawasan ?? null,
+    }));
+
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -324,6 +391,7 @@ export default function DaftarDokumenPage() {
     // --- Auth ---
     const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
     const [isContractor, setIsContractor] = useState(false);
+    const [isDirektur, setIsDirektur] = useState(false);
 
     // --- Navigation ---
     const [activeView, setActiveView] = useState<ActiveView>('menu');
@@ -336,12 +404,18 @@ export default function DaftarDokumenPage() {
     // --- Filters ---
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [cabangFilter, setCabangFilter] = useState('');
 
     // --- UI ---
     const [isLoading, setIsLoading] = useState(false);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+    // --- RAB Status Update (HO only) ---
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [selectedNewStatus, setSelectedNewStatus] = useState('');
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     // =========================================================================
     // AUTH + INIT
@@ -357,7 +431,9 @@ export default function DaftarDokumenPage() {
 
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         const contractorFlag = roles.some(r => r.includes('KONTRAKTOR'));
+        const direkturFlag = roles.some(r => r.includes('DIREKTUR'));
         setIsContractor(contractorFlag);
+        setIsDirektur(direkturFlag);
         setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email });
     }, [router]);
 
@@ -376,6 +452,7 @@ export default function DaftarDokumenPage() {
         setIsLoading(true);
         setSearchQuery('');
         setStatusFilter('');
+        setCabangFilter('');
         try {
             let docs: NormalizedDoc[] = [];
             if (kategori === 'RAB') {
@@ -387,6 +464,12 @@ export default function DaftarDokumenPage() {
             } else if (kategori === 'PERTAMBAHAN_SPK') {
                 const res = await fetchPertambahanSPKList();
                 docs = normalizePertambahanSPKDocs(res.data ?? []);
+            } else if (kategori === 'OPNAME_FINAL') {
+                const res = await fetchOpnameFinalList();
+                docs = normalizeOpnameFinalDocs(res.data ?? []);
+            } else if (kategori === 'PENGAWASAN') {
+                const res = await fetchPengawasanList();
+                docs = normalizePengawasanDocs(res.data ?? []);
             }
 
             // Filter by cabang for non-HO users
@@ -427,6 +510,7 @@ export default function DaftarDokumenPage() {
                 detail = {
                     id: d.rab.id,
                     tipe: 'RAB',
+                    id_toko:             d.toko.id,
                     nomor_ulok:          d.toko.nomor_ulok,
                     nama_toko:           d.toko.nama_toko,
                     cabang:              d.toko.cabang,
@@ -496,29 +580,59 @@ export default function DaftarDokumenPage() {
                         waktu_tindakan: log.waktu_tindakan,
                     })),
                 };
-            } else if (doc.tipe === 'PERTAMBAHAN_SPK') {
-                const res = await fetchPertambahanSPKDetail(doc.id);
+            } else if (doc.tipe === 'OPNAME_FINAL') {
+                const res = await fetchOpnameFinalDetail(doc.id);
+                const d = res.data;
+                detail = {
+                    id: d.opname_final.id,
+                    tipe: 'OPNAME_FINAL',
+                    nomor_ulok:          d.toko?.nomor_ulok || doc.nomor_ulok,
+                    nama_toko:           d.toko?.nama_toko || doc.nama_toko,
+                    cabang:              d.toko?.cabang || doc.cabang,
+                    proyek:              d.toko?.proyek || doc.proyek,
+                    status:              d.opname_final.status_opname_final,
+                    email_pembuat:       d.opname_final.email_pembuat,
+                    total_nilai:         parseCurrency(d.opname_final.grand_total_opname),
+                    created_at:          d.opname_final.created_at,
+                    link_pdf:            d.opname_final.link_pdf_opname,
+                    grand_total_opname:  d.opname_final.grand_total_opname,
+                    grand_total_rab:     d.opname_final.grand_total_rab,
+                    approval_koordinator: { pemberi: d.opname_final.pemberi_persetujuan_koordinator, waktu: d.opname_final.waktu_persetujuan_koordinator },
+                    approval_manager:     { pemberi: d.opname_final.pemberi_persetujuan_manager,     waktu: d.opname_final.waktu_persetujuan_manager },
+                    approval_direktur:    { pemberi: d.opname_final.pemberi_persetujuan_direktur,    waktu: d.opname_final.waktu_persetujuan_direktur },
+                    alasan_penolakan:    d.opname_final.alasan_penolakan,
+                    items: (d.items ?? []).map((it: any) => ({
+                        id: it.id,
+                        kategori:        it.kategori_pekerjaan || it.rab_item?.kategori_pekerjaan,
+                        jenis_pekerjaan: it.jenis_pekerjaan || it.rab_item?.jenis_pekerjaan,
+                        satuan:          it.satuan || it.rab_item?.satuan,
+                        volume:          it.volume_akhir,
+                        harga_material:  it.rab_item?.harga_material || 0,
+                        harga_upah:      it.rab_item?.harga_upah || 0,
+                        total:           it.total_harga_opname,
+                        catatan:         it.catatan,
+                    })),
+                };
+            } else if (doc.tipe === 'PENGAWASAN') {
+                const res = await fetchPengawasanDetail(doc.id);
                 const d = res.data;
                 detail = {
                     id: d.id,
-                    tipe: 'PERTAMBAHAN_SPK',
-                    nomor_ulok:        d.nomor_spk || d.toko?.nomor_ulok || d.spk?.nomor_ulok || '-',
-                    nama_toko:         d.toko?.nama_toko || d.spk?.nama_toko || doc.nama_toko,
-                    cabang:            d.toko?.cabang   || d.spk?.cabang || '',
-                    proyek:            d.toko?.proyek   || d.spk?.proyek || '-',
-                    status:            d.status_persetujuan,
-                    email_pembuat:     d.dibuat_oleh,
+                    tipe: 'PENGAWASAN',
+                    nomor_ulok:        '-',
+                    nama_toko:         d.kategori_pekerjaan ? `${d.kategori_pekerjaan} - ${d.jenis_pekerjaan}` : '-',
+                    cabang:            '-',
+                    proyek:            '-',
+                    status:            d.status,
+                    email_pembuat:     '-',
                     total_nilai:       0,
                     created_at:        d.created_at,
-                    pertambahan_hari:  d.pertambahan_hari,
-                    alasan_perpanjangan: d.alasan_perpanjangan,
-                    tanggal_spk_akhir: d.tanggal_spk_akhir,
-                    tanggal_spk_akhir_setelah_perpanjangan: d.tanggal_spk_akhir_setelah_perpanjangan,
-                    disetujui_oleh:    d.disetujui_oleh ?? undefined,
-                    waktu_persetujuan_detail: d.waktu_persetujuan ?? undefined,
-                    alasan_penolakan:  d.alasan_penolakan,
-                    link_pdf:          d.link_pdf,
-                    link_lampiran_pendukung: d.link_lampiran_pendukung,
+                    link_pdf:          d.berkas_pengawasan?.link_pdf_pengawasan ?? null,
+                    kategori_pekerjaan: d.kategori_pekerjaan,
+                    jenis_pekerjaan:   d.jenis_pekerjaan,
+                    catatan:           d.catatan,
+                    dokumentasi:       d.dokumentasi,
+                    link_pdf_pengawasan: d.berkas_pengawasan?.link_pdf_pengawasan ?? null,
                 };
             }
 
@@ -541,6 +655,8 @@ export default function DaftarDokumenPage() {
                 await downloadRABPdf(id);
             } else if (tipe === 'SPK') {
                 await downloadSPKPdf(id);
+            } else if (tipe === 'OPNAME_FINAL') {
+                await downloadOpnameFinalPdf(id);
             }
             showToast('PDF berhasil diunduh.', 'success');
         } catch (err: any) {
@@ -575,11 +691,59 @@ export default function DaftarDokumenPage() {
     };
 
     // =========================================================================
+    // UPDATE RAB STATUS (HO ONLY)
+    // =========================================================================
+    const RAB_STATUS_OPTIONS = [
+        { value: 'Ditolak oleh Koordinator', label: 'Ditolak oleh Koordinator' },
+        { value: 'Ditolak oleh Manajer', label: 'Ditolak oleh Manajer' },
+        { value: 'Ditolak oleh Direktur', label: 'Ditolak oleh Direktur' },
+    ];
+
+    const handleUpdateRABStatus = useCallback(async () => {
+        if (!selectedDetail || !selectedNewStatus || !selectedDetail.id_toko) return;
+        setIsUpdatingStatus(true);
+        try {
+            await updateRABStatus({
+                id_toko: selectedDetail.id_toko,
+                id_rab: selectedDetail.id,
+                status: selectedNewStatus,
+            });
+            showToast(`Status RAB berhasil diubah menjadi "${selectedNewStatus}".`, 'success');
+            // Update local state
+            setSelectedDetail(prev => prev ? { ...prev, status: selectedNewStatus } : null);
+            setListData(prev => prev.map(d =>
+                d.id === selectedDetail.id && d.tipe === 'RAB' ? { ...d, status: selectedNewStatus } : d
+            ));
+            setShowStatusModal(false);
+            setSelectedNewStatus('');
+        } catch (err: any) {
+            showToast(err.message || 'Gagal memperbarui status RAB.', 'error');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    }, [selectedDetail, selectedNewStatus, showToast]);
+
+    // =========================================================================
     // FILTERED LIST
     // =========================================================================
+    // Derive unique cabang list for HO dropdown
+    const cabangOptions = useMemo(() => {
+        const set = new Set<string>();
+        listData.forEach(d => {
+            if (d.cabang && d.cabang !== '-') set.add(d.cabang.toUpperCase());
+        });
+        return Array.from(set).sort();
+    }, [listData]);
+
+    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
         return listData.filter(item => {
+            // Cabang filter (HO only)
+            if (cabangFilter) {
+                if (item.cabang.toUpperCase() !== cabangFilter.toUpperCase()) return false;
+            }
             // Search filter
             if (q) {
                 const matchSearch =
@@ -603,7 +767,7 @@ export default function DaftarDokumenPage() {
             }
             return true;
         });
-    }, [listData, searchQuery, statusFilter]);
+    }, [listData, searchQuery, statusFilter, cabangFilter]);
 
     // =========================================================================
     // RENDER
@@ -611,11 +775,77 @@ export default function DaftarDokumenPage() {
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
 
-            {/* TOAST */}
-            {toast && (
-                <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-semibold animate-in slide-in-from-top-2 duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-                    {toast.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
-                    {toast.msg}
+
+
+            {/* STATUS UPDATE MODAL (HO ONLY) */}
+            {showStatusModal && selectedDetail && selectedDetail.tipe === 'RAB' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="px-6 py-4 bg-linear-to-r from-red-50 to-red-100/50 border-b border-red-100">
+                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                                Ubah Status RAB
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                {selectedDetail.nama_toko} — {selectedDetail.nomor_ulok}
+                            </p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600 mb-1">Status Saat Ini</p>
+                                <Badge className={`${getStatusBadgeClass(selectedDetail.status)} font-semibold text-xs border px-3 py-1`}>
+                                    {selectedDetail.status}
+                                </Badge>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-slate-600 mb-2 block">Ubah Menjadi</label>
+                                <div className="space-y-2">
+                                    {RAB_STATUS_OPTIONS.map(opt => (
+                                        <label
+                                            key={opt.value}
+                                            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                                selectedNewStatus === opt.value
+                                                    ? 'border-red-400 bg-red-50'
+                                                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="rab-status"
+                                                value={opt.value}
+                                                checked={selectedNewStatus === opt.value}
+                                                onChange={() => setSelectedNewStatus(opt.value)}
+                                                className="accent-red-500"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => { setShowStatusModal(false); setSelectedNewStatus(''); }}
+                                    disabled={isUpdatingStatus}
+                                >
+                                    Batal
+                                </Button>
+                                <Button
+                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                    disabled={!selectedNewStatus || isUpdatingStatus}
+                                    onClick={handleUpdateRABStatus}
+                                >
+                                    {isUpdatingStatus ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <AlertTriangle className="w-4 h-4 mr-2" />
+                                    )}
+                                    {isUpdatingStatus ? 'Memproses...' : 'Konfirmasi'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -643,10 +873,10 @@ export default function DaftarDokumenPage() {
                 {/* ===== VIEW 0: MENU KATEGORI ===== */}
                 {activeView === 'menu' && (
                     <div className="flex flex-col items-center mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl px-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-4">
                             {(Object.keys(KATEGORI_CONFIG) as DokumenKategori[]).filter(kat => {
-                                // Hide PERTAMBAHAN_SPK from KONTRAKTOR
-                                if (kat === 'PERTAMBAHAN_SPK' && isContractor) return false;
+                                // Hide PERTAMBAHAN_SPK and PENGAWASAN from KONTRAKTOR and DIREKTUR
+                                if ((kat === 'PERTAMBAHAN_SPK' || kat === 'PENGAWASAN') && (isContractor || isDirektur)) return false;
                                 return true;
                             }).map(kat => {
                                 const cfg = KATEGORI_CONFIG[kat];
@@ -731,6 +961,22 @@ export default function DaftarDokumenPage() {
                                     ))}
                                 </select>
                             </div>
+                            {isHO && cabangOptions.length > 0 && (
+                                <div className="relative w-full sm:w-56">
+                                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <select
+                                        id="filter-cabang"
+                                        value={cabangFilter}
+                                        onChange={e => setCabangFilter(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Semua Cabang</option>
+                                        {cabangOptions.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         {/* List */}
@@ -860,9 +1106,21 @@ export default function DaftarDokumenPage() {
                                                     <p className="text-sm text-slate-500">ID: {selectedDetail.id}</p>
                                                 </div>
                                             </div>
-                                            <Badge className={`${getStatusBadgeClass(selectedDetail.status)} font-semibold text-xs border px-3 py-1`}>
-                                                {getStatusLabel(selectedDetail.status)}
-                                            </Badge>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Badge className={`${getStatusBadgeClass(selectedDetail.status)} font-semibold text-xs border px-3 py-1`}>
+                                                    {getStatusLabel(selectedDetail.status)}
+                                                </Badge>
+                                                {isHO && selectedDetail.tipe === 'RAB' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-7"
+                                                        onClick={() => { setShowStatusModal(true); setSelectedNewStatus(''); }}
+                                                    >
+                                                        <AlertTriangle className="w-3 h-3 mr-1" /> Ubah Status
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1041,7 +1299,18 @@ export default function DaftarDokumenPage() {
                                         </div>
                                     </div>
                                 )}
-
+                                {/* Catatan (PENGAWASAN) */}
+                                {selectedDetail.tipe === 'PENGAWASAN' && selectedDetail.catatan && (
+                                    <div className="bg-indigo-50 rounded-2xl border border-indigo-200 p-5">
+                                        <div className="flex items-start gap-3">
+                                            <FileText className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-bold text-indigo-700">Catatan Pengawasan</p>
+                                                <p className="text-sm text-indigo-600 mt-1">{selectedDetail.catatan}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {/* Alasan Penolakan (SPK) */}
                                 {selectedDetail.tipe === 'SPK' && selectedDetail.alasan_penolakan && (
                                     <div className="bg-red-50 rounded-2xl border border-red-200 p-5">
@@ -1055,12 +1324,12 @@ export default function DaftarDokumenPage() {
                                     </div>
                                 )}
 
-                                {/* Items Table (RAB) */}
-                                {selectedDetail.tipe === 'RAB' && selectedDetail.items && selectedDetail.items.length > 0 && (
+                                {/* Items Table (RAB & OPNAME_FINAL) */}
+                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'OPNAME_FINAL') && selectedDetail.items && selectedDetail.items.length > 0 && (
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                         <div className="px-6 py-4 border-b border-slate-100">
                                             <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                                <div className="w-1.5 h-5 bg-blue-500 rounded-full" />
+                                                <div className={`w-1.5 h-5 ${selectedDetail.tipe === 'OPNAME_FINAL' ? 'bg-orange-500' : 'bg-blue-500'} rounded-full`} />
                                                 Item Pekerjaan ({selectedDetail.items.length} item)
                                             </h4>
                                         </div>
@@ -1114,8 +1383,8 @@ export default function DaftarDokumenPage() {
                                         Unduh Dokumen
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
-                                        {/* Download button for RAB & SPK only */}
-                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK') && (
+                                        {/* Download button for RAB, SPK, OPNAME_FINAL */}
+                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK' || selectedDetail.tipe === 'OPNAME_FINAL') && (
                                             <Button
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                                 disabled={downloadingId === selectedDetail.id}
@@ -1153,8 +1422,8 @@ export default function DaftarDokumenPage() {
                                             </a>
                                         )}
 
-                                        {/* SPK PDF link */}
-                                        {selectedDetail.tipe === 'SPK' && selectedDetail.link_pdf && (
+                                        {/* SPK, OPNAME_FINAL & PENGAWASAN PDF link */}
+                                        {(selectedDetail.tipe === 'SPK' || selectedDetail.tipe === 'OPNAME_FINAL' || selectedDetail.tipe === 'PENGAWASAN') && selectedDetail.link_pdf && (
                                             <a href={selectedDetail.link_pdf} target="_blank" rel="noopener noreferrer">
                                                 <Button variant="outline">
                                                     <FileDown className="w-4 h-4 mr-2" /> Lihat PDF Online
@@ -1185,6 +1454,15 @@ export default function DaftarDokumenPage() {
                                         {selectedDetail.tipe === 'PERTAMBAHAN_SPK' && !selectedDetail.link_lampiran_pendukung && (
                                             <p className="text-sm text-slate-400 italic">Tidak ada lampiran pendukung.</p>
                                         )}
+
+                                        {/* Pengawasan Dokumentasi Link */}
+                                        {selectedDetail.tipe === 'PENGAWASAN' && selectedDetail.dokumentasi && (
+                                            <a href={selectedDetail.dokumentasi} target="_blank" rel="noopener noreferrer">
+                                                <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                                                    <Eye className="w-4 h-4 mr-2" /> Lihat Dokumentasi
+                                                </Button>
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1194,6 +1472,13 @@ export default function DaftarDokumenPage() {
                 )}
 
             </main>
+            {/* TOAST */}
+            {toast && (
+                <div className={`fixed top-5 right-5 z-100 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-white text-sm font-semibold animate-in slide-in-from-top-2 duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                    {toast.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+                    {toast.msg}
+                </div>
+            )}
         </div>
     );
 }

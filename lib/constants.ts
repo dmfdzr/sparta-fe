@@ -89,13 +89,6 @@ export const ALL_MENUS = [
         isAlert: true,
     },
     {
-        id: "menu-userlog",
-        title: "User Log",
-        desc: "Log aktivitas pengguna.",
-        href: "/userlog",
-        icon: Activity,
-    },
-    {
         id: "menu-monitoring",
         title: "Monitoring Dashboard",
         desc: "Pantau grafik progres dan status proyek real-time.",
@@ -162,7 +155,7 @@ export const ROLE_CONFIG: Record<string, string[]> = {
     ],
 
     "KONTRAKTOR": [
-        "menu-rab", "menu-opname", "menu-gantt", "menu-approval"
+        "menu-rab", "menu-opname", "menu-gantt", "menu-daftardokumen"
     ],
 };
 

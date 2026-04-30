@@ -62,9 +62,6 @@ export default function DashboardPage() {
                 : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
         }
 
-        if (isHO && !contractorFlag && !allowedIds.includes('menu-userlog')) {
-            allowedIds.push('menu-userlog');
-        }
 
         setAllowedMenus(ALL_MENUS.filter(m => allowedIds.includes(m.id)));
         setUserInfo({ name: namaLengkap.toUpperCase(), roles: roles, cabang: userCabang.toUpperCase() });
