@@ -53,6 +53,7 @@ export type RABTokoDetail = {
     nama_toko:  string;
     cabang:     string;
     proyek:     string;
+    lingkup_pekerjaan: string;
 };
 
 export type RABListItem = {
@@ -73,6 +74,7 @@ export type RABListItem = {
     nama_toko:            string;
     cabang:               string;
     proyek:               string;
+    lingkup_pekerjaan?:   string;
     alasan_penolakan?:    string | null;
     toko?:                RABTokoDetail;
 };
@@ -189,9 +191,9 @@ export const checkRevisionStatus = async (email: string, cabang: string) => {
         const formatted = rejected.map(r => ({
             id: r.id,
             "Nomor Ulok": r.nomor_ulok,
-            "Lingkup_Pekerjaan": r.proyek, // Fallback to proyek, exact scope fetched on click
-            "nama_toko": r.nama_toko,
-            "Proyek": r.proyek,
+            "Lingkup_Pekerjaan": r.lingkup_pekerjaan || r.toko?.lingkup_pekerjaan || r.proyek, 
+            "nama_toko": r.nama_toko || r.toko?.nama_toko,
+            "Proyek": r.proyek || r.toko?.proyek,
             "alasan_penolakan": r.alasan_penolakan,
             // Sisa field detail akan diambil saat tombol 'Revisi Sekarang' diklik
         }));

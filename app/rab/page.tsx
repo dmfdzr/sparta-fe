@@ -876,7 +876,13 @@ export default function RABPage() {
                               <span key={idx} className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col gap-3">
                                   <span className="block">
                                       <span className="font-bold text-slate-800 text-base">{item['Nomor Ulok']}</span>
-                                      <span className="text-sm text-slate-500 block">Lingkup: {item['Lingkup_Pekerjaan'] || item['Lingkup Pekerjaan']}</span>
+                                      <span className="text-sm text-slate-600 block font-medium">{item['nama_toko']}</span>
+                                      <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">
+                                        Lingkup : {item['Lingkup_Pekerjaan'] || item['Lingkup Pekerjaan'] || '-'}
+                                      </span>
+                                      <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">
+                                        Proyek : {item['Proyek'] || '-'}
+                                      </span>
                                       {item.alasan_penolakan && (
                                           <span className="text-sm font-medium text-red-600 block mt-2 bg-red-50 p-2.5 rounded-lg border border-red-100">
                                               <span className="font-bold">Alasan Penolakan:</span> {item.alasan_penolakan}
