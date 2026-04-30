@@ -364,7 +364,8 @@ export default function RABPage() {
   }, [tableRows]);
   
   const pembulatan = Math.floor(totalEstimasi / 10000) * 10000;
-  const ppn = pembulatan * 0.11;
+  const isNoPpn = formData.cabang === 'BATAM' || formData.cabang === 'BINTAN';
+  const ppn = isNoPpn ? 0 : pembulatan * 0.11;
   const grandTotal = pembulatan + ppn;
 
   // --- 6. HANDLER INPUT NORMAL ---
@@ -842,9 +843,19 @@ export default function RABPage() {
 
           <div className="bg-[#fff9e6] border-2 border-[#ffc107] p-6 md:p-8 rounded-2xl shadow-sm mb-8">
               <div className="flex justify-between items-center mb-3"><span className="text-slate-600 font-medium">Total Estimasi :</span><span className="font-semibold text-lg text-slate-800">{toRupiah(totalEstimasi)}</span></div>
-              <div className="flex justify-between items-center mb-3"><span className="text-slate-600 font-medium">Pembulatan :</span><span className="font-semibold text-lg text-slate-800">{toRupiah(pembulatan)}</span></div>
-              <div className="flex justify-between items-center mb-6"><span className="text-slate-600 font-medium">PPN (11%) :</span><span className="font-semibold text-lg text-slate-800">{toRupiah(ppn)}</span></div>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-t border-yellow-300 pt-6 gap-4"><span className="text-xl md:text-2xl font-bold text-slate-800">GRAND TOTAL</span><span className="text-3xl md:text-4xl font-extrabold text-red-600">{toRupiah(grandTotal)}</span></div>
+              
+              {isNoPpn ? (
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-t border-yellow-300 pt-6 gap-4 mt-4">
+                  <span className="text-xl md:text-2xl font-bold text-slate-800">PEMBULATAN</span>
+                  <span className="text-3xl md:text-4xl font-extrabold text-red-600">{toRupiah(pembulatan)}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-3"><span className="text-slate-600 font-medium">Pembulatan :</span><span className="font-semibold text-lg text-slate-800">{toRupiah(pembulatan)}</span></div>
+                  <div className="flex justify-between items-center mb-6"><span className="text-slate-600 font-medium">PPN (11%) :</span><span className="font-semibold text-lg text-slate-800">{toRupiah(ppn)}</span></div>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-t border-yellow-300 pt-6 gap-4"><span className="text-xl md:text-2xl font-bold text-slate-800">GRAND TOTAL</span><span className="text-3xl md:text-4xl font-extrabold text-red-600">{toRupiah(grandTotal)}</span></div>
+                </>
+              )}
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 sticky bottom-4 z-10 p-4 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200">

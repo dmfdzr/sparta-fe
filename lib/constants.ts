@@ -210,8 +210,9 @@ export const ME_CATEGORIES = [
  */
 export const BRANCH_GROUPS: Record<string, string[]> = {
     LOMBOK:    ["LOMBOK", "SUMBAWA"],
+    CIKOKOL:   ["CIKOKOL", "BINTAN"],
     MEDAN:     ["MEDAN", "ACEH"],
-    LAMPUNG:   ["LAMPUNG", "LAMPUNG_KOTABUMI"],
+    LAMPUNG:   ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
     SIDOARJO:  ["SIDOARJO", "SIDOARJO BPN_SMD", "MANOKWARI", "NTT", "SORONG"],
 };
@@ -230,7 +231,7 @@ export const BRANCH_TO_ULOK: Record<string, string> = {
     "GORONTALO":       "2SZ1",
     "PONTIANAK":       "1PZ1",
     "LOMBOK":          "1SZ1",
-    "KOTABUMI":"LZ01",
+    "KOTABUMI":        "LZ01",
     "SERANG":          "2GZ1",
     "CIANJUR":         "2JZ1",
     "BALARAJA":        "TZ01",
@@ -257,5 +258,5 @@ export const BRANCH_TO_ULOK: Record<string, string> = {
     "MANADO":          "1YZ1",
     "BATAM":           "2DZ1",
     "MADIUN":          "2MZ1",
-    "CIKOKOL BINTAN":  "KZ01",
+    "BINTAN":          "KZ01",
 };
