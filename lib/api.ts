@@ -1875,4 +1875,3 @@ export const fetchDashboardAll = async (search?: string) => {
     if (search) url += `?search=${encodeURIComponent(search)}`;
     return safeFetchJSON(url);
 };
-
