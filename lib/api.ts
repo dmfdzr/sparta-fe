@@ -1690,4 +1690,162 @@ export const fetchBerkasSerahTerimaList = async (filters?: { id_toko?: number })
     const url = `${base}/api/berkas_serah_terima${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url);
 };
+
+// =============================================================================
+// 9. DOKUMENTASI BANGUNAN
+// =============================================================================
+
+export type DokumentasiBangunanItem = {
+    id: number;
+    id_dokumentasi_bangunan: number;
+    link_foto: string;
+    created_at: string;
+};
+
+export type DokumentasiBangunanData = {
+    id: number;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    cabang: string;
+    tanggal_go: string;
+    tanggal_serah_terima: string;
+    tanggal_ambil_foto: string;
+    spk_awal: string;
+    spk_akhir: string;
+    kontraktor_sipil: string;
+    kontraktor_me: string;
+    link_pdf: string;
+    email_pengirim: string;
+    status_validasi: string;
+    alasan_revisi: string;
+    pic_dokumentasi: string;
+    created_at: string;
+};
+
+export type DokumentasiBangunanResponse = {
+    dokumentasi: DokumentasiBangunanData;
+    items: DokumentasiBangunanItem[];
+    pdf?: {
+        link_pdf: string;
+        filename: string;
+        item_count: number;
+    };
+};
+
+export const fetchDokumentasiBangunanList = async (filters?: {
+    cabang?: string;
+    kode_toko?: string;
+    nomor_ulok?: string;
+}): Promise<{ status: string; data: DokumentasiBangunanData[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.cabang) params.append("cabang", filters.cabang);
+    if (filters?.kode_toko) params.append("kode_toko", filters.kode_toko);
+    if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    
+    const url = `${base}/api/dok/bangunan${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
+};
+
+export const fetchDokumentasiBangunanDetail = async (id: number): Promise<{ status: string; data: DokumentasiBangunanResponse }> => {
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}`);
+};
+
+export const submitDokumentasiBangunan = async (
+    fields: Record<string, string>,
+    photos: Record<number, { url: string; note: string | null; timestamp: string }>
+) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan`;
+    const form = new FormData();
+    Object.entries(fields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) form.append(key, value);
+    });
+
+    // Convert photos dataUrl to Blob/File
+    for (const [idStr, data] of Object.entries(photos)) {
+        if (data.url.startsWith('data:')) {
+            const res = await fetch(data.url);
+            const blob = await res.blob();
+            form.append("foto", blob, `photo_${idStr}.jpg`);
+        }
+    }
+
+    const res = await fetch(url, { method: "POST", body: form });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menyimpan Dokumentasi Bangunan.");
+    return result;
+};
+
+export const updateDokumentasiBangunan = async (
+    id: number,
+    fields: Record<string, string>,
+    photos?: Record<number, { url: string; note: string | null; timestamp: string }>
+) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}`;
+    const form = new FormData();
+    Object.entries(fields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) form.append(key, value);
+    });
+
+    if (photos) {
+        for (const [idStr, data] of Object.entries(photos)) {
+            if (data.url.startsWith('data:')) {
+                const res = await fetch(data.url);
+                const blob = await res.blob();
+                form.append("foto", blob, `photo_${idStr}.jpg`);
+            }
+        }
+    }
+
+    const res = await fetch(url, { method: "PUT", body: form });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memperbarui Dokumentasi Bangunan.");
+    return result;
+};
+
+export const deleteDokumentasiBangunan = async (id: number) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}`;
+    const res = await fetch(url, { method: "DELETE" });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menghapus Dokumentasi Bangunan.");
+    return result;
+};
+
+export const addDokumentasiBangunanItems = async (
+    id: number,
+    photos: Record<number, { url: string; note: string | null; timestamp: string }>
+) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}/items`;
+    const form = new FormData();
+    
+    for (const [idStr, data] of Object.entries(photos)) {
+        if (data.url.startsWith('data:')) {
+            const res = await fetch(data.url);
+            const blob = await res.blob();
+            form.append("foto", blob, `photo_${idStr}.jpg`);
+        }
+    }
+
+    const res = await fetch(url, { method: "POST", body: form });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menambah foto Dokumentasi Bangunan.");
+    return result;
+};
+
+export const deleteDokumentasiBangunanItem = async (itemId: number) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan/items/${itemId}`;
+    const res = await fetch(url, { method: "DELETE" });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menghapus foto Dokumentasi Bangunan.");
+    return result;
+};
+
+export const generateDokumentasiBangunanPdf = async (id: number) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}/pdf`;
+    const res = await fetch(url, { method: "POST" });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal membuat ulang PDF Dokumentasi Bangunan.");
+    return result;
+};
 

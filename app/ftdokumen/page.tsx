@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,8 @@ import AppNavbar from '@/components/AppNavbar';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import { PHOTO_POINTS, ALL_POINTS, TOTAL_PHOTOS, FLOOR_IMAGES, PAGE_LABELS, type PhotoPoint } from './photoPoints';
 import CameraModal from './CameraModal';
+import { submitDokumentasiBangunan, fetchSPKList } from '@/lib/api';
+
 
 // =============================================================================
 // TYPES
@@ -23,6 +25,11 @@ type FormData = {
     cabang: string; nomorUlok: string; kontraktorSipil: string; kontraktorMe: string;
     spkAwal: string; spkAkhir: string; kodeToko: string; namaToko: string;
     tanggalGo: string; tanggalSt: string; tanggalAmbilFoto: string;
+};
+
+type UlokOption = {
+    nomorUlok: string; kontraktorSipil: string; kontraktorMe: string;
+    spkAwal: string; spkAkhir: string; kodeToko: string; namaToko: string;
 };
 
 const emptyForm: FormData = {
@@ -35,12 +42,6 @@ const emptyForm: FormData = {
 // MAIN PAGE
 // =============================================================================
 
-const MOCK_ULOK_DATA = [
-    { nomorUlok: 'Z001-2510-0001', kontraktorSipil: 'PT BANGUN CIPTA KARYA', kontraktorMe: 'PT SINAR ELEKTRIK', spkAwal: '2025-10-01', spkAkhir: '2025-11-01', kodeToko: 'T123', namaToko: 'ALFAMART GADING SERPONG' },
-    { nomorUlok: 'Z002-2511-0002', kontraktorSipil: 'CV JAYA ABADI', kontraktorMe: 'CV MULTI TEKNIK', spkAwal: '2025-11-05', spkAkhir: '2025-12-05', kodeToko: 'T456', namaToko: 'ALFAMART BSD CITY' },
-    { nomorUlok: 'Z003-2512-0003', kontraktorSipil: 'PT MEGA STRUKTUR', kontraktorMe: 'PT DAYA UTAMA', spkAwal: '2025-12-10', spkAkhir: '2026-01-10', kodeToko: 'T789', namaToko: 'ALFAMART ALAM SUTERA' },
-];
-
 export default function FTDokumenPage() {
     const { showAlert } = useGlobalAlert();
     const [currentStep, setCurrentStep] = useState<'form' | 'floorplan'>('form');
@@ -49,12 +50,71 @@ export default function FTDokumenPage() {
     const [currentPhotoNumber, setCurrentPhotoNumber] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
     const [cameraPoint, setCameraPoint] = useState<PhotoPoint | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [ulokOptions, setUlokOptions] = useState<UlokOption[]>([]);
+    const [isLoadingUlok, setIsLoadingUlok] = useState(true);
 
-    // Populate cabang from session
-    React.useEffect(() => {
+    // Populate cabang from session + fetch ULOK data from SPK list
+    useEffect(() => {
         const cabang = typeof window !== 'undefined' ? sessionStorage.getItem('loggedInUserCabang') || '' : '';
         setFormData(prev => ({ ...prev, cabang }));
-    }, []);
+
+        const loadUlokData = async () => {
+            setIsLoadingUlok(true);
+            try {
+                // Ambil SPK yang sudah approved untuk mendapatkan data proyek
+                const res = await fetchSPKList({ status: 'approved' });
+                const spkList = res.data || [];
+
+                // Kelompokkan SPK berdasarkan nomor_ulok, pisahkan kontraktor sipil & ME
+                const grouped: Record<string, UlokOption> = {};
+                for (const spk of spkList) {
+                    const ulok = spk.nomor_ulok;
+                    if (!ulok) continue;
+
+                    if (!grouped[ulok]) {
+                        grouped[ulok] = {
+                            nomorUlok: ulok,
+                            kontraktorSipil: '',
+                            kontraktorMe: '',
+                            spkAwal: spk.waktu_mulai || '',
+                            spkAkhir: spk.waktu_selesai || '',
+                            kodeToko: spk.kode_toko || spk.toko?.kode_toko || '',
+                            namaToko: spk.toko?.nama_toko || '',
+                        };
+                    }
+
+                    // Tentukan kontraktor sipil vs ME berdasarkan lingkup_pekerjaan
+                    const lingkup = (spk.lingkup_pekerjaan || '').toUpperCase();
+                    if (lingkup.includes('ME') || lingkup.includes('MEKANIKAL') || lingkup.includes('ELEKTRIKAL')) {
+                        grouped[ulok].kontraktorMe = spk.nama_kontraktor || '';
+                    } else {
+                        grouped[ulok].kontraktorSipil = spk.nama_kontraktor || '';
+                    }
+
+                    // Gunakan tanggal paling awal dan paling akhir
+                    if (spk.waktu_mulai && (!grouped[ulok].spkAwal || spk.waktu_mulai < grouped[ulok].spkAwal)) {
+                        grouped[ulok].spkAwal = spk.waktu_mulai;
+                    }
+                    if (spk.waktu_selesai && (!grouped[ulok].spkAkhir || spk.waktu_selesai > grouped[ulok].spkAkhir)) {
+                        grouped[ulok].spkAkhir = spk.waktu_selesai;
+                    }
+                }
+
+                setUlokOptions(Object.values(grouped));
+                if (Object.keys(grouped).length === 0) {
+                    showAlert({ message: 'Tidak ada data SPK yang disetujui. Pastikan sudah ada SPK dengan status approved.', type: 'warning' });
+                }
+            } catch (err) {
+                console.error('Gagal memuat data ULOK:', err);
+                showAlert({ message: 'Gagal memuat daftar ULOK dari server.', type: 'error' });
+            } finally {
+                setIsLoadingUlok(false);
+            }
+        };
+
+        loadUlokData();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const completedCount = Object.keys(photos).length;
     const progressPct = Math.round((completedCount / TOTAL_PHOTOS) * 100);
@@ -81,12 +141,45 @@ export default function FTDokumenPage() {
         showAlert({ message: `Foto #${pointId} berhasil disimpan!`, type: 'success' });
     };
 
-    const handleSavePdf = () => {
-        showAlert({
-            title: 'Simpan & Kirim PDF',
-            message: `${completedCount}/${TOTAL_PHOTOS} foto sudah terisi. Endpoint API belum tersedia — fitur ini akan aktif setelah backend siap.`,
-            type: 'info',
-        });
+    const handleSavePdf = async () => {
+        if (completedCount < TOTAL_PHOTOS) {
+            showAlert({ message: `Mohon lengkapi seluruh ${TOTAL_PHOTOS} foto sebelum menyimpan.`, type: 'warning' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const payloadFields: Record<string, string> = {
+                cabang: formData.cabang,
+                nomor_ulok: formData.nomorUlok,
+                kontraktor_sipil: formData.kontraktorSipil,
+                kontraktor_me: formData.kontraktorMe,
+                spk_awal: formData.spkAwal,
+                spk_akhir: formData.spkAkhir,
+                kode_toko: formData.kodeToko,
+                nama_toko: formData.namaToko,
+                tanggal_go: formData.tanggalGo,
+                tanggal_serah_terima: formData.tanggalSt,
+                tanggal_ambil_foto: formData.tanggalAmbilFoto,
+                email_pengirim: sessionStorage.getItem('loggedInUserEmail') || '',
+                status_validasi: 'submitted',
+                pic_dokumentasi: sessionStorage.getItem('loggedInUserName') || 'PIC'
+            };
+
+            await submitDokumentasiBangunan(payloadFields, photos);
+            showAlert({ message: 'Dokumentasi berhasil disimpan dan sedang diproses!', type: 'success' });
+            
+            // Reset form
+            setFormData(emptyForm);
+            setPhotos({});
+            setCurrentStep('form');
+            setCurrentPage(1);
+            setCurrentPhotoNumber(1);
+        } catch (error: any) {
+            showAlert({ message: error.message || 'Gagal menyimpan dokumentasi.', type: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -100,6 +193,8 @@ export default function FTDokumenPage() {
                         onChange={handleFormChange}
                         onSubmit={handleFormSubmit}
                         setFormData={setFormData}
+                        ulokOptions={ulokOptions}
+                        isLoadingUlok={isLoadingUlok}
                     />
                 ) : (
                     <FloorPlanView
@@ -110,6 +205,7 @@ export default function FTDokumenPage() {
                         currentPhotoNumber={currentPhotoNumber}
                         completedCount={completedCount}
                         progressPct={progressPct}
+                        isSubmitting={isSubmitting}
                         onBack={() => setCurrentStep('form')}
                         onPointClick={(p) => setCameraPoint(p)}
                         onSavePdf={handleSavePdf}
@@ -132,14 +228,16 @@ export default function FTDokumenPage() {
 // =============================================================================
 // DATA FORM VIEW
 // =============================================================================
-function DataFormView({ formData, onChange, onSubmit, setFormData }: {
+function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, isLoadingUlok }: {
     formData: FormData;
     onChange: (field: keyof FormData, value: string) => void;
     onSubmit: (e: React.FormEvent) => void;
     setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+    ulokOptions: UlokOption[];
+    isLoadingUlok: boolean;
 }) {
     const handleUlokSelect = (val: string) => {
-        const selected = MOCK_ULOK_DATA.find(u => u.nomorUlok === val);
+        const selected = ulokOptions.find(u => u.nomorUlok === val);
         if (selected) {
             setFormData(prev => ({
                 ...prev,
@@ -168,16 +266,24 @@ function DataFormView({ formData, onChange, onSubmit, setFormData }: {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <Label>Nomor ULOK <span className="text-red-500">*</span></Label>
-                            <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} required>
-                                <SelectTrigger className="bg-white">
-                                    <SelectValue placeholder="-- Pilih Nomor ULOK --" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {MOCK_ULOK_DATA.map(ulok => (
-                                        <SelectItem key={ulok.nomorUlok} value={ulok.nomorUlok}>{ulok.nomorUlok}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {isLoadingUlok ? (
+                                <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-400">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Memuat daftar ULOK...
+                                </div>
+                            ) : (
+                                <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} required>
+                                    <SelectTrigger className="bg-white">
+                                        <SelectValue placeholder="-- Pilih Nomor ULOK --" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ulokOptions.map(ulok => (
+                                            <SelectItem key={ulok.nomorUlok} value={ulok.nomorUlok}>
+                                                {ulok.nomorUlok} — {ulok.namaToko || ulok.kodeToko}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label>Kontraktor Sipil <span className="text-red-500">*</span></Label>
@@ -230,10 +336,11 @@ function DataFormView({ formData, onChange, onSubmit, setFormData }: {
 // =============================================================================
 // FLOOR PLAN VIEW
 // =============================================================================
-function FloorPlanView({ formData, photos, currentPage, setCurrentPage, currentPhotoNumber, completedCount, progressPct, onBack, onPointClick, onSavePdf }: {
+function FloorPlanView({ formData, photos, currentPage, setCurrentPage, currentPhotoNumber, completedCount, progressPct, isSubmitting, onBack, onPointClick, onSavePdf }: {
     formData: FormData; photos: Record<number, PhotoData>;
     currentPage: number; setCurrentPage: (p: number) => void;
     currentPhotoNumber: number; completedCount: number; progressPct: number;
+    isSubmitting: boolean;
     onBack: () => void; onPointClick: (p: PhotoPoint) => void; onSavePdf: () => void;
 }) {
     const pagePoints = PHOTO_POINTS[currentPage] || [];
@@ -336,8 +443,9 @@ function FloorPlanView({ formData, photos, currentPage, setCurrentPage, currentP
                         </div>
 
                         <div className="mt-4 pt-3 border-t border-slate-200">
-                            <Button onClick={onSavePdf} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-md">
-                                <FileText className="w-4 h-4 mr-2" /> Simpan & Kirim PDF
+                            <Button onClick={onSavePdf} disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-md">
+                                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+                                {isSubmitting ? 'Menyimpan...' : 'Simpan & Kirim PDF'}
                             </Button>
                         </div>
                     </div>
