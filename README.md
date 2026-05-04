@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SPARTA (System of Project Monitoring & Reporting for Building Maintenance & Store Asset)
 
-## Getting Started
+SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancang untuk mengelola siklus hidup pembangunan dan pemeliharaan gedung/toko di lingkungan Alfamart. Aplikasi ini mencakup fitur perencanaan anggaran (RAB), pemantauan progress (Gantt Chart), hingga penyimpanan dokumen teknis.
 
-First, run the development server:
+## 🚀 Teknologi Utama
 
+- **Framework**: [Next.js 16+](https://nextjs.org/) (App Router)
+- **Bahasa**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Komponen UI**: [Shadcn UI](https://ui.shadcn.com/) (berbasis Radix UI)
+- **Ikon**: Lucide React & Hugeicons
+- **Charts**: Chart.js & React-Chartjs-2
+- **PDF Generation**: jsPDF & jsPDF-AutoTable
+
+## 📂 Modul Utama
+
+Aplikasi ini terdiri dari beberapa modul fungsional utama:
+
+1. **Rencana Anggaran Biaya (RAB)**: Pembuatan dan pengelolaan penawaran final dari kontraktor.
+2. **Surat Perintah Kerja (SPK)**: Pembuatan dan persetujuan SPK serta penambahan masa kerja.
+3. **Monitoring Proyek (Gantt Chart)**: Visualisasi progress harian dan mingguan proyek pembangunan toko baru.
+4. **Opname Proyek**: Evaluasi lapangan untuk progres fisik bangunan.
+5. **Penyimpanan Dokumen Toko**: Database aset toko yang mencakup spesifikasi teknis dan 12 kategori dokumen (Sipil, ME, RAB, SPK, dll).
+6. **Dokumentasi Bangunan**: Sistem pelaporan foto progres pembangunan secara sistematis.
+7. **Approval System**: Alur persetujuan bertingkat (Branch Manager, Direktur, dll) untuk berbagai dokumen proyek.
+8. **Monitoring Dashboard**: Grafik real-time untuk memantau status dan kesehatan proyek di seluruh cabang.
+
+## 🛠️ Persiapan Pengembangan
+
+### Prerequisites
+- Node.js 20+
+- npm / yarn / pnpm
+
+### Instalasi
+1. Clone repository ini.
+2. Install dependensi:
+   ```bash
+   npm install
+   ```
+3. Konfigurasi Environment Variables:
+   Buat file `.env.local` dan tambahkan:
+   ```env
+   NEXT_PUBLIC_API_URL=https://sparta-be.onrender.com
+   ```
+
+### Menjalankan Development Server
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Buka [http://localhost:3000](http://localhost:3000) untuk melihat hasilnya.
+
+## 🏗️ Struktur Folder
+
+```text
+├── app/               # Next.js App Router (Halaman & Routing)
+│   ├── svdokumen/     # Modul Penyimpanan Dokumen
+│   ├── rab/           # Modul RAB
+│   ├── spk/           # Modul SPK
+│   ├── gantt/         # Modul Gantt Chart
+│   └── ...
+├── components/        # Reusable UI Components
+│   └── ui/            # Shadcn UI Components
+├── lib/               # Utility functions & API configuration
+│   ├── api.ts         # Koleksi fetcher API
+│   ├── constants.ts   # Global constants (URL, Menu, Role)
+│   └── utils.ts       # Tailwind merge utility
+├── public/            # Static assets (Images, Workers)
+└── types/             # Global Type Definitions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔐 Keamanan & Role
+SPARTA menerapkan kontrol akses berbasis peran (RBAC) yang dikonfigurasi melalui `lib/constants.ts`. Peran yang tersedia meliputi:
+- **Head Office**: Akses global monitoring (read-only).
+- **Branch Manager**: Approval & Monitoring.
+- **Building Coordinator/Support**: Operasional input data & dokumen.
+- **Kontraktor**: Input RAB & Monitoring progress harian.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+© 2026 SPARTA Building Maintenance System.
