@@ -24,6 +24,52 @@ import AppNavbar from '@/components/AppNavbar';
 
 const TARGET_API_URL = "https://script.google.com/macros/s/AKfycbw9m4ckqXZIjIwFIqJUYz7CGxSgX-ONmhcDeTEPo_VA6D7kI3VEjvYAww2Gn_eHCA_u/exec";
 
+const MOCK_DOCUMENTS: StoreDocument[] = [
+  {
+    id: "1",
+    kode_toko: "T001",
+    nama_toko: "ALFAMART GADING SERPONG",
+    cabang: "CIKOKOL",
+    luas_sales: 120,
+    luas_parkir: 50,
+    luas_gudang: 30,
+    luas_bangunan_lantai_1: 150,
+    luas_bangunan_lantai_2: 0,
+    luas_bangunan_lantai_3: 0,
+    total_luas_bangunan: 150,
+    luas_area_terbuka: 20,
+    tinggi_plafon: 3.5,
+    file_links: "Foto|Toko Depan|https://example.com/foto1.jpg",
+    folder_drive: "https://drive.google.com/...",
+    status: "Lengkap",
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: "2",
+    kode_toko: "T002",
+    nama_toko: "ALFAMART BSD CITY",
+    cabang: "CIKOKOL",
+    luas_sales: 100,
+    luas_parkir: 40,
+    luas_gudang: 25,
+    luas_bangunan_lantai_1: 125,
+    luas_bangunan_lantai_2: 0,
+    luas_bangunan_lantai_3: 0,
+    total_luas_bangunan: 125,
+    luas_area_terbuka: 15,
+    tinggi_plafon: 3.2,
+    file_links: "",
+    folder_drive: "",
+    status: "Belum Lengkap",
+    updated_at: new Date().toISOString()
+  }
+];
+
+const MOCK_TARGETS: TargetData[] = [
+  { cabang: "CIKOKOL", reguler: 10, franchise: 5, total: 15 },
+  { cabang: "PARUNG", reguler: 8, franchise: 4, total: 12 }
+];
+
 const UPLOAD_CATEGORIES = [
     { key: "fotoExisting", label: "Foto Toko Existing", group: "Foto" },
     { key: "fotoRenovasi", label: "Foto Proses Renovasi", group: "Foto" },
@@ -147,35 +193,16 @@ export default function StoreAssetManagement() {
   const fetchData = async (cabang: string) => {
     setIsLoading(true);
     try {
-      // Fetch Documents
-      let docUrl = `${API_URL}/api/doc/list`;
-      if (cabang && cabang.toLowerCase() !== "head office") {
-        docUrl += `?cabang=${encodeURIComponent(cabang)}`;
-      }
-      const docRes = await fetch(docUrl);
-      const docJson = await docRes.json();
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Handle different response structures (direct array or {data: []})
-      if (Array.isArray(docJson)) {
-        setDocuments(docJson);
-      } else if (docJson && typeof docJson === 'object' && Array.isArray(docJson.data)) {
-        setDocuments(docJson.data);
-      } else {
-        setDocuments([]);
+      // Filter mock documents by cabang if not head office
+      let filteredDocs = MOCK_DOCUMENTS;
+      if (cabang && cabang.toLowerCase() !== "head office") {
+        filteredDocs = MOCK_DOCUMENTS.filter(d => d.cabang.toUpperCase() === cabang.toUpperCase());
       }
-
-      // Fetch Targets
-      try {
-        const targetRes = await fetch(TARGET_API_URL);
-        if (targetRes.ok) {
-          const targetJson = await targetRes.json();
-          if (targetJson.status === "success" && Array.isArray(targetJson.data)) {
-            setTargets(targetJson.data);
-          }
-        }
-      } catch (err) {
-        console.warn("Gagal fetch targets (CORS atau URL mati):", err);
-      }
+      setDocuments(filteredDocs);
+      setTargets(MOCK_TARGETS);
 
     } catch (err) {
       console.error(err);
@@ -284,11 +311,11 @@ export default function StoreAssetManagement() {
     if (!confirm("Hapus data toko ini?")) return;
     setIsSyncing(true);
     try {
-      const res = await fetch(`${API_URL}/api/doc/delete/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast("Data dihapus");
-        fetchData(userInfo.cabang);
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setDocuments(prev => prev.filter(d => (d._id || d.id) !== id));
+      showToast("Data dihapus (Mock)");
     } catch (err) {
       showToast("Gagal menghapus", "error");
     } finally {
@@ -323,53 +350,17 @@ export default function StoreAssetManagement() {
     e.preventDefault();
     setIsSyncing(true);
 
-    const data = new FormData();
-    data.append("email", userInfo.email);
-    data.append("cabang", userInfo.cabang);
-    data.append("kodeToko", formData.kodeToko);
-    data.append("namaToko", formData.namaToko);
-    data.append("luasSales", formData.luasSales);
-    data.append("luasParkir", formData.luasParkir);
-    data.append("luasGudang", formData.luasGudang);
-    data.append("luasBangunanLantai1", formData.luasBangunanLantai1);
-    data.append("luasBangunanLantai2", formData.luasBangunanLantai2);
-    data.append("luasBangunanLantai3", formData.luasBangunanLantai3);
-    data.append("totalLuasBangunan", formData.totalLuasBangunan);
-    data.append("luasAreaTerbuka", formData.luasAreaTerbuka);
-    data.append("tinggiPlafon", formData.tinggiPlafon);
-    data.append("folderDrive", formData.folderDrive);
-
-    if (isEditing && currentEditId) {
-      data.append("id", currentEditId);
-      data.append("deletedFiles", JSON.stringify(deletedFiles));
-      // Construct remaining existing files string
-      const remaining = existingFiles.map(f => `${f.category}|${f.name}|${f.url}`).join(',');
-      data.append("existingFileLinks", remaining);
-    }
-
-    // Append new files with category info
-    Object.entries(filesBuffer).forEach(([cat, files]) => {
-      files.forEach(file => {
-        data.append("files", file);
-        data.append("fileCategories", cat);
-      });
-    });
-
     try {
-      const res = await fetch(`${API_URL}/api/doc/save`, {
-        method: "POST",
-        body: data
-      });
-      const json = await res.json();
-      if (json.ok) {
-        showToast("Data berhasil disimpan", "success");
-        setView('list');
-        fetchData(userInfo.cabang);
-      } else {
-        throw new Error(json.error || "Gagal menyimpan");
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      showToast("Data berhasil disimpan (Mock)", "success");
+      setView('list');
+      // In a real app, we would update the state with the new/edited document
+      // For mock, let's just refresh the mock view
+      fetchData(userInfo.cabang);
     } catch (err: any) {
-      showToast(err.message, "error");
+      showToast(err.message || "Gagal menyimpan", "error");
     } finally {
       setIsSyncing(false);
     }
@@ -447,7 +438,7 @@ export default function StoreAssetManagement() {
             </div>
             {userInfo.cabang.toLowerCase() === "head office" && (
               <Select value={filterCabang} onValueChange={setFilterCabang}>
-                <SelectTrigger className="w-[200px] h-10 rounded-xl">
+                <SelectTrigger className="w-50 h-10 rounded-xl">
                   <SelectValue placeholder="Semua Cabang" />
                 </SelectTrigger>
                 <SelectContent>
@@ -459,7 +450,7 @@ export default function StoreAssetManagement() {
               </Select>
             )}
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[200px] h-10 rounded-xl">
+              <SelectTrigger className="w-50 h-10 rounded-xl">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -695,7 +686,7 @@ export default function StoreAssetManagement() {
                           </label>
                         )}
                       </div>
-                      <CardContent className="p-3 space-y-2 min-h-[60px]">
+                      <CardContent className="p-3 space-y-2 min-h-15">
                         {/* Existing Files */}
                         {existingFiles.filter(f => f.category === cat.key).map((file, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-2 p-1.5 bg-white border border-slate-100 rounded-lg text-xs group/file">
@@ -770,7 +761,7 @@ export default function StoreAssetManagement() {
 
       {/* TOAST */}
       {toast && (
-        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-300 ${
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-200 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-300 ${
           toast.type === 'success' ? 'bg-emerald-600 text-white' : 
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'
         }`}>
