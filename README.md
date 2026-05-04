@@ -1,6 +1,6 @@
-# SPARTA (System of Project Monitoring & Reporting for Building Maintenance & Store Asset)
+# SPARTA (System for Property Administration, Reporting, Tracking & Approval)
 
-SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancang untuk mengelola siklus hidup pembangunan dan pemeliharaan gedung/toko di lingkungan Alfamart. Aplikasi ini mencakup fitur perencanaan anggaran (RAB), pemantauan progress (Gantt Chart), hingga penyimpanan dokumen teknis.
+SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancang untuk mengelola siklus pembangunan gedung/toko di lingkungan Alfamart. Aplikasi ini mencakup fitur perencanaan anggaran (RAB), pemantauan progress (Gantt Chart), hingga penyimpanan dokumen teknis.
 
 ## 🚀 Teknologi Utama
 
