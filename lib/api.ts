@@ -1660,4 +1660,34 @@ export const downloadInstruksiLapanganPdf = async (id: number): Promise<boolean>
     document.body.removeChild(a);
     return true;
 };
+
+// =============================================================================
+// 8. BERKAS SERAH TERIMA
+// =============================================================================
+
+export type BerkasSerahTerimaItem = {
+    id: number;
+    id_toko: number;
+    link_pdf: string;
+    created_at: string;
+    toko: {
+        id: number;
+        nomor_ulok: string;
+        lingkup_pekerjaan: string;
+        nama_toko: string;
+        kode_toko: string;
+        proyek: string;
+        cabang: string;
+        alamat: string;
+        nama_kontraktor: string;
+    };
+};
+
+export const fetchBerkasSerahTerimaList = async (filters?: { id_toko?: number }): Promise<{ status: string; data: BerkasSerahTerimaItem[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
+    const url = `${base}/api/berkas_serah_terima${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
+};
 
