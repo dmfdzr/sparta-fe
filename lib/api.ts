@@ -1848,4 +1848,31 @@ export const generateDokumentasiBangunanPdf = async (id: number) => {
     if (!res.ok) throw new Error(result.message || "Gagal membuat ulang PDF Dokumentasi Bangunan.");
     return result;
 };
+
+// =============================================================================
+// DASHBOARD  — Monitoring Transaksi ULOK
+// =============================================================================
+
+/**
+ * GET /api/dashboard?search=...&id=...
+ * Mengambil satu data toko + seluruh relasi turunan (RAB, Gantt, SPK, dll).
+ */
+export const fetchDashboardSingle = async (params: { search?: string; id?: number }) => {
+    const query = new URLSearchParams();
+    if (params.id) query.append("id", String(params.id));
+    else if (params.search) query.append("search", params.search);
+    
+    const url = `${API_URL.replace(/\/$/, "")}/api/dashboard?${query.toString()}`;
+    return safeFetchJSON(url);
+};
+
+/**
+ * GET /api/dashboard/all?search=...
+ * Mengambil semua data toko + seluruh relasi turunan.
+ */
+export const fetchDashboardAll = async (search?: string) => {
+    let url = `${API_URL.replace(/\/$/, "")}/api/dashboard/all`;
+    if (search) url += `?search=${encodeURIComponent(search)}`;
+    return safeFetchJSON(url);
+};
 
