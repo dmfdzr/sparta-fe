@@ -189,9 +189,9 @@ export const checkRevisionStatus = async (email: string, cabang: string) => {
         const formatted = rejected.map(r => ({
             id: r.id,
             "Nomor Ulok": r.nomor_ulok,
-            "Lingkup_Pekerjaan": r.proyek, // Fallback to proyek, exact scope fetched on click
-            "nama_toko": r.nama_toko,
-            "Proyek": r.proyek,
+            "lingkup_pekerjaan": (r as any).lingkup_pekerjaan || (r.toko as any)?.lingkup_pekerjaan,
+            "nama_toko": r.nama_toko || r.toko?.nama_toko,
+            "Proyek": r.proyek || r.toko?.proyek,
             "alasan_penolakan": r.alasan_penolakan,
             // Sisa field detail akan diambil saat tombol 'Revisi Sekarang' diklik
         }));

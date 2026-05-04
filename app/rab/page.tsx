@@ -49,9 +49,6 @@ export default function RABPage() {
   const [tableRows, setTableRows] = useState<any[]>([]);
   
   const [rejectedList, setRejectedList] = useState<any[]>([]);
-  const [revisionDataToLoad, setRevisionDataToLoad] = useState<any>(null);
-  const [hasPromptedRevisionFor, setHasPromptedRevisionFor] = useState<string>(''); 
-  
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRevisionLoading, setIsRevisionLoading] = useState(false);
@@ -115,35 +112,15 @@ export default function RABPage() {
   // --- 3. DETEKSI OTOMATIS DATA REVISI ---
   const getUlokString = () => `${formData.lokasiCabang}-${formData.lokasiTanggal}-${formData.lokasiManual}${formData.isRenovasi ? '-R' : ''}`;
 
-  useEffect(() => {
-    const ulokWithStrip = getUlokString();
-    // Hilangkan strip hanya untuk kebutuhan komparasi data revisi agar lebih aman
-    const ulokNoStrip = ulokWithStrip.replace(/-/g, '');
-    const scope = formData.lingkupPekerjaan;
-
-    if (ulokNoStrip.length >= 12 && scope && rejectedList.length > 0) {
-        const match = rejectedList.find(item => {
-            const itemUlok = (item['Nomor Ulok'] || '').replace(/-/g, '');
-            const itemScope = item['Lingkup_Pekerjaan'] || item['Lingkup Pekerjaan'];
-            return itemUlok === ulokNoStrip && itemScope === scope;
-        });
-
-        const promptKey = `${ulokNoStrip}-${scope}`;
-        if (match && hasPromptedRevisionFor !== promptKey && !revisionDataToLoad) {
-            setRevisionDataToLoad(match);
-            setHasPromptedRevisionFor(promptKey); 
-        }
-    }
-  }, [formData.lokasiCabang, formData.lokasiTanggal, formData.lokasiManual, formData.isRenovasi, formData.lingkupPekerjaan, rejectedList, hasPromptedRevisionFor]);
+  // --- 3. DETEKSI OTOMATIS DATA REVISI (DIHAPUS SESUAI PERMINTAAN) ---
 
   // --- 4. EKSEKUSI AUTO-FILL DATA REVISI ---
   const handleLoadRevision = async (directItem?: any) => {
-      const data = directItem || revisionDataToLoad;
+      const data = directItem;
       if (!data) return;
       
-      const scope = data['Lingkup_Pekerjaan'] || data['Lingkup Pekerjaan'] || formData.lingkupPekerjaan;
+      const scope = data.lingkup_pekerjaan || data['Lingkup_Pekerjaan'] || data['Lingkup Pekerjaan'] || formData.lingkupPekerjaan;
       
-      setRevisionDataToLoad(null);
       setIsRevisionLoading(true);
 
       // Ekstrak komponen ULOK jika di-load dari "Revisi Sekarang"
@@ -684,7 +661,45 @@ export default function RABPage() {
                 <div className="space-y-2 lg:col-span-3"><Label>Alamat Cabang / Office <span className="text-xs text-slate-400 font-normal">(Otomatis dari data cabang)</span></Label><Input name="alamatCabang" value={formData.alamatCabang || ''} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} placeholder="-" /></div>
                 
                 <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="space-y-2"><Label>Cabang <span className="text-red-500">*</span></Label><Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} /></div>
+                  <div className="space-y-2">
+                    <Label>Cabang <span className="text-red-500">*</span></Label>
+                    {availableCabang.length > 1 ? (
+                      <Select 
+                        value={formData.cabang} 
+                        onValueChange={(val) => {
+                          const newLokasiCabang = val === 'CIKOKOL' ? "KZ01" : (BRANCH_TO_ULOK[val] || "KODE");
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            cabang: val, 
+                            lokasiCabang: newLokasiCabang 
+                          }));
+
+                          const userEmail = sessionStorage.getItem('loggedInUserEmail');
+                          if (userEmail && val) {
+                              checkRevisionStatus(userEmail, val).then(result => {
+                                  if (result.rejected_submissions) {
+                                      setRejectedList(result.rejected_submissions);
+                                      if (result.rejected_submissions.length > 0) {
+                                          setRevisionListDialogOpen(true);
+                                      }
+                                  }
+                              }).catch(err => console.log("Gagal periksa revisi", err));
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="-- Pilih Cabang --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableCabang.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} />
+                    )}
+                  </div>
                   <div className="space-y-2"><Label>Lingkup Pekerjaan <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('lingkupPekerjaan', val)} value={formData.lingkupPekerjaan} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Lingkup Pekerjaan --" /></SelectTrigger><SelectContent><SelectItem value="Sipil">Sipil</SelectItem><SelectItem value="ME">ME</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label>Kategori Lokasi <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('kategoriLokasi', val)} value={formData.kategoriLokasi} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Kategori Lokasi --" /></SelectTrigger><SelectContent><SelectItem value="Ruko">Ruko</SelectItem><SelectItem value="Non Ruko">Non Ruko</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label>Durasi Pekerjaan (Hari) <span className="text-red-500">*</span></Label><Input type="number" min="1" step="1" name="durasiPekerjaan" value={formData.durasiPekerjaan} onChange={handleInputChange} placeholder="Masukkan jumlah hari" className="bg-white" required /></div>
@@ -887,7 +902,9 @@ export default function RABPage() {
                               <span key={idx} className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col gap-3">
                                   <span className="block">
                                       <span className="font-bold text-slate-800 text-base">{item['Nomor Ulok']}</span>
-                                      <span className="text-sm text-slate-500 block">Lingkup: {item['Lingkup_Pekerjaan'] || item['Lingkup Pekerjaan']}</span>
+                                      <span className="text-sm text-slate-500 block">Lingkup Pekerjaan: {item.lingkup_pekerjaan || item['Lingkup_Pekerjaan'] || item['Lingkup Pekerjaan']}</span>
+                                      <span className="text-sm text-slate-500 block">Proyek: {item['Proyek'] || '-'}</span>
+                                      <span className="text-sm text-slate-500 block">Nama Toko: {item.nama_toko || '-'}</span>
                                       {item.alasan_penolakan && (
                                           <span className="text-sm font-medium text-red-600 block mt-2 bg-red-50 p-2.5 rounded-lg border border-red-100">
                                               <span className="font-bold">Alasan Penolakan:</span> {item.alasan_penolakan}
@@ -934,22 +951,7 @@ export default function RABPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* MODAL KONFIRMASI LOAD REVISI SAAT NGETIK ULOK */}
-      <AlertDialog open={!!revisionDataToLoad} onOpenChange={(open) => { if (!open) setRevisionDataToLoad(null); }}>
-        <AlertDialogContent className="rounded-2xl max-w-sm text-center">
-          <AlertDialogHeader>
-            <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full mb-4 bg-amber-100 text-amber-600"><AlertTriangle className="w-8 h-8" /></div>
-            <AlertDialogTitle className="text-center">Data Revisi Ditemukan</AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              Ditemukan data REVISI untuk No. Ulok <strong>{revisionDataToLoad?.['Nomor Ulok']}</strong> ({formData.lingkupPekerjaan}). <br/><br/>Apakah Anda ingin memuat data ini?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-2">
-            <AlertDialogCancel className="w-full sm:w-1/2 mt-0" onClick={() => setRevisionDataToLoad(null)}>Abaikan</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLoadRevision} className="w-full sm:w-1/2 bg-amber-500 hover:bg-amber-600">Ya, Muat Data</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* MODAL KONFIRMASI LOAD REVISI SAAT NGETIK ULOK DIHAPUS */}
 
       {/* MODAL KONFIRMASI RESET FORM */}
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
