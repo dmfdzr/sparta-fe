@@ -364,7 +364,7 @@ export default function ApprovalPage() {
     const router = useRouter();
 
     // --- AUTH ---
-    const [userInfo, setUserInfo]       = useState({ name: '', role: '', cabang: '', email: '' });
+    const [userInfo, setUserInfo]       = useState({ name: '', role: '', cabang: '', email: '', nama_pt: '' });
     const [accessibleTypes, setAccessibleTypes] = useState<ApprovalType[]>([]);
     const [jabatan, setJabatan]         = useState<'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR' | null>(null);
 
@@ -395,6 +395,7 @@ export default function ApprovalPage() {
         const email   = sessionStorage.getItem("loggedInUserEmail") || '';
         const cabang  = sessionStorage.getItem("loggedInUserCabang") || '';
         const namaLengkap = sessionStorage.getItem("nama_lengkap") || email.split('@')[0];
+        const nama_pt = sessionStorage.getItem("nama_pt") || '';
 
         if (isAuth !== "true" || !role) { router.push('/auth'); return; }
 
@@ -431,7 +432,7 @@ export default function ApprovalPage() {
             currentJabatan = 'KOORDINATOR';
         }
 
-        setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email });
+        setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email, nama_pt });
         setAccessibleTypes(typesArr);
         setJabatan(currentJabatan);
     }, [router]);
@@ -466,7 +467,15 @@ export default function ApprovalPage() {
         try {
             let normalized: NormalizedListItem[] = [];
             if (type === 'RAB') {
-                const res = await fetchRABList();
+                let filters: any = undefined;
+                if (jabatan === 'DIREKTUR') {
+                    filters = { 
+                        status: 'Menunggu Persetujuan Direktur', 
+                        cabang: userInfo.cabang, 
+                        nama_pt: userInfo.nama_pt 
+                    };
+                }
+                const res = await fetchRABList(filters);
                 normalized = normalizeRABList(res.data ?? []);
             } else if (type === 'SPK') {
                 const res = await fetchSPKList({ status: 'WAITING_FOR_BM_APPROVAL' });

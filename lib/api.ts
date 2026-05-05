@@ -80,6 +80,9 @@ export type RABListItem = {
 export type RABListFilters = {
     status?:     string;
     nomor_ulok?: string;
+    cabang?:     string;
+    nama_pt?:    string;
+    email_pembuat?: string;
 };
 
 export type RABDetailToko = {
@@ -275,6 +278,9 @@ export const fetchRABList = async (
     const params = new URLSearchParams();
     if (filters?.status)     params.append("status",     filters.status);
     if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    if (filters?.cabang)     params.append("cabang",     filters.cabang);
+    if (filters?.nama_pt)    params.append("nama_pt",    filters.nama_pt);
+    if (filters?.email_pembuat) params.append("email_pembuat", filters.email_pembuat);
     const url = `${base}/api/rab${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url);
 };

@@ -510,7 +510,11 @@ export default function DaftarDokumenPage() {
         try {
             let docs: NormalizedDoc[] = [];
             if (kategori === 'RAB') {
-                const res = await fetchRABList();
+                let filters: any = undefined;
+                if (isContractor) {
+                    filters = { email_pembuat: userInfo.email };
+                }
+                const res = await fetchRABList(filters);
                 docs = normalizeRABDocs(res.data ?? []);
             } else if (kategori === 'SPK') {
                 const res = await fetchSPKList();
