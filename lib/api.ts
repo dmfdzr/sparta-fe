@@ -217,16 +217,52 @@ export const fetchPricesData = async (cabang: string, lingkup: string) => {
 
 /** Ambil daftar User Cabang (PIC) */
 export const fetchUserCabangList = async (
-    filters?: { cabang?: string; jabatan?: string }
+    filters?: { cabang?: string; jabatan?: string; search?: string }
 ): Promise<{ status: string; data: any[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.cabang) params.append("cabang", filters.cabang);
     if (filters?.jabatan) params.append("jabatan", filters.jabatan);
+    if (filters?.search) params.append("search", filters.search);
     const url = `${base}/api/user_cabang${params.toString() ? `?${params}` : ""}`;
     const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
     if (!res.ok) throw new Error("Gagal mengambil data user cabang");
     return res.json();
+};
+
+export const createUserCabang = async (data: any) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal membuat user cabang");
+    return result;
+};
+
+export const updateUserCabang = async (cabang: string, emailSat: string, data: any) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${encodeURIComponent(cabang)}/${encodeURIComponent(emailSat)}`;
+    const res = await fetch(url, {
+        method: 'PUT',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal mengupdate user cabang");
+    return result;
+};
+
+export const deleteUserCabang = async (cabang: string, emailSat: string) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${encodeURIComponent(cabang)}/${encodeURIComponent(emailSat)}`;
+    const res = await fetch(url, {
+        method: 'DELETE',
+        headers: { "Content-Type": "application/json" }
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal menghapus user cabang");
+    return result;
 };
 
 /** Submit / buat RAB baru.

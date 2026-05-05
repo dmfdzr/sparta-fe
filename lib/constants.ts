@@ -116,6 +116,13 @@ export const ALL_MENUS = [
         href: "/instruksi-lapangan",
         icon: FileText,
     },
+    {
+        id: "menu-users",
+        title: "Manajemen User",
+        desc: "Kelola data PIC dan akses aplikasi setiap cabang.",
+        href: "/users",
+        icon: Users,
+    },
 ];
 
 // -----------------------------------------------------------------------------
