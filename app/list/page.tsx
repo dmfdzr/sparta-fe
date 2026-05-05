@@ -381,10 +381,10 @@ const normalizeOpnameFinalDocs = (items: any[]): NormalizedDoc[] =>
     items.map(o => ({
         id: o.id,
         tipe: 'OPNAME_FINAL' as DokumenKategori,
-        nomor_ulok:    o.toko?.nomor_ulok ?? '-',
-        nama_toko:     o.toko?.nama_toko  ?? '-',
-        cabang:        o.toko?.cabang     ?? '-',
-        proyek:        o.toko?.proyek     ?? '-',
+        nomor_ulok:    o.nomor_ulok    ?? o.toko?.nomor_ulok ?? '-',
+        nama_toko:     o.nama_toko     ?? o.toko?.nama_toko  ?? '-',
+        cabang:        o.cabang        ?? o.toko?.cabang     ?? '-',
+        proyek:        o.proyek        ?? o.toko?.proyek     ?? '-',
         status:        o.status_opname_final,
         email_pembuat: o.email_pembuat,
         total_nilai:   parseCurrency(o.grand_total_opname),
@@ -1230,14 +1230,34 @@ export default function DaftarDokumenPage() {
 
                                 {/* Detail Header Card */}
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className={`px-6 py-4 ${selectedDetail.tipe === 'RAB' ? 'bg-linear-to-r from-blue-50 to-blue-100/50 border-b border-blue-100' : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'bg-linear-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-100' : 'bg-linear-to-r from-purple-50 to-purple-100/50 border-b border-purple-100'}`}>
+                                    <div className={`px-6 py-4 ${
+                                        selectedDetail.tipe === 'RAB' ? 'bg-linear-to-r from-blue-50 to-blue-100/50 border-b border-blue-100'
+                                        : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'bg-linear-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-100'
+                                        : selectedDetail.tipe === 'OPNAME_FINAL' ? 'bg-linear-to-r from-orange-50 to-orange-100/50 border-b border-orange-100'
+                                        : selectedDetail.tipe === 'PENGAWASAN' ? 'bg-linear-to-r from-indigo-50 to-indigo-100/50 border-b border-indigo-100'
+                                        : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'bg-linear-to-r from-teal-50 to-teal-100/50 border-b border-teal-100'
+                                        : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'bg-linear-to-r from-pink-50 to-pink-100/50 border-b border-pink-100'
+                                        : 'bg-linear-to-r from-purple-50 to-purple-100/50 border-b border-purple-100'
+                                    }`}>
                                         <div className="flex items-center justify-between flex-wrap gap-3">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-xl ${selectedDetail.tipe === 'RAB' ? 'bg-blue-100' : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'bg-emerald-100' : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'bg-teal-100' : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'bg-pink-100' : 'bg-purple-100'} flex items-center justify-center`}>
+                                                <div className={`w-10 h-10 rounded-xl ${
+                                                    selectedDetail.tipe === 'RAB' ? 'bg-blue-100'
+                                                    : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'bg-emerald-100'
+                                                    : selectedDetail.tipe === 'OPNAME_FINAL' ? 'bg-orange-100'
+                                                    : selectedDetail.tipe === 'PENGAWASAN' ? 'bg-indigo-100'
+                                                    : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'bg-teal-100'
+                                                    : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'bg-pink-100'
+                                                    : 'bg-purple-100'
+                                                } flex items-center justify-center`}>
                                                     {selectedDetail.tipe === 'RAB'
                                                         ? <FileText className="w-5 h-5 text-blue-600" />
                                                         : selectedDetail.tipe === 'PERTAMBAHAN_SPK'
                                                         ? <FilePlus className="w-5 h-5 text-emerald-600" />
+                                                        : selectedDetail.tipe === 'OPNAME_FINAL'
+                                                        ? <CheckSquare className="w-5 h-5 text-orange-600" />
+                                                        : selectedDetail.tipe === 'PENGAWASAN'
+                                                        ? <Eye className="w-5 h-5 text-indigo-600" />
                                                         : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA'
                                                         ? <CheckCircle className="w-5 h-5 text-teal-600" />
                                                         : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN'
@@ -1247,7 +1267,14 @@ export default function DaftarDokumenPage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="font-bold text-lg text-slate-800">
-                                                        {selectedDetail.tipe === 'RAB' ? 'Detail RAB' : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'Detail Pertambahan SPK' : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'Detail Serah Terima' : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'Detail Instruksi Lapangan' : 'Detail SPK'}
+                                                        {selectedDetail.tipe === 'RAB' ? 'Detail RAB'
+                                                        : selectedDetail.tipe === 'SPK' ? 'Detail SPK'
+                                                        : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'Detail Pertambahan SPK'
+                                                        : selectedDetail.tipe === 'OPNAME_FINAL' ? 'Detail Opname Final'
+                                                        : selectedDetail.tipe === 'PENGAWASAN' ? 'Detail Pengawasan'
+                                                        : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'Detail Serah Terima'
+                                                        : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'Detail Instruksi Lapangan'
+                                                        : 'Detail Dokumen'}
                                                     </h3>
                                                     <p className="text-sm text-slate-500">ID: {selectedDetail.id}</p>
                                                 </div>
