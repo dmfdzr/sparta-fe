@@ -28,6 +28,7 @@ import {
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
+import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 
 // =============================================================================
 // TYPES
@@ -443,7 +444,7 @@ export default function DaftarDokumenPage() {
     const router = useRouter();
 
     // --- Auth ---
-    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
+    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '', nama_pt: '' });
     const [isContractor, setIsContractor] = useState(false);
     const [isDirektur, setIsDirektur] = useState(false);
 
@@ -481,6 +482,8 @@ export default function DaftarDokumenPage() {
         const cabang  = sessionStorage.getItem("loggedInUserCabang") || '';
         const namaLengkap = sessionStorage.getItem("nama_lengkap") || email.split('@')[0];
 
+        const nama_pt = sessionStorage.getItem("nama_pt") || '';
+
         if (isAuth !== "true" || !role) { router.push('/auth'); return; }
 
         const roles = role.split(',').map(r => r.trim().toUpperCase());
@@ -488,7 +491,7 @@ export default function DaftarDokumenPage() {
         const direkturFlag = roles.some(r => r.includes('DIREKTUR'));
         setIsContractor(contractorFlag);
         setIsDirektur(direkturFlag);
-        setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email });
+        setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email, nama_pt });
     }, [router]);
 
     // =========================================================================
@@ -511,8 +514,12 @@ export default function DaftarDokumenPage() {
             let docs: NormalizedDoc[] = [];
             if (kategori === 'RAB') {
                 let filters: any = undefined;
-                if (isContractor) {
-                    filters = { email_pembuat: userInfo.email };
+                // Read directly from sessionStorage to avoid stale closure
+                const sessionRole = (sessionStorage.getItem('userRole') || '').toUpperCase();
+                const sessionNamaPt = sessionStorage.getItem('nama_pt') || '';
+                const isKontraktorOrDirektur = sessionRole.includes('KONTRAKTOR') || sessionRole.includes('DIREKTUR');
+                if (isKontraktorOrDirektur && sessionNamaPt) {
+                    filters = { nama_pt: sessionNamaPt };
                 }
                 const res = await fetchRABList(filters);
                 docs = normalizeRABDocs(res.data ?? []);
@@ -536,11 +543,22 @@ export default function DaftarDokumenPage() {
                 docs = normalizeInstruksiLapanganDocs(res.data ?? []);
             }
 
-            // Filter by cabang for non-HO users
-            if (userInfo.cabang && userInfo.cabang.toUpperCase() !== 'HEAD OFFICE') {
-                docs = docs.filter(d =>
-                    d.cabang.toUpperCase() === userInfo.cabang.toUpperCase()
-                );
+            // Filter by cabang for non-HO users (branch group aware)
+            const upperUserCabang = (sessionStorage.getItem('loggedInUserCabang') || '').toUpperCase();
+            if (upperUserCabang && upperUserCabang !== 'HEAD OFFICE') {
+                let userGroup: string[] | null = null;
+                for (const grp of Object.values(BRANCH_GROUPS)) {
+                    if (grp.includes(upperUserCabang)) {
+                        userGroup = grp;
+                        break;
+                    }
+                }
+                
+                if (userGroup) {
+                    docs = docs.filter(d => userGroup!.includes(d.cabang.toUpperCase()));
+                } else {
+                    docs = docs.filter(d => d.cabang.toUpperCase() === upperUserCabang);
+                }
             }
 
             // Sort by newest first
@@ -557,7 +575,7 @@ export default function DaftarDokumenPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [userInfo.cabang, showToast]);
+    }, [userInfo.cabang, userInfo.nama_pt, userInfo.email, isContractor, isDirektur, showToast]);
 
     // =========================================================================
     // LOAD DETAIL
@@ -832,16 +850,30 @@ export default function DaftarDokumenPage() {
     // =========================================================================
     // FILTERED LIST
     // =========================================================================
-    // Derive unique cabang list for HO dropdown
+    // Static cabang options based on user role/group
     const cabangOptions = useMemo(() => {
-        const set = new Set<string>();
-        listData.forEach(d => {
-            if (d.cabang && d.cabang !== '-') set.add(d.cabang.toUpperCase());
-        });
-        return Array.from(set).sort();
-    }, [listData]);
+        const upper = userInfo.cabang?.toUpperCase();
+        if (!upper) return [];
+        if (upper === 'HEAD OFFICE') {
+            return Object.keys(BRANCH_TO_ULOK).sort();
+        }
+        let userGroup: string[] | null = null;
+        for (const grp of Object.values(BRANCH_GROUPS)) {
+            if (grp.includes(upper)) {
+                userGroup = grp;
+                break;
+            }
+        }
+        return userGroup ? [...userGroup].sort() : [];
+    }, [userInfo.cabang]);
 
     const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHeadGroup = useMemo(() => {
+        if (!userInfo.cabang) return false;
+        const upper = userInfo.cabang.toUpperCase();
+        return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
+    }, [userInfo.cabang]);
+    const showCabangFilter = isHO || isHeadGroup || isContractor || isDirektur;
 
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
@@ -1067,7 +1099,7 @@ export default function DaftarDokumenPage() {
                                     ))}
                                 </select>
                             </div>
-                            {isHO && cabangOptions.length > 0 && (
+                            {showCabangFilter && cabangOptions.length > 0 && (
                                 <div className="relative w-full sm:w-56">
                                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                     <select

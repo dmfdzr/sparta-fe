@@ -33,6 +33,7 @@ import {
 } from '@/lib/api';
 
 import { parseCurrency } from '@/lib/utils';
+import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 
 // =============================================
 // TYPES INTERNAL
@@ -376,6 +377,7 @@ export default function ApprovalPage() {
     const [listData, setListData]         = useState<NormalizedListItem[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<NormalizedDetail | null>(null);
     const [searchQuery, setSearchQuery]   = useState('');
+    const [cabangFilter, setCabangFilter] = useState('');
 
     // --- UI ---
     const [isLoading, setIsLoading]           = useState(false);
@@ -471,7 +473,6 @@ export default function ApprovalPage() {
                 if (jabatan === 'DIREKTUR') {
                     filters = { 
                         status: 'Menunggu Persetujuan Direktur', 
-                        cabang: userInfo.cabang, 
                         nama_pt: userInfo.nama_pt 
                     };
                 }
@@ -501,12 +502,25 @@ export default function ApprovalPage() {
                 const upper = (item.status ?? '').toUpperCase();
 
                 // 1. FILTER CABANG (Wajib sesuai cabang user)
-                // Pertambahan SPK tidak memiliki field cabang dari API, jadi skip filter cabang
-                // 1. FILTER CABANG (Wajib sesuai cabang user)
                 // Jika item.cabang adalah '-' atau empty, kita loloskan agar tidak tersembunyi karena data kurang
-                if (type !== 'PERTAMBAHAN_SPK' && userInfo.cabang && item.cabang && item.cabang !== '-' && 
-                    item.cabang.toUpperCase() !== userInfo.cabang.toUpperCase()) {
-                    return false;
+                const upperUserCabang = userInfo.cabang?.toUpperCase();
+                if (type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {
+                    if (upperUserCabang !== 'HEAD OFFICE') {
+                        let userGroup: string[] | null = null;
+                        for (const grp of Object.values(BRANCH_GROUPS)) {
+                            if (grp.includes(upperUserCabang)) {
+                                userGroup = grp;
+                                break;
+                            }
+                        }
+                        
+                        const itemCabangUpper = item.cabang.toUpperCase();
+                        if (userGroup) {
+                            if (!userGroup.includes(itemCabangUpper)) return false;
+                        } else {
+                            if (itemCabangUpper !== upperUserCabang) return false;
+                        }
+                    }
                 }
                 
                 // 2. FILTER STATUS & JABATAN (Eksisting)
@@ -944,15 +958,43 @@ export default function ApprovalPage() {
         return upper === 'REJECTED' || upper.includes('DITOLAK') || upper.includes('TOLAK');
     };
 
+    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHeadGroup = useMemo(() => {
+        if (!userInfo.cabang) return false;
+        const upper = userInfo.cabang.toUpperCase();
+        return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
+    }, [userInfo.cabang]);
+    const showCabangFilter = isHO || isHeadGroup;
+
+    // Static cabang options based on user role/group
+    const cabangOptions = useMemo(() => {
+        const upper = userInfo.cabang?.toUpperCase();
+        if (!upper) return [];
+        if (upper === 'HEAD OFFICE') {
+            return Object.keys(BRANCH_TO_ULOK).sort();
+        }
+        let userGroup: string[] | null = null;
+        for (const grp of Object.values(BRANCH_GROUPS)) {
+            if (grp.includes(upper)) {
+                userGroup = grp;
+                break;
+            }
+        }
+        return userGroup ? [...userGroup].sort() : [];
+    }, [userInfo.cabang]);
+
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
         return listData.filter(item => {
+            if (cabangFilter) {
+                if (item.cabang?.toUpperCase() !== cabangFilter.toUpperCase()) return false;
+            }
             if (!q) return true;
             return item.nama_toko.toLowerCase().includes(q)
                 || item.nomor_ulok.toLowerCase().includes(q)
                 || item.email_pembuat.toLowerCase().includes(q);
         });
-    }, [listData, searchQuery]);
+    }, [listData, searchQuery, cabangFilter]);
 
     // Tombol approve/tolak hanya muncul jika item memang giliran role ini
     const canActOnDetail = selectedDetail && isActionableByRole(selectedDetail.status, selectedDetail.tipe);
@@ -1079,7 +1121,22 @@ export default function ApprovalPage() {
                                 </div>
                             </div>
                             <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-                                <div className="relative w-full md:w-72">
+                                {showCabangFilter && cabangOptions.length > 0 && (
+                                    <div className="relative w-full md:w-48">
+                                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <select
+                                            value={cabangFilter}
+                                            onChange={e => setCabangFilter(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white appearance-none cursor-pointer"
+                                        >
+                                            <option value="">Semua Cabang</option>
+                                            {cabangOptions.map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                <div className="relative w-full md:w-64">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                     <input
                                         type="text"
