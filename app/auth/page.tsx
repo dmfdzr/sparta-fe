@@ -58,12 +58,13 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Pengecekan maintenance sistem
+    // JIKA ADA SESI MAINTENANCE, KECUALI HEAD OFFICE //
     if (password.trim().toUpperCase() !== "HEAD OFFICE") {
       setAlertMessage("Mohon maaf, sistem sedang dalam masa maintenance. Silakan coba beberapa saat lagi.");
       setAlertOpen(true);
       return;
     }
+    // SESI MAINTENANCE //
 
     setIsLoading(true);
     setMessage({ text: "Logging in...", type: "info" });
