@@ -54,15 +54,15 @@ export default function UsersPage() {
         nama_pt: ''
     });
     
-    // Simpan key asli saat edit (berjaga-jaga jika diperlukan)
-    const [editKeys, setEditKeys] = useState({ cabang: '', email_sat: '' });
+    // Simpan ID user saat edit
+    const [editId, setEditId] = useState<number | null>(null);
 
     // --- TOAST ---
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
     // --- DELETE MODAL ---
-    const [deleteModal, setDeleteModal] = useState<{ cabang: string; email_sat: string; nama: string } | null>(null);
+    const [deleteModal, setDeleteModal] = useState<{ id: number; nama: string } | null>(null);
 
     // =========================================================================
     // INIT & AUTH
@@ -126,7 +126,7 @@ export default function UsersPage() {
 
     const openEditForm = (user: any) => {
         setIsEditing(true);
-        setEditKeys({ cabang: user.cabang, email_sat: user.email_sat });
+        setEditId(user.id);
         setFormData({
             cabang: user.cabang,
             email_sat: user.email_sat,
@@ -145,13 +145,15 @@ export default function UsersPage() {
 
         setIsProcessing(true);
         try {
-            if (isEditing) {
-                // Sesuai API, PUT /api/user_cabang/:cabang/:email_sat
-                await updateUserCabang(editKeys.cabang, editKeys.email_sat, {
-                    nama_lengkap: formData.nama_lengkap,
-                    jabatan: formData.jabatan,
-                    nama_pt: formData.nama_pt
-                });
+            if (isEditing && editId) {
+                // PUT /api/user_cabang/:id
+                const updatePayload: any = {};
+                if (formData.cabang) updatePayload.cabang = formData.cabang;
+                if (formData.email_sat) updatePayload.email_sat = formData.email_sat;
+                if (formData.nama_lengkap) updatePayload.nama_lengkap = formData.nama_lengkap;
+                if (formData.jabatan) updatePayload.jabatan = formData.jabatan;
+                if (formData.nama_pt) updatePayload.nama_pt = formData.nama_pt;
+                await updateUserCabang(editId, updatePayload);
                 showToast('Data user berhasil diperbarui!', 'success');
             } else {
                 // POST /api/user_cabang
@@ -174,7 +176,7 @@ export default function UsersPage() {
         if (!deleteModal) return;
         setIsProcessing(true);
         try {
-            await deleteUserCabang(deleteModal.cabang, deleteModal.email_sat);
+            await deleteUserCabang(deleteModal.id);
             showToast('User berhasil dihapus!', 'success');
             setDeleteModal(null);
             loadUsers(searchQuery);
@@ -333,7 +335,7 @@ export default function UsersPage() {
                                                 <Button variant="outline" size="sm" onClick={() => openEditForm(u)} className="h-8 w-8 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50">
                                                     <Edit2 className="w-4 h-4" />
                                                 </Button>
-                                                <Button variant="outline" size="sm" onClick={() => setDeleteModal({ cabang: u.cabang, email_sat: u.email_sat, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
+                                                <Button variant="outline" size="sm" onClick={() => setDeleteModal({ id: u.id, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
@@ -364,7 +366,7 @@ export default function UsersPage() {
                                 <select 
                                     value={formData.cabang} 
                                     onChange={e => setFormData({ ...formData, cabang: e.target.value })}
-                                    disabled={isEditing}
+
                                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     <option value="">-- Pilih Cabang --</option>
@@ -380,7 +382,7 @@ export default function UsersPage() {
                                     type="email"
                                     value={formData.email_sat}
                                     onChange={e => setFormData({ ...formData, email_sat: e.target.value })}
-                                    disabled={isEditing}
+
                                     placeholder="contoh@alfamart.co.id"
                                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                                 />
@@ -445,7 +447,7 @@ export default function UsersPage() {
                             <h3 className="text-lg font-bold text-slate-800 mb-2">Konfirmasi Hapus</h3>
                             <p className="text-sm text-slate-500 mb-6">
                                 Apakah Anda yakin ingin menghapus user <br />
-                                <strong className="text-slate-800">{deleteModal.nama}</strong> ({deleteModal.cabang})?
+                                <strong className="text-slate-800">{deleteModal.nama}</strong>?
                             </p>
                             <div className="flex gap-3 w-full">
                                 <Button variant="outline" onClick={() => setDeleteModal(null)} className="flex-1 rounded-xl font-semibold border-slate-200">

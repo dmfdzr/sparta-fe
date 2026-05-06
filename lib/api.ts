@@ -217,16 +217,27 @@ export const fetchPricesData = async (cabang: string, lingkup: string) => {
 
 /** Ambil daftar User Cabang (PIC) */
 export const fetchUserCabangList = async (
-    filters?: { cabang?: string; jabatan?: string; search?: string }
+    filters?: { cabang?: string; jabatan?: string; search?: string; email_sat?: string; nama_pt?: string }
 ): Promise<{ status: string; data: any[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.cabang) params.append("cabang", filters.cabang);
     if (filters?.jabatan) params.append("jabatan", filters.jabatan);
     if (filters?.search) params.append("search", filters.search);
+    if (filters?.email_sat) params.append("email_sat", filters.email_sat);
+    if (filters?.nama_pt) params.append("nama_pt", filters.nama_pt);
     const url = `${base}/api/user_cabang${params.toString() ? `?${params}` : ""}`;
     const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
     if (!res.ok) throw new Error("Gagal mengambil data user cabang");
+    return res.json();
+};
+
+/** Detail user cabang berdasarkan ID */
+export const fetchUserCabangDetail = async (id: number): Promise<{ status: string; data: any }> => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${id}`;
+    const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
+    if (res.status === 404) throw new Error("Data user_cabang tidak ditemukan");
+    if (!res.ok) throw new Error("Gagal mengambil detail user cabang");
     return res.json();
 };
 
@@ -238,29 +249,35 @@ export const createUserCabang = async (data: any) => {
         body: JSON.stringify(data)
     });
     const result = await res.json();
+    if (res.status === 409) throw new Error(result.message || "Kombinasi email_sat + cabang sudah terdaftar");
+    if (res.status === 422) throw new Error(result.message || "Validasi request gagal");
     if (!res.ok) throw new Error(result.message || "Gagal membuat user cabang");
     return result;
 };
 
-export const updateUserCabang = async (cabang: string, emailSat: string, data: any) => {
-    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${encodeURIComponent(cabang)}/${encodeURIComponent(emailSat)}`;
+export const updateUserCabang = async (id: number, data: any) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${id}`;
     const res = await fetch(url, {
         method: 'PUT',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     });
     const result = await res.json();
+    if (res.status === 404) throw new Error(result.message || "Data user_cabang tidak ditemukan");
+    if (res.status === 409) throw new Error(result.message || "Kombinasi email_sat + cabang bentrok dengan data lain");
+    if (res.status === 422) throw new Error(result.message || "Validasi request gagal");
     if (!res.ok) throw new Error(result.message || "Gagal mengupdate user cabang");
     return result;
 };
 
-export const deleteUserCabang = async (cabang: string, emailSat: string) => {
-    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${encodeURIComponent(cabang)}/${encodeURIComponent(emailSat)}`;
+export const deleteUserCabang = async (id: number) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/user_cabang/${id}`;
     const res = await fetch(url, {
         method: 'DELETE',
         headers: { "Content-Type": "application/json" }
     });
     const result = await res.json();
+    if (res.status === 404) throw new Error(result.message || "Data user_cabang tidak ditemukan");
     if (!res.ok) throw new Error(result.message || "Gagal menghapus user cabang");
     return result;
 };
