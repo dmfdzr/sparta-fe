@@ -1677,10 +1677,16 @@ export const processInstruksiLapanganApproval = async (
     id: number,
     payload: InstruksiLapanganApprovalPayload
 ): Promise<any> => {
+    const requestBody = {
+        action: payload.action,
+        email: payload.approver_email,
+        ...(payload.reason ? { reason: payload.reason } : {})
+    };
+
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/instruksi-lapangan/${id}/approval`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(requestBody),
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Gagal memproses approval Instruksi Lapangan.");
