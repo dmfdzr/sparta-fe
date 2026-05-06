@@ -8,6 +8,7 @@ import { Save, Loader2, Search, FileText, AlertCircle, CheckCircle, XCircle, Ale
 import AppNavbar from '@/components/AppNavbar';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import { fetchKontraktorList, fetchSPKList, submitSPK, fetchRABList } from '@/lib/api';
+import { BRANCH_GROUPS } from '@/lib/constants';
 import { parseCurrency } from '@/lib/utils';
 
 const getCabangCode = (cabangName: string) => {
@@ -74,6 +75,7 @@ export default function SPKPage() {
     const [approvedRabs, setApprovedRabs] = useState<any[]>([]);
     const [kontraktorList, setKontraktorList] = useState<string[]>([]);
     const [searchUlok, setSearchUlok] = useState('');
+    const [cabangFilter, setCabangFilter] = useState('');
     
     // Status Info
     const [spkMsg, setSpkMsg] = useState({ text: '', type: '' });
@@ -122,7 +124,21 @@ export default function SPKPage() {
             const res = await fetchRABList({ status: "Disetujui" });
             const listRab = res.data || [];
             
-            const filteredRabs = listRab.filter((r: any) => r.cabang?.toUpperCase() === cabang.toUpperCase());
+            const upperCabang = cabang.toUpperCase();
+            let userGroup: string[] | null = null;
+            for (const grp of Object.values(BRANCH_GROUPS)) {
+                if (grp.includes(upperCabang)) {
+                    userGroup = grp;
+                    break;
+                }
+            }
+            
+            const filteredRabs = listRab.filter((r: any) => {
+                if (userGroup) {
+                    return userGroup.includes(r.cabang?.toUpperCase());
+                }
+                return r.cabang?.toUpperCase() === upperCabang;
+            });
             
             const mappedData = filteredRabs.map((r: any) => ({
                 "id_toko": r.id_toko || r.toko?.id,
@@ -315,10 +331,26 @@ export default function SPKPage() {
         }
     };
 
-    const filteredRabs = approvedRabs.filter(r => 
-        (r["Nomor Ulok"] || "").toLowerCase().includes(searchUlok.toLowerCase()) || 
-        (r["Nama_Toko"] || "").toLowerCase().includes(searchUlok.toLowerCase())
-    );
+    const filteredRabs = approvedRabs.filter(r => {
+        const matchSearch = (r["Nomor Ulok"] || "").toLowerCase().includes(searchUlok.toLowerCase()) || 
+                            (r["Nama_Toko"] || "").toLowerCase().includes(searchUlok.toLowerCase());
+        const matchCabang = cabangFilter ? r.Cabang?.toUpperCase() === cabangFilter.toUpperCase() : true;
+        return matchSearch && matchCabang;
+    });
+
+    // Options untuk cabang filter jika user termasuk dalam BRANCH_GROUP
+    const cabangOptions = React.useMemo(() => {
+        const upper = userInfo.cabang?.toUpperCase();
+        if (!upper) return [];
+        let userGroup: string[] | null = null;
+        for (const grp of Object.values(BRANCH_GROUPS)) {
+            if (grp.includes(upper)) {
+                userGroup = grp;
+                break;
+            }
+        }
+        return userGroup ? [...userGroup].sort() : [];
+    }, [userInfo.cabang]);
 
     // Cek apakah ada perubahan (untuk disable tombol submit revisi)
     const isRevisiUnchanged = revisiData.isRevisi && !hasFormChangedFromOriginal();
@@ -357,10 +389,26 @@ export default function SPKPage() {
                                     {isLoading ? (
                                         <div className="p-3 text-center text-slate-500 bg-slate-100 rounded-lg text-sm"><Loader2 className="w-4 h-4 animate-spin inline mr-2"/> Memuat data RAB...</div>
                                     ) : (
-                                        <select required className="w-full p-3 border rounded-lg bg-slate-50 outline-none font-semibold text-slate-700 cursor-pointer focus:bg-white focus:ring-2 focus:ring-red-500" value={form.nomor_ulok} onChange={(e) => handleUlokSelect(e.target.value)}>
-                                            <option value="">-- Klik untuk Pilih Ulok --</option>
-                                            {filteredRabs.map((r, i) => <option key={i} value={`${r["Nomor Ulok"]} (${r["Lingkup_Pekerjaan"]})`}>{r["Nomor Ulok"]} ({r["Lingkup_Pekerjaan"]}) - {r["Proyek"]} - {r["Nama_Toko"]}</option>)}
-                                        </select>
+                                        <div className="flex flex-col md:flex-row gap-3">
+                                            {cabangOptions.length > 0 && (
+                                                <select
+                                                    className="w-full md:w-1/3 p-3 border rounded-lg bg-white outline-none text-sm text-slate-700 focus:ring-2 focus:ring-blue-500"
+                                                    value={cabangFilter}
+                                                    onChange={(e) => {
+                                                        setCabangFilter(e.target.value);
+                                                        setForm(prev => ({ ...prev, nomor_ulok: '' })); // reset pilihan ulok jika cabang berubah
+                                                        setSelectedRabObj(null);
+                                                    }}
+                                                >
+                                                    <option value="">Semua Cabang (Grup)</option>
+                                                    {cabangOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                            )}
+                                            <select required className="w-full flex-1 p-3 border rounded-lg bg-slate-50 outline-none font-semibold text-slate-700 cursor-pointer focus:bg-white focus:ring-2 focus:ring-red-500" value={form.nomor_ulok} onChange={(e) => handleUlokSelect(e.target.value)}>
+                                                <option value="">-- Klik untuk Pilih Ulok --</option>
+                                                {filteredRabs.map((r, i) => <option key={i} value={`${r["Nomor Ulok"]} (${r["Lingkup_Pekerjaan"]})`}>{r["Nomor Ulok"]} ({r["Lingkup_Pekerjaan"]}) - {r["Proyek"]} - {r["Nama_Toko"]}</option>)}
+                                            </select>
+                                        </div>
                                     )}
                                 </div>
 
