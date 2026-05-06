@@ -1,8 +1,8 @@
 # SPARTA (System for Property Administration, Reporting, Tracking & Approval)
 
-SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancang untuk mengelola siklus pembangunan gedung/toko di lingkungan Alfamart. Aplikasi ini mencakup fitur perencanaan anggaran (RAB), pemantauan progress (Gantt Chart), hingga penyimpanan dokumen teknis.
+SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancang untuk mengelola siklus pembangunan toko di lingkungan Alfamart. Aplikasi ini mencakup fitur perencanaan anggaran (RAB), pemantauan progress (Gantt Chart), hingga penyimpanan dokumen teknis.
 
-## 🚀 Teknologi Utama
+## 🚀 Techstack
 
 - **Framework**: [Next.js 16+](https://nextjs.org/) (App Router)
 - **Bahasa**: [TypeScript](https://www.typescriptlang.org/)
@@ -12,7 +12,7 @@ SPARTA adalah platform manajemen proyek dan aset toko terintegrasi yang dirancan
 - **Charts**: Chart.js & React-Chartjs-2
 - **PDF Generation**: jsPDF & jsPDF-AutoTable
 
-## 📂 Modul Utama
+## 📂 Fitur
 
 Aplikasi ini terdiri dari beberapa modul fungsional utama:
 
