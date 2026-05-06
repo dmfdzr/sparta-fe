@@ -7,7 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, ChevronLeft } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Info } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Import base URL dari constants
 import { API_URL } from '@/lib/constants';
@@ -22,6 +31,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   // Fungsi untuk logging ke Google Apps Script
   const logLoginAttempt = async (username: string, cabang: string, status: string) => {
@@ -46,6 +57,14 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Pengecekan maintenance sistem
+    if (password.trim().toUpperCase() !== "HEAD OFFICE") {
+      setAlertMessage("Mohon maaf, sistem sedang dalam masa maintenance. Silakan coba beberapa saat lagi.");
+      setAlertOpen(true);
+      return;
+    }
+
     setIsLoading(true);
     setMessage({ text: "Logging in...", type: "info" });
 
@@ -235,6 +254,27 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* MODAL / ALERT MAINTENANCE */}
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent className="text-center rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <div className="mx-auto bg-red-100 text-red-600 w-16 h-16 flex items-center justify-center rounded-full mb-4">
+              <Info className="w-8 h-8" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-center">Informasi</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-base text-slate-600">
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white px-8 rounded-lg w-full">
+              Tutup
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
