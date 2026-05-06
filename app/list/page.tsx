@@ -93,6 +93,7 @@ interface NormalizedDetail {
     approval_koordinator?: { pemberi: string | null; waktu: string | null };
     approval_manager?: { pemberi: string | null; waktu: string | null };
     approval_direktur?: { pemberi: string | null; waktu: string | null };
+    approval_kontraktor?: { pemberi: string | null; waktu: string | null };
     items?: Array<{
         id: number;
         kategori: string;
@@ -222,7 +223,7 @@ const KATEGORI_CONFIG: Record<DokumenKategori, {
         description: 'Daftar dokumen serah terima toko.',
     },
     INSTRUKSI_LAPANGAN: {
-        label: 'Instruksi Lap.',
+        label: 'Instruksi Lapangan',
         fullLabel: 'Instruksi Lapangan',
         icon: <ClipboardList className="w-10 h-10" />,
         color: 'text-pink-600',
@@ -432,9 +433,9 @@ const normalizeInstruksiLapanganDocs = (items: any[]): NormalizedDoc[] =>
         proyek:        i.proyek     ?? '-',
         status:        i.status,
         email_pembuat: i.email_pembuat ?? '-',
-        total_nilai:   0,
+        total_nilai:   parseCurrency(i.grand_total_final ?? i.grand_total),
         created_at:    i.created_at ?? i.timestamp ?? '-',
-        link_pdf:      null,
+        link_pdf:      i.link_pdf_gabungan ?? null,
     }));
 
 // =============================================================================
@@ -742,17 +743,28 @@ export default function DaftarDokumenPage() {
                     proyek:            d.proyek || doc.proyek,
                     status:            d.status || doc.status,
                     email_pembuat:     d.email_pembuat || doc.email_pembuat,
-                    total_nilai:       0,
+                    total_nilai:       parseCurrency(d.grand_total_final ?? d.grand_total),
+                    grand_total:       d.grand_total,
+                    grand_total_non_sbo: d.grand_total_non_sbo,
+                    grand_total_final: d.grand_total_final,
                     created_at:        d.created_at || d.timestamp || doc.created_at,
+                    link_pdf_gabungan: d.link_pdf_gabungan,
+                    link_pdf_non_sbo:  d.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: d.link_pdf_rekapitulasi,
+                    link_lampiran_pendukung: d.link_lampiran,
+                    approval_koordinator: { pemberi: d.pemberi_persetujuan_koordinator, waktu: d.waktu_persetujuan_koordinator },
+                    approval_manager:     { pemberi: d.pemberi_persetujuan_manager,     waktu: d.waktu_persetujuan_manager },
+                    approval_kontraktor:  { pemberi: d.pemberi_persetujuan_kontraktor,  waktu: d.waktu_persetujuan_kontraktor },
+                    alasan_penolakan:    d.alasan_penolakan,
                     items: (d.items ?? []).map((it: any) => ({
                         id: it.id,
                         kategori:        it.kategori_pekerjaan || '-',
                         jenis_pekerjaan: it.item_pekerjaan || it.jenis_pekerjaan || '-',
                         satuan:          it.satuan || '-',
                         volume:          it.volume || 0,
-                        harga_material:  0,
-                        harga_upah:      0,
-                        total:           0,
+                        harga_material:  it.harga_material || 0,
+                        harga_upah:      it.harga_upah || 0,
+                        total:           it.total_harga || ((Number(it.volume) || 0) * ((Number(it.harga_material) || 0) + (Number(it.harga_upah) || 0))),
                         catatan:         it.instruksi || it.keterangan || it.catatan || '-',
                     })),
                 };
@@ -1397,11 +1409,11 @@ export default function DaftarDokumenPage() {
                                         {selectedDetail.tipe === 'SPK' && selectedDetail.terbilang && (
                                             <p className="text-sm text-slate-500 mt-1 italic">"{selectedDetail.terbilang}"</p>
                                         )}
-                                        {selectedDetail.tipe === 'RAB' && (
+                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && (
                                             <div className="flex flex-wrap gap-4 mt-3 text-sm">
                                                 {selectedDetail.grand_total && (
                                                     <div>
-                                                        <span className="text-slate-400">Total RAB: </span>
+                                                        <span className="text-slate-400">Total: </span>
                                                         <span className="font-semibold text-slate-700">{formatRupiah(parseCurrency(selectedDetail.grand_total))}</span>
                                                     </div>
                                                 )}
@@ -1417,8 +1429,8 @@ export default function DaftarDokumenPage() {
                                 </div>
                                 )}
 
-                                {/* Approval Trail (RAB) */}
-                                {selectedDetail.tipe === 'RAB' && (
+                                {/* Approval Trail (RAB & INSTRUKSI_LAPANGAN) */}
+                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && (
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                             <div className="w-1.5 h-5 bg-green-500 rounded-full" />
@@ -1427,7 +1439,11 @@ export default function DaftarDokumenPage() {
                                         <div className="space-y-3">
                                             <ApprovalRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
                                             <ApprovalRow label="Manager" pemberi={selectedDetail.approval_manager?.pemberi} waktu={selectedDetail.approval_manager?.waktu} />
-                                            <ApprovalRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
+                                            {selectedDetail.tipe === 'RAB' ? (
+                                                <ApprovalRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
+                                            ) : (
+                                                <ApprovalRow label="Kontraktor" pemberi={selectedDetail.approval_kontraktor?.pemberi} waktu={selectedDetail.approval_kontraktor?.waktu} />
+                                            )}
                                             {selectedDetail.alasan_penolakan && (
                                                 <div className="flex items-start gap-3 text-sm mt-2 bg-red-50 rounded-lg p-3 border border-red-100">
                                                     <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -1572,22 +1588,22 @@ export default function DaftarDokumenPage() {
                                             </Button>
                                         )}
 
-                                        {/* Additional RAB PDF links */}
-                                        {selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_gabungan && (
+                                        {/* Additional PDF links */}
+                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && selectedDetail.link_pdf_gabungan && (
                                             <a href={selectedDetail.link_pdf_gabungan} target="_blank" rel="noopener noreferrer">
                                                 <Button variant="outline">
                                                     <FileDown className="w-4 h-4 mr-2" /> PDF Gabungan
                                                 </Button>
                                             </a>
                                         )}
-                                        {selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_non_sbo && (
+                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && selectedDetail.link_pdf_non_sbo && (
                                             <a href={selectedDetail.link_pdf_non_sbo} target="_blank" rel="noopener noreferrer">
                                                 <Button variant="outline">
                                                     <FileDown className="w-4 h-4 mr-2" /> PDF Non-SBO
                                                 </Button>
                                             </a>
                                         )}
-                                        {selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_rekapitulasi && (
+                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && selectedDetail.link_pdf_rekapitulasi && (
                                             <a href={selectedDetail.link_pdf_rekapitulasi} target="_blank" rel="noopener noreferrer">
                                                 <Button variant="outline">
                                                     <FileDown className="w-4 h-4 mr-2" /> PDF Rekapitulasi
