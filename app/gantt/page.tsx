@@ -819,7 +819,7 @@ function GanttBoard() {
                                         const tID = toko.id_toko || toko.id;
                                         const ganttMatch = availableProjects.find(p => p.id_toko === tID || p.nomor_ulok === toko.nomor_ulok);
                                         const ulok = formatUlokWithDash(toko.nomor_ulok);
-                                        const label = [ulok, toko.nama_toko, toko.cabang]
+                                        const label = [ulok, toko.nama_toko, toko.cabang, toko.lingkup_pekerjaan]
                                             .filter(Boolean).join(' · ');
                                         const statusBadge = ganttMatch?.status === 'terkunci' ? ' (Terkunci)' : (ganttMatch?.status === 'active' ? ' (Aktif)' : '');
                                         
@@ -1040,7 +1040,7 @@ function GanttBoard() {
                                     const shift = task.computed.shift || 0;
                                     return (
                                         <div key={task.id} className="flex hover:bg-slate-50/50" style={{ height: ROW_HEIGHT, borderBottom: '1px solid #cbd5e1', minWidth: 250 + chartData.totalChartWidth }}>
-                                            <div className="w-62.5 shrink-0 px-2.5 py-1 bg-white border-r-[3px] border-slate-400 sticky left-0 z-20 flex flex-col justify-center shadow-[2px_0_10px_rgba(0,0,0,0.1)]">
+                                            <div className="w-62.5 shrink-0 px-2.5 py-1 bg-white border-r-[3px] border-slate-400 sticky left-0 z-30 flex flex-col justify-center shadow-[2px_0_10px_rgba(0,0,0,0.1)]">
                                                 <span className="text-[13px] font-semibold text-slate-800 leading-tight">{task.name}</span>
                                             </div>
                                             <div className="relative" style={{ width: chartData.totalChartWidth }}>
