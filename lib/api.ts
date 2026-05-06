@@ -1668,25 +1668,20 @@ export const fetchInstruksiLapanganDetail = async (id: number): Promise<any> => 
 };
 
 export type InstruksiLapanganApprovalPayload = {
-    action: 'APPROVE' | 'REJECT';
     approver_email: string;
-    reason?: string;
+    jabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR' | string;
+    tindakan: 'APPROVE' | 'REJECT';
+    alasan_penolakan?: string | null;
 };
 
 export const processInstruksiLapanganApproval = async (
     id: number,
     payload: InstruksiLapanganApprovalPayload
 ): Promise<any> => {
-    const requestBody = {
-        action: payload.action,
-        email: payload.approver_email,
-        ...(payload.reason ? { reason: payload.reason } : {})
-    };
-
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/instruksi-lapangan/${id}/approval`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Gagal memproses approval Instruksi Lapangan.");

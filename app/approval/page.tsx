@@ -773,8 +773,9 @@ export default function ApprovalPage() {
                 });
             } else if (item.tipe === 'INSTRUKSI_LAPANGAN') {
                 await processInstruksiLapanganApproval(item.id as number, {
-                    action: 'APPROVE',
                     approver_email: userInfo.email,
+                    jabatan:        jabatan as any ?? 'KOORDINATOR',
+                    tindakan:       'APPROVE',
                 });
             }
             // Hapus item dari list karena sudah bukan giliran role ini lagi
@@ -834,9 +835,10 @@ export default function ApprovalPage() {
                 });
             } else if (item.tipe === 'INSTRUKSI_LAPANGAN') {
                 await processInstruksiLapanganApproval(item.id as number, {
-                    approver_email: userInfo.email,
-                    action: 'REJECT',
-                    reason: rejectNote,
+                    approver_email:   userInfo.email,
+                    jabatan:          jabatan as any ?? 'KOORDINATOR',
+                    tindakan:         'REJECT',
+                    alasan_penolakan: rejectNote,
                 });
             }
             // Hapus item dari list karena sudah ditolak
