@@ -31,7 +31,7 @@ export default function AppNavbar({
   rightActions // <--- Tambahkan ini
 }: AppNavbarProps) {
   return (
-    <header className="flex items-center justify-between p-3 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-30 shrink-0 gap-2">
+    <header className="flex items-center justify-between p-3 md:px-8 bg-linear-to-r from-red-700 via-red-600 to-red-800 text-white shadow-md border-b border-red-900 sticky top-0 z-50 shrink-0 gap-2">
       <div className="flex items-center gap-2 md:gap-5 min-w-0">
         {showMenuToggle && onMenuToggle && (
           <button onClick={onMenuToggle} className="p-1.5 md:p-2 rounded-lg bg-white/15 hover:bg-white/30 border border-white/20 transition-all duration-200 shrink-0" aria-label="Toggle sidebar">

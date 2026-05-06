@@ -15,7 +15,7 @@ import {
     fetchRABList, fetchRABDetail, fetchSPKList
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
-import { API_URL } from '@/lib/constants';
+import { API_URL, BRANCH_GROUPS } from '@/lib/constants';
 import InstruksiLapanganModal from '@/components/InstruksiLapanganModal';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 
@@ -87,6 +87,16 @@ function GanttBoard() {
     useEffect(() => {
         const role = sessionStorage.getItem('userRole');
         const cabang = sessionStorage.getItem('loggedInUserCabang'); 
+        const upperCabang = cabang ? cabang.toUpperCase() : '';
+        let userGroup: string[] | null = null;
+        if (upperCabang) {
+            for (const grp of Object.values(BRANCH_GROUPS)) {
+                if (grp.includes(upperCabang)) {
+                    userGroup = grp;
+                    break;
+                }
+            }
+        }
         const email = sessionStorage.getItem('loggedInUserEmail'); 
 
         if (!role) {
@@ -122,7 +132,10 @@ function GanttBoard() {
             fetchGanttList(filters)
                 .then(res => {
                     const data = res.data || [];
-                    const filtered = cabang ? data.filter(item => item.cabang?.toUpperCase() === cabang.toUpperCase()) : data;
+                    const filtered = upperCabang ? data.filter(item => {
+                        if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
+                        return item.cabang?.toUpperCase() === upperCabang;
+                    }) : data;
                     setAvailableProjects(filtered);
                 })
                 .catch(err => console.error("Gagal memuat list Gantt Chart:", err));
@@ -136,7 +149,10 @@ function GanttBoard() {
         fetchRABList()
             .then(res => {
                 const data = res.data || [];
-                const filtered = cabang ? data.filter(item => item.cabang?.toUpperCase() === cabang.toUpperCase()) : data;
+                const filtered = upperCabang ? data.filter(item => {
+                    if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
+                    return item.cabang?.toUpperCase() === upperCabang;
+                }) : data;
                 setAllTokoList(filtered);
             })
             .catch(err => console.error("Gagal memuat semua daftar RAB:", err));
