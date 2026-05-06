@@ -730,7 +730,7 @@ export default function ApprovalPage() {
                         volume:          it.volume,
                         harga_material:  it.harga_material,
                         harga_upah:      it.harga_upah,
-                        total:           it.total_harga,
+                        total:           it.total_harga || ((Number(it.volume) || 0) * ((Number(it.harga_material) || 0) + (Number(it.harga_upah) || 0))),
                     })),
                 };
             }
@@ -945,6 +945,8 @@ export default function ApprovalPage() {
         // RAB & IL — multi-level
         if (jabatan === 'KOORDINATOR') return upper.includes('MENUNGGU') && upper.includes('KOORDINATOR');
         if (jabatan === 'MANAGER')     return upper.includes('MENUNGGU') && (upper.includes('MANAGER') || upper.includes('MANAJER'));
+        if (jabatan === 'DIREKTUR')    return upper.includes('MENUNGGU') && upper.includes('DIREKTUR');
+        if (jabatan === 'KONTRAKTOR')  return upper.includes('MENUNGGU') && upper.includes('KONTRAKTOR');
         return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
     };
 
@@ -1298,6 +1300,20 @@ export default function ApprovalPage() {
                                             : <FileDown className="w-4 h-4 mr-2" />
                                         }
                                         {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download Opname (PDF)'}
+                                    </Button>
+                                )}
+                                {selectedDetail?.tipe === 'INSTRUKSI_LAPANGAN' && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-amber-600 text-amber-700 hover:bg-amber-50 font-bold"
+                                        disabled={processingId === `pdf-${selectedDetail.id}`}
+                                        onClick={() => handleDownloadPDF(selectedDetail.id as number, 'INSTRUKSI_LAPANGAN')}
+                                    >
+                                        {processingId === `pdf-${selectedDetail.id}`
+                                            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            : <FileDown className="w-4 h-4 mr-2" />
+                                        }
+                                        {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download Instruksi Lapangan'}
                                     </Button>
                                 )}
                             </div>
