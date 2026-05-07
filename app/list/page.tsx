@@ -24,6 +24,7 @@ import {
     type PertambahanSPKListItem,
     fetchOpnameFinalList, fetchOpnameFinalDetail, downloadOpnameFinalPdf,
     fetchPengawasanList, fetchPengawasanDetail,
+    fetchGanttList, fetchGanttDetail,
     updateRABStatus, fetchBerkasSerahTerimaList,
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
 } from '@/lib/api';
@@ -62,6 +63,11 @@ interface NormalizedDoc {
     tanggal_spk_akhir_setelah_perpanjangan?: string;
     status_persetujuan?: string;
     dibuat_oleh?: string;
+    // Pengawasan specific
+    id_gantt?: number;
+    id_pengawasan_gantt?: number;
+    tanggal_pengawasan?: string;
+    grouped_items?: any[];
 }
 
 interface NormalizedDetail {
@@ -140,6 +146,8 @@ interface NormalizedDetail {
     catatan?: string | null;
     dokumentasi?: string | null;
     link_pdf_pengawasan?: string | null;
+    tanggal_pengawasan?: string;
+    pengawasan_items?: any[];
 }
 
 // =============================================================================
@@ -254,6 +262,9 @@ const STATUS_BADGE: Record<string, string> = {
     'MENUNGGU PERSETUJUAN':              'bg-yellow-100 text-yellow-700 border-yellow-200',
     'DISETUJUI BM':                      'bg-green-100 text-green-700 border-green-200',
     'DITOLAK BM':                        'bg-red-100 text-red-700 border-red-200',
+    'SELESAI':                           'bg-green-100 text-green-700 border-green-200',
+    'PROGRESS':                          'bg-blue-100 text-blue-700 border-blue-200',
+    'TERLAMBAT':                         'bg-red-100 text-red-700 border-red-200',
 };
 
 const STATUS_OPTIONS = [
@@ -393,20 +404,46 @@ const normalizeOpnameFinalDocs = (items: any[]): NormalizedDoc[] =>
         link_pdf:      o.link_pdf_opname ?? null,
     }));
 
-const normalizePengawasanDocs = (items: any[]): NormalizedDoc[] =>
-    items.map(p => ({
-        id: p.id,
-        tipe: 'PENGAWASAN' as DokumenKategori,
-        nomor_ulok:    '-',
-        nama_toko:     p.kategori_pekerjaan ? `${p.kategori_pekerjaan} - ${p.jenis_pekerjaan}` : '-',
-        cabang:        '-',
-        proyek:        '-',
-        status:        p.status,
-        email_pembuat: '-',
-        total_nilai:   0,
-        created_at:    p.created_at,
-        link_pdf:      p.berkas_pengawasan?.link_pdf_pengawasan ?? null,
-    }));
+const normalizePengawasanDocs = (items: any[], ganttMap?: Map<number, any>): NormalizedDoc[] => {
+    const groups = new Map<number, any[]>();
+    items.forEach(p => {
+        const key = p.id_pengawasan_gantt;
+        if (!key) return;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(p);
+    });
+
+    const docs: NormalizedDoc[] = [];
+    groups.forEach((groupItems, id_pengawasan_gantt) => {
+        const first = groupItems[0];
+        const g = ganttMap?.get(first.id_gantt);
+        
+        let aggStatus = 'SELESAI';
+        if (groupItems.some(i => i.status?.toLowerCase() === 'progress')) aggStatus = 'PROGRESS';
+        else if (groupItems.some(i => i.status?.toLowerCase() === 'terlambat')) aggStatus = 'TERLAMBAT';
+
+        const tanggal = first.tanggal_pengawasan || first.berkas_pengawasan?.created_at || first.created_at;
+
+        docs.push({
+            id: id_pengawasan_gantt,
+            tipe: 'PENGAWASAN' as DokumenKategori,
+            nomor_ulok:    g?.nomor_ulok ?? '-',
+            nama_toko:     g?.nama_toko ?? '-',
+            cabang:        g?.cabang ?? '-',
+            proyek:        g?.proyek ?? '-',
+            status:        aggStatus,
+            email_pembuat: '-',
+            total_nilai:   0,
+            created_at:    tanggal,
+            link_pdf:      first.berkas_pengawasan?.link_pdf_pengawasan ?? null,
+            id_gantt:      first.id_gantt,
+            id_pengawasan_gantt: id_pengawasan_gantt,
+            tanggal_pengawasan: first.tanggal_pengawasan,
+            grouped_items: groupItems
+        });
+    });
+    return docs;
+};
 
 const normalizeBerkasSerahTerimaDocs = (items: any[]): NormalizedDoc[] =>
     items.map(b => ({
@@ -535,7 +572,10 @@ export default function DaftarDokumenPage() {
                 docs = normalizeOpnameFinalDocs(res.data ?? []);
             } else if (kategori === 'PENGAWASAN') {
                 const res = await fetchPengawasanList();
-                docs = normalizePengawasanDocs(res.data ?? []);
+                const ganttRes = await fetchGanttList();
+                const gMap = new Map();
+                (ganttRes.data ?? []).forEach((g: any) => gMap.set(g.id, g));
+                docs = normalizePengawasanDocs(res.data ?? [], gMap);
             } else if (kategori === 'BERKAS_SERAH_TERIMA') {
                 const res = await fetchBerkasSerahTerimaList();
                 docs = normalizeBerkasSerahTerimaDocs(res.data ?? []);
@@ -697,25 +737,40 @@ export default function DaftarDokumenPage() {
                     })),
                 };
             } else if (doc.tipe === 'PENGAWASAN') {
-                const res = await fetchPengawasanDetail(doc.id);
-                const d = res.data;
+                let ganttInfo: any = null;
+                let actualTanggal = doc.tanggal_pengawasan;
+
+                if (doc.id_gantt) {
+                    try {
+                        const gRes = await fetchGanttDetail(doc.id_gantt);
+                        ganttInfo = gRes.data;
+                        const pengawasanArr = gRes.data.pengawasan || [];
+                        const pItem = pengawasanArr.find((p: any) => p.id === doc.id_pengawasan_gantt);
+                        if (pItem?.tanggal_pengawasan) {
+                            actualTanggal = pItem.tanggal_pengawasan;
+                        }
+                    } catch (e) { console.error("Gagal load gantt detail for pengawasan", e); }
+                }
+
+                const first = doc.grouped_items?.[0] || doc;
+
                 detail = {
-                    id: d.id,
+                    id: doc.id,
                     tipe: 'PENGAWASAN',
-                    nomor_ulok:        '-',
-                    nama_toko:         d.kategori_pekerjaan ? `${d.kategori_pekerjaan} - ${d.jenis_pekerjaan}` : '-',
-                    cabang:            '-',
-                    proyek:            '-',
-                    status:            d.status,
+                    nomor_ulok:        ganttInfo?.toko?.nomor_ulok ?? doc.nomor_ulok,
+                    nama_toko:         ganttInfo?.toko?.nama_toko ?? doc.nama_toko,
+                    cabang:            ganttInfo?.toko?.cabang ?? doc.cabang,
+                    proyek:            ganttInfo?.toko?.proyek ?? doc.proyek,
+                    status:            doc.status,
                     email_pembuat:     '-',
                     total_nilai:       0,
-                    created_at:        d.created_at,
-                    link_pdf:          d.berkas_pengawasan?.link_pdf_pengawasan ?? null,
-                    kategori_pekerjaan: d.kategori_pekerjaan,
-                    jenis_pekerjaan:   d.jenis_pekerjaan,
-                    catatan:           d.catatan,
-                    dokumentasi:       d.dokumentasi,
-                    link_pdf_pengawasan: d.berkas_pengawasan?.link_pdf_pengawasan ?? null,
+                    created_at:        actualTanggal || doc.created_at,
+                    tanggal_pengawasan: actualTanggal,
+                    link_pdf:          first?.berkas_pengawasan?.link_pdf_pengawasan ?? doc.link_pdf,
+                    link_pdf_pengawasan: first?.berkas_pengawasan?.link_pdf_pengawasan ?? doc.link_pdf,
+                    id_gantt:          doc.id_gantt,
+                    id_pengawasan_gantt: doc.id_pengawasan_gantt,
+                    pengawasan_items:  doc.grouped_items || [],
                 };
             } else if (doc.tipe === 'BERKAS_SERAH_TERIMA') {
                 detail = {
@@ -1204,6 +1259,8 @@ export default function DaftarDokumenPage() {
                                                         <p className="text-sm font-bold text-slate-800">
                                                             {selectedKategori === 'PERTAMBAHAN_SPK'
                                                                 ? `+${doc.pertambahan_hari || '-'} Hari`
+                                                                : selectedKategori === 'PENGAWASAN'
+                                                                ? null
                                                                 : formatRupiah(doc.total_nilai)
                                                             }
                                                         </p>
@@ -1391,12 +1448,26 @@ export default function DaftarDokumenPage() {
                                                     )}
                                                 </>
                                             )}
+                                            {/* Pengawasan-specific fields */}
+                                            {selectedDetail.tipe === 'PENGAWASAN' && (
+                                                <>
+                                                    {selectedDetail.id_gantt && (
+                                                        <InfoRow icon={<Hash className="w-4 h-4" />} label="ID Gantt" value={selectedDetail.id_gantt.toString()} />
+                                                    )}
+                                                    {selectedDetail.id_pengawasan_gantt && (
+                                                        <InfoRow icon={<Hash className="w-4 h-4" />} label="ID Pengawasan Gantt" value={selectedDetail.id_pengawasan_gantt.toString()} />
+                                                    )}
+                                                    {selectedDetail.tanggal_pengawasan && (
+                                                        <InfoRow icon={<CalendarDays className="w-4 h-4" />} label="Tanggal Pengawasan" value={selectedDetail.tanggal_pengawasan} />
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Nilai Kontrak Card — hide for PERTAMBAHAN_SPK */}
-                                {selectedDetail.tipe !== 'PERTAMBAHAN_SPK' && (
+                                {/* Nilai Kontrak Card — hide for PERTAMBAHAN_SPK & PENGAWASAN */}
+                                {selectedDetail.tipe !== 'PERTAMBAHAN_SPK' && selectedDetail.tipe !== 'PENGAWASAN' && (
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                         <div className="w-1.5 h-5 bg-red-500 rounded-full" />
@@ -1488,18 +1559,6 @@ export default function DaftarDokumenPage() {
                                         </div>
                                     </div>
                                 )}
-                                {/* Catatan (PENGAWASAN) */}
-                                {selectedDetail.tipe === 'PENGAWASAN' && selectedDetail.catatan && (
-                                    <div className="bg-indigo-50 rounded-2xl border border-indigo-200 p-5">
-                                        <div className="flex items-start gap-3">
-                                            <FileText className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                                            <div>
-                                                <p className="text-sm font-bold text-indigo-700">Catatan Pengawasan</p>
-                                                <p className="text-sm text-indigo-600 mt-1">{selectedDetail.catatan}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                                 {/* Alasan Penolakan (SPK) */}
                                 {selectedDetail.tipe === 'SPK' && selectedDetail.alasan_penolakan && (
                                     <div className="bg-red-50 rounded-2xl border border-red-200 p-5">
@@ -1560,6 +1619,56 @@ export default function DaftarDokumenPage() {
                                                         </td>
                                                     </tr>
                                                 </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Items Table (PENGAWASAN) */}
+                                {selectedDetail.tipe === 'PENGAWASAN' && selectedDetail.pengawasan_items && selectedDetail.pengawasan_items.length > 0 && (
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+                                        <div className="px-6 py-4 border-b border-slate-100">
+                                            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                <div className="w-1.5 h-5 bg-indigo-500 rounded-full" />
+                                                Daftar Pengawasan ({selectedDetail.pengawasan_items.length} item)
+                                            </h4>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-slate-50 text-slate-500">
+                                                    <tr>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">No</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Kategori</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Jenis Pekerjaan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs min-w-48">Catatan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Status</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Dokumentasi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {selectedDetail.pengawasan_items.map((item: any, idx: number) => (
+                                                        <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/50">
+                                                            <td className="px-4 py-2.5 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
+                                                            <td className="px-4 py-2.5 text-slate-600 font-medium text-xs whitespace-nowrap">{item.kategori_pekerjaan}</td>
+                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.jenis_pekerjaan}</td>
+                                                            <td className="px-4 py-2.5 text-slate-500 italic text-xs">{item.catatan || '-'}</td>
+                                                            <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                                                <Badge className={`${getStatusBadgeClass(item.status)} text-[10px] font-semibold border px-2 py-0`}>
+                                                                    {getStatusLabel(item.status)}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                                                {item.dokumentasi ? (
+                                                                    <a href={item.dokumentasi} target="_blank" rel="noopener noreferrer">
+                                                                        <Button variant="outline" size="sm" className="h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                                                                            <Eye className="w-3 h-3 mr-1" /> Lihat
+                                                                        </Button>
+                                                                    </a>
+                                                                ) : '-'}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
                                             </table>
                                         </div>
                                     </div>
@@ -1644,14 +1753,6 @@ export default function DaftarDokumenPage() {
                                             <p className="text-sm text-slate-400 italic">Tidak ada lampiran pendukung.</p>
                                         )}
 
-                                        {/* Pengawasan Dokumentasi Link */}
-                                        {selectedDetail.tipe === 'PENGAWASAN' && selectedDetail.dokumentasi && (
-                                            <a href={selectedDetail.dokumentasi} target="_blank" rel="noopener noreferrer">
-                                                <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                                                    <Eye className="w-4 h-4 mr-2" /> Lihat Dokumentasi
-                                                </Button>
-                                            </a>
-                                        )}
                                     </div>
                                 </div>
 

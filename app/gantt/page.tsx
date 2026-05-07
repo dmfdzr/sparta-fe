@@ -377,6 +377,41 @@ function GanttBoard() {
             setPengawasanDates(pDates);
             setPengawasanHistory(pengawasan || []);
 
+            // Ambil hari pengawasan dari sibling gantt (ULOK sama, lingkup beda)
+            // Supaya input PIC pengawasan di 1 ULOK langsung muncul di SIPIL & ME
+            try {
+                const siblingRes = await fetchGanttList({ nomor_ulok: toko.nomor_ulok });
+                const siblingGantts = (siblingRes.data || []).filter((g: any) => g.id !== gantt.id);
+                
+                if (siblingGantts.length > 0) {
+                    const mergedDates = new Set<string>(pDates);
+                    const mergedHistory = [...(pengawasan || [])];
+                    
+                    for (const sibling of siblingGantts) {
+                        try {
+                            const siblingDetail = await fetchGanttDetail(sibling.id);
+                            const siblingPengawasan = siblingDetail.data?.pengawasan || [];
+                            siblingPengawasan.forEach((p: any) => {
+                                if (p.tanggal_pengawasan) {
+                                    mergedDates.add(p.tanggal_pengawasan);
+                                    // Tambahkan ke history jika belum ada
+                                    if (!mergedHistory.some((h: any) => h.tanggal_pengawasan === p.tanggal_pengawasan)) {
+                                        mergedHistory.push(p);
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            console.warn("Gagal memuat pengawasan sibling gantt:", e);
+                        }
+                    }
+                    
+                    setPengawasanDates(Array.from(mergedDates));
+                    setPengawasanHistory(mergedHistory);
+                }
+            } catch (e) {
+                console.warn("Gagal memuat sibling gantt untuk merge pengawasan:", e);
+            }
+
             setIsProjectLocked(['terkunci', 'locked', 'published'].includes(gantt.status.toLowerCase()));
 
             try {
