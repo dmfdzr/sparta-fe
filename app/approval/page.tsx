@@ -472,7 +472,6 @@ export default function ApprovalPage() {
                 let filters: any = undefined;
                 if (jabatan === 'DIREKTUR') {
                     filters = { 
-                        status: 'Menunggu Persetujuan Direktur', 
                         nama_pt: userInfo.nama_pt 
                     };
                 }
@@ -504,7 +503,7 @@ export default function ApprovalPage() {
                 // 1. FILTER CABANG (Wajib sesuai cabang user)
                 // Jika item.cabang adalah '-' atau empty, kita loloskan agar tidak tersembunyi karena data kurang
                 const upperUserCabang = userInfo.cabang?.toUpperCase();
-                if (type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {
+                if (jabatan !== 'DIREKTUR' && type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {
                     if (upperUserCabang !== 'HEAD OFFICE') {
                         let userGroup: string[] | null = null;
                         for (const grp of Object.values(BRANCH_GROUPS)) {
