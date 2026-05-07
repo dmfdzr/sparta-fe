@@ -1950,3 +1950,98 @@ export const fetchDashboardAll = async (search?: string) => {
     if (search) url += `?search=${encodeURIComponent(search)}`;
     return safeFetchJSON(url);
 };
+
+// =============================================================================
+// PENYIMPANAN DOKUMEN TOKO
+// =============================================================================
+
+// --- Types ---
+
+export type PenyimpananDokumenItem = {
+    id:              number;
+    id_toko:         number;
+    nama_dokumen:    string;
+    drive_file_id:   string;
+    drive_folder_id: string;
+    link_dokumen:    string;
+    link_folder:     string;
+    created_at:      string;
+};
+
+export type PenyimpananDokumenListFilters = {
+    id_toko?:       number;
+    nama_dokumen?:  string;
+};
+
+// --- Fungsi ---
+
+/** List dokumen penyimpanan (GET /api/doc/penyimpanan-dokumen) */
+export const fetchPenyimpananDokumenList = async (
+    filters?: PenyimpananDokumenListFilters
+): Promise<{ status: string; data: PenyimpananDokumenItem[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
+    if (filters?.nama_dokumen) params.append("nama_dokumen", filters.nama_dokumen);
+    const url = `${base}/api/doc/penyimpanan-dokumen${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
+};
+
+/** Detail dokumen penyimpanan (GET /api/doc/penyimpanan-dokumen/:id) */
+export const fetchPenyimpananDokumenDetail = async (
+    id: number
+): Promise<{ status: string; data: PenyimpananDokumenItem }> => {
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/${id}`);
+};
+
+/** Upload dokumen penyimpanan — bulk (POST /api/doc/penyimpanan-dokumen) */
+export const uploadPenyimpananDokumen = async (
+    payload: { id_toko: number; nama_dokumen: string; folder_name?: string },
+    files: File[]
+): Promise<any> => {
+    const form = new FormData();
+    form.append("id_toko", payload.id_toko.toString());
+    form.append("nama_dokumen", payload.nama_dokumen);
+    if (payload.folder_name) form.append("folder_name", payload.folder_name);
+    files.forEach((file, i) => form.append(`dokumen_${i + 1}`, file));
+
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen`, {
+        method: "POST", body: form,
+    });
+    const result = await res.json();
+    if (res.status === 400) throw new Error(result.message || "Dokumen wajib diupload.");
+    if (res.status === 404) throw new Error(result.message || "Toko tidak ditemukan.");
+    if (res.status === 422) throw new Error(result.message || "Validasi request gagal.");
+    if (!res.ok) throw new Error(result.message || "Gagal mengupload dokumen.");
+    return result;
+};
+
+/** Update dokumen penyimpanan (PUT /api/doc/penyimpanan-dokumen/:id) */
+export const updatePenyimpananDokumen = async (
+    id: number,
+    payload: { nama_dokumen?: string },
+    file?: File | null
+): Promise<any> => {
+    const form = new FormData();
+    if (payload.nama_dokumen) form.append("nama_dokumen", payload.nama_dokumen);
+    if (file) form.append("dokumen", file);
+
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/${id}`, {
+        method: "PUT", body: form,
+    });
+    const result = await res.json();
+    if (res.status === 404) throw new Error("Dokumen tidak ditemukan.");
+    if (!res.ok) throw new Error(result.message || "Gagal memperbarui dokumen.");
+    return result;
+};
+
+/** Hapus dokumen penyimpanan (DELETE /api/doc/penyimpanan-dokumen/:id) */
+export const deletePenyimpananDokumen = async (id: number): Promise<any> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/${id}`, {
+        method: "DELETE",
+    });
+    const result = await res.json();
+    if (res.status === 404) throw new Error("Dokumen tidak ditemukan.");
+    if (!res.ok) throw new Error(result.message || "Gagal menghapus dokumen.");
+    return result;
+};
