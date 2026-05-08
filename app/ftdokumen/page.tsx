@@ -63,22 +63,28 @@ export default function FTDokumenPage() {
             setIsLoadingUlok(true);
             try {
                 // Ambil SPK yang sudah approved untuk mendapatkan data proyek
-                const res = await fetchSPKList({ status: 'approved' });
+                const res = await fetchSPKList({ status: 'SPK_APPROVED' });
                 const spkList = res.data || [];
 
                 // Kelompokkan SPK berdasarkan nomor_ulok, pisahkan kontraktor sipil & ME
                 const grouped: Record<string, UlokOption> = {};
+                
+                const formatDate = (isoString?: string) => isoString ? isoString.substring(0, 10) : '';
+
                 for (const spk of spkList) {
                     const ulok = spk.nomor_ulok;
                     if (!ulok) continue;
+
+                    const mulai = formatDate(spk.waktu_mulai);
+                    const selesai = formatDate(spk.waktu_selesai);
 
                     if (!grouped[ulok]) {
                         grouped[ulok] = {
                             nomorUlok: ulok,
                             kontraktorSipil: '',
                             kontraktorMe: '',
-                            spkAwal: spk.waktu_mulai || '',
-                            spkAkhir: spk.waktu_selesai || '',
+                            spkAwal: mulai,
+                            spkAkhir: selesai,
                             kodeToko: spk.kode_toko || spk.toko?.kode_toko || '',
                             namaToko: spk.toko?.nama_toko || '',
                         };
@@ -93,11 +99,11 @@ export default function FTDokumenPage() {
                     }
 
                     // Gunakan tanggal paling awal dan paling akhir
-                    if (spk.waktu_mulai && (!grouped[ulok].spkAwal || spk.waktu_mulai < grouped[ulok].spkAwal)) {
-                        grouped[ulok].spkAwal = spk.waktu_mulai;
+                    if (mulai && (!grouped[ulok].spkAwal || mulai < grouped[ulok].spkAwal)) {
+                        grouped[ulok].spkAwal = mulai;
                     }
-                    if (spk.waktu_selesai && (!grouped[ulok].spkAkhir || spk.waktu_selesai > grouped[ulok].spkAkhir)) {
-                        grouped[ulok].spkAkhir = spk.waktu_selesai;
+                    if (selesai && (!grouped[ulok].spkAkhir || selesai > grouped[ulok].spkAkhir)) {
+                        grouped[ulok].spkAkhir = selesai;
                     }
                 }
 
@@ -272,12 +278,12 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                                 </div>
                             ) : (
                                 <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} required>
-                                    <SelectTrigger className="bg-white">
+                                    <SelectTrigger className="bg-white h-auto min-h-10 whitespace-normal wrap-break-word text-left">
                                         <SelectValue placeholder="-- Pilih Nomor ULOK --" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="max-w-[90vw] sm:max-w-100">
                                         {ulokOptions.map(ulok => (
-                                            <SelectItem key={ulok.nomorUlok} value={ulok.nomorUlok}>
+                                            <SelectItem key={ulok.nomorUlok} value={ulok.nomorUlok} className="whitespace-normal wrap-break-word text-left py-2">
                                                 {ulok.nomorUlok} — {ulok.namaToko || ulok.kodeToko}
                                             </SelectItem>
                                         ))}
