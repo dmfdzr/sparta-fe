@@ -259,8 +259,8 @@ export default function PenyimpananDokumenPage() {
   const filteredToko = useMemo(() => {
     return tokoList.filter(t => {
       const q = searchToko.toLowerCase();
-      const matchSearch = !q || t.nama_toko.toLowerCase().includes(q)
-        || t.nomor_ulok.toLowerCase().includes(q)
+      const matchSearch = !q || (t.nama_toko || '').toLowerCase().includes(q)
+        || (t.nomor_ulok || '').toLowerCase().includes(q)
         || (t.kode_toko || '').toLowerCase().includes(q);
       const matchCabang = filterCabang === 'all' || t.cabang === filterCabang;
       return matchSearch && matchCabang;
