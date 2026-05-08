@@ -2045,3 +2045,27 @@ export const deletePenyimpananDokumen = async (id: number): Promise<any> => {
     if (!res.ok) throw new Error(result.message || "Gagal menghapus dokumen.");
     return result;
 };
+
+// =============================================================================
+// EMAIL NOTIFICATION
+// =============================================================================
+
+/**
+ * Mengirim email notifikasi
+ * @param payload - Data notifikasi (cabang dan flag)
+ */
+export const sendEmailNotification = async (payload: {
+    cabang: string;
+    flag: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/send-email-notification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok || result.status !== "success") {
+        throw new Error(result.message || "Gagal mengirim email notifikasi.");
+    }
+    return result;
+};

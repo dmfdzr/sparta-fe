@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Save, Loader2, Search, FileText, AlertCircle, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
-import { fetchKontraktorList, fetchSPKList, submitSPK, fetchRABList } from '@/lib/api';
+import { fetchKontraktorList, fetchSPKList, submitSPK, fetchRABList, sendEmailNotification } from '@/lib/api';
 import { BRANCH_GROUPS } from '@/lib/constants';
 import { parseCurrency } from '@/lib/utils';
 
@@ -323,6 +323,17 @@ export default function SPKPage() {
         setIsSubmitting(true);
         try {
             await submitSPK(payload);
+            
+            // Kirim notifikasi email ke Branch Manager
+            try {
+                await sendEmailNotification({
+                    cabang: selectedRabObj["Cabang"],
+                    flag: "send-notification-spk"
+                });
+            } catch (emailErr) {
+                console.error("Gagal mengirim email notifikasi:", emailErr);
+            }
+
             setShowSuccessModal(true);
         } catch (err: any) {
             showAlert({ message: err.message || "Gagal menyimpan SPK.", type: "error" });
