@@ -1682,7 +1682,12 @@ export default function DaftarDokumenPage() {
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
                                         {/* Download button for RAB, SPK, OPNAME_FINAL, INSTRUKSI_LAPANGAN */}
-                                        {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK' || selectedDetail.tipe === 'OPNAME_FINAL' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && (
+                                        {(
+                                            (selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_gabungan) ||
+                                            (selectedDetail.tipe === 'SPK' && selectedDetail.link_pdf) ||
+                                            (selectedDetail.tipe === 'OPNAME_FINAL' && selectedDetail.link_pdf) ||
+                                            (selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' && selectedDetail.link_pdf_gabungan)
+                                        ) && (
                                             <Button
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                                 disabled={downloadingId === selectedDetail.id}
