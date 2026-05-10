@@ -2165,30 +2165,15 @@ export type ProjekPlanningListFilters = {
 // --- Fungsi ---
 
 /** Submit FPD baru (Coordinator/Cabang). */
-export const submitProjekPlanning = async (payload: Record<string, unknown>, file?: File) => {
+export const submitProjekPlanning = async (payload: Record<string, unknown>, _file?: File) => {
     const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/submit`;
-    
-    let body: BodyInit;
-    let headers: Record<string, string> = {};
 
-    if (file) {
-        const formData = new FormData();
-        Object.entries(payload).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                formData.append(key, String(value));
-            }
-        });
-        formData.append("file_fpd", file);
-        body = formData;
-    } else {
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify(payload);
-    }
-
+    // Always send as JSON — multipart is unreliable on hosted environments.
+    // File upload (if any) is handled separately via uploadFpdFile after a successful submit.
     const res = await fetch(url, {
         method: "POST",
-        headers,
-        body,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (res.status === 409) throw new Error(result.message || "Project planning aktif sudah ada untuk toko ini.");
@@ -2201,30 +2186,14 @@ export const submitProjekPlanning = async (payload: Record<string, unknown>, fil
 };
 
 /** Resubmit FPD (Coordinator — update record DRAFT). */
-export const resubmitProjekPlanning = async (id: number, payload: Record<string, unknown>, file?: File) => {
+export const resubmitProjekPlanning = async (id: number, payload: Record<string, unknown>, _file?: File) => {
     const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/resubmit`;
-    
-    let body: BodyInit;
-    let headers: Record<string, string> = {};
 
-    if (file) {
-        const formData = new FormData();
-        Object.entries(payload).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                formData.append(key, String(value));
-            }
-        });
-        formData.append("file_fpd", file);
-        body = formData;
-    } else {
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify(payload);
-    }
-
+    // Always send as JSON — multipart is unreliable on hosted environments.
     const res = await fetch(url, {
         method: "POST",
-        headers,
-        body,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (res.status === 409) throw new Error(result.message || "Hanya DRAFT yang bisa di-resubmit.");
