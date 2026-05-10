@@ -1,6 +1,5 @@
 "use client"
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppNavbar from "@/components/AppNavbar";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ type TokoOption = { id: number; nomor_ulok: string; nama_toko: string; cabang: s
 
 const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "LAINNYA"];
 
-export default function FormProjekPlanning() {
+function FormProjekPlanningInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resubmitId = searchParams.get("resubmit");
@@ -315,5 +314,13 @@ export default function FormProjekPlanning() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function FormProjekPlanning() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-red-200 border-t-red-600 rounded-full animate-spin" /></div>}>
+      <FormProjekPlanningInner />
+    </Suspense>
   );
 }
