@@ -74,13 +74,34 @@ export default function DashboardPage() {
         if (allowedIds.includes("project_planning")) {
             const lastChecked = localStorage.getItem("last_checked_fpd") || "1970-01-01T00:00:00Z";
             const filters: Record<string, string> = {};
+            
             const isCoor = roles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
-            if (isCoor) filters.email_pembuat = email;
+            const isBM = roles.some(r => r.includes("BRANCH MANAGER") || r.includes("BM "));
+            const isPPMgr = roles.some(r => r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "charderrabagas@gmail.com";
+            const isPP = roles.some(r => r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST")) || email === "lina.yuliyanti@sat.co.id" || isPPMgr;
+            
+            const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
+            if (isOnlyCoor) filters.email_pembuat = email;
+            
+            const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
+            if (!isHO && userCabang) filters.cabang = userCabang;
             
             fetchProjekPlanningList(filters).then(r => {
                 const items = r.data || [];
+                let actionRequired = false;
+                
+                if (isPPMgr) {
+                    actionRequired = items.some(i => i.status === "WAITING_PP_MANAGER_APPROVAL");
+                } else if (isPP) {
+                    actionRequired = items.some(i => i.status === "WAITING_PP_APPROVAL_1" || i.status === "WAITING_PP_APPROVAL_2");
+                } else if (isBM) {
+                    actionRequired = items.some(i => i.status === "WAITING_BM_APPROVAL");
+                } else if (isCoor) {
+                    actionRequired = items.some(i => ["DRAFT", "PP_DESIGN_3D_REQUIRED", "WAITING_RAB_UPLOAD", "REJECTED"].includes(i.status));
+                }
+                
                 const hasNew = items.some(i => new Date(i.updated_at) > new Date(lastChecked));
-                if (hasNew) setFpdHasUpdate(true);
+                if (actionRequired || hasNew) setFpdHasUpdate(true);
             }).catch(() => {});
         }
     }, [router]);

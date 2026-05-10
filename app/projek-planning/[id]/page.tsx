@@ -55,35 +55,35 @@ function FpdTimeline({ currentStatus }: { currentStatus: string }) {
   if (currentStatus === "COMPLETED") activeIndex = 5;
 
   return (
-    <Card className="mb-4 mt-4 overflow-hidden border-none shadow-sm bg-white">
-      <CardContent className="p-4 sm:p-6 overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[600px] relative pb-8">
-          <div className="absolute left-4 right-4 top-4 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full"></div>
-          <div className="absolute left-4 top-4 -translate-y-1/2 h-1 bg-green-500 z-0 transition-all duration-500 rounded-full" style={{ width: `calc(${Math.max(0, (activeIndex / (FPD_STEPS.length - 1)) * 100)}% - 2rem)` }}></div>
-          {FPD_STEPS.map((step, idx) => {
-            const isCompleted = activeIndex > idx || currentStatus === "COMPLETED";
-            const isActive = activeIndex === idx;
-            const isError = isRejected; // if rejected, the flow stopped
-            
-            let color = "bg-slate-200 text-slate-400";
-            if (isCompleted) color = "bg-green-500 text-white";
-            if (isActive && !isError) color = "bg-blue-500 text-white ring-4 ring-blue-100";
-            if (isActive && isError) color = "bg-red-500 text-white ring-4 ring-red-100";
+    <div className="mb-8 mt-6 w-full relative">
+      <div className="relative flex justify-between items-center w-full px-2 sm:px-6">
+        <div className="absolute left-4 right-4 sm:left-10 sm:right-10 top-1/2 -translate-y-1/2 h-1 bg-slate-200 z-0"></div>
+        <div className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 h-1 bg-green-500 z-0 transition-all duration-500" style={{ width: `calc(${Math.max(0, (activeIndex / (FPD_STEPS.length - 1)) * 100)}% - 2rem)` }}></div>
+        {FPD_STEPS.map((step, idx) => {
+          const isCompleted = activeIndex > idx || currentStatus === "COMPLETED";
+          const isActive = activeIndex === idx;
+          const isError = isRejected; 
+          
+          let color = "bg-slate-200 text-slate-400";
+          if (isCompleted) color = "bg-green-500 text-white";
+          if (isActive && !isError) color = "bg-blue-500 text-white shadow-md";
+          if (isActive && isError) color = "bg-red-500 text-white shadow-md";
 
-            return (
-              <div key={step.id} className="relative z-10 flex flex-col items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${color}`}>
-                  {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : (isActive && isError) ? <XCircle className="w-4 h-4" /> : idx + 1}
-                </div>
-                <div className="text-center absolute top-10 w-24 -ml-12 left-1/2">
-                  <p className={`text-[10px] font-bold ${isActive ? (isError ? 'text-red-600' : 'text-blue-700') : isCompleted ? 'text-green-700' : 'text-slate-400'}`}>{step.label}</p>
-                </div>
+          return (
+            <div key={step.id} className="relative z-10 flex flex-col items-center">
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all duration-300 ${color}`}>
+                {isCompleted ? <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" /> : (isActive && isError) ? <XCircle className="w-3 h-3 sm:w-4 sm:h-4" /> : idx + 1}
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              <div className="absolute top-7 sm:top-10 w-14 sm:w-20 text-center -ml-7 sm:-ml-10 left-1/2">
+                <p className={`text-[8px] sm:text-[10px] font-bold leading-tight ${isActive ? (isError ? 'text-red-600' : 'text-blue-700') : isCompleted ? 'text-green-700' : 'text-slate-400'}`}>
+                  {step.label}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

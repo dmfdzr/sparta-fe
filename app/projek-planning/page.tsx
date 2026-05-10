@@ -75,15 +75,21 @@ export default function ProjekPlanningPage() {
       }
 
       const res = await fetchProjekPlanningList(filters);
-      let data = res.data || [];
+      const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
 
-      if (isPPMgr && !isCoor && !isBM) {
-        data = data.filter((d: any) => ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(d.status));
-      } else if (isPP && !isCoor && !isBM) {
-        data = data.filter((d: any) => !["DRAFT", "WAITING_BM_APPROVAL"].includes(d.status));
-      } else if (isBM && !isCoor) {
-        data = data.filter((d: any) => d.status !== "DRAFT");
-      }
+      let data = res.data || [];
+      
+      data = data.filter((d: any) => {
+        if (isHO && !isCoor && !isBM && !isPP && !isPPMgr) return true; // Admin/Direktur
+        
+        let visible = false;
+        if (isCoor && d.email_pembuat === userEmail) visible = true;
+        if (isBM && d.status !== "DRAFT") visible = true;
+        if (isPP && !["DRAFT", "WAITING_BM_APPROVAL"].includes(d.status)) visible = true;
+        if (isPPMgr && ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(d.status)) visible = true;
+        
+        return visible;
+      });
 
       setItems(data);
       localStorage.setItem("last_checked_fpd", new Date().toISOString());
