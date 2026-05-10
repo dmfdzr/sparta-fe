@@ -65,9 +65,11 @@ export default function ProjekPlanningPage() {
   useEffect(() => {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";
     const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
+    const role = sessionStorage.getItem("userRole") || "";
     if (!email) { router.push("/auth"); return; }
     setUserEmail(email);
     setUserCabang(cabang);
+    setUserRole(role.toUpperCase());
   }, [router]);
 
   useEffect(() => { if (userEmail) load(); }, [userEmail, load]);
@@ -76,6 +78,8 @@ export default function ProjekPlanningPage() {
     try { return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }); }
     catch { return d; }
   };
+
+  const isCoor = userRole.includes("COORDINATOR");
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -90,11 +94,13 @@ export default function ProjekPlanningPage() {
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">Form Pengajuan Data (FPD) — Pengajuan Design Toko</p>
           </div>
-          <Link href="/projek-planning/form">
-            <Button className="bg-red-600 hover:bg-red-700 text-white gap-1.5 text-sm">
-              <Plus className="w-4 h-4" /> Buat Pengajuan Baru
-            </Button>
-          </Link>
+          {isCoor && (
+            <Link href="/projek-planning/form">
+              <Button className="bg-red-600 hover:bg-red-700 text-white gap-1.5 text-sm">
+                <Plus className="w-4 h-4" /> Buat Pengajuan Baru
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Filters */}
