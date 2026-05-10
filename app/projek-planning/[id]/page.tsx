@@ -24,15 +24,68 @@ import {
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-700" },
-  WAITING_BM_APPROVAL: { label: "Menunggu B&M Manager", color: "bg-amber-100 text-amber-800" },
-  WAITING_PP_APPROVAL_1: { label: "Menunggu PP (Tahap 1)", color: "bg-blue-100 text-blue-800" },
-  PP_DESIGN_3D_REQUIRED: { label: "Perlu Design 3D", color: "bg-purple-100 text-purple-800" },
-  WAITING_RAB_UPLOAD: { label: "Upload RAB & Gambar Kerja", color: "bg-orange-100 text-orange-800" },
-  WAITING_PP_APPROVAL_2: { label: "Menunggu PP Specialist", color: "bg-cyan-100 text-cyan-800" },
-  WAITING_PP_MANAGER_APPROVAL: { label: "Menunggu PP Manager (Final)", color: "bg-indigo-100 text-indigo-800" },
+  WAITING_BM_APPROVAL: { label: "Menunggu BM", color: "bg-amber-100 text-amber-800" },
+  WAITING_PP_APPROVAL_1: { label: "Menunggu PP (1)", color: "bg-blue-100 text-blue-800" },
+  PP_DESIGN_3D_REQUIRED: { label: "Design 3D Required", color: "bg-purple-100 text-purple-800" },
+  WAITING_RAB_UPLOAD: { label: "Upload RAB", color: "bg-orange-100 text-orange-800" },
+  WAITING_PP_APPROVAL_2: { label: "Menunggu PP (2)", color: "bg-cyan-100 text-cyan-800" },
+  WAITING_PP_MANAGER_APPROVAL: { label: "Menunggu PP Mgr (Final)", color: "bg-indigo-100 text-indigo-800" },
   COMPLETED: { label: "Selesai", color: "bg-green-100 text-green-800" },
-  REJECTED: { label: "Ditolak", color: "bg-red-100 text-red-700" },
+  REJECTED: { label: "Ditolak", color: "bg-red-100 text-red-800" },
 };
+
+const FPD_STEPS = [
+  { id: "WAITING_BM_APPROVAL", label: "BM Manager" },
+  { id: "WAITING_PP_APPROVAL_1", label: "PP Tahap 1" },
+  { id: "WAITING_RAB_UPLOAD", label: "Upload Data" },
+  { id: "WAITING_PP_APPROVAL_2", label: "PP Tahap 2" },
+  { id: "WAITING_PP_MANAGER_APPROVAL", label: "PP Manager" },
+  { id: "COMPLETED", label: "Selesai" },
+];
+
+function FpdTimeline({ currentStatus }: { currentStatus: string }) {
+  const isRejected = currentStatus === "REJECTED";
+  
+  let activeIndex = -1;
+  if (currentStatus === "WAITING_BM_APPROVAL") activeIndex = 0;
+  if (currentStatus === "WAITING_PP_APPROVAL_1") activeIndex = 1;
+  if (currentStatus === "PP_DESIGN_3D_REQUIRED" || currentStatus === "WAITING_RAB_UPLOAD") activeIndex = 2;
+  if (currentStatus === "WAITING_PP_APPROVAL_2") activeIndex = 3;
+  if (currentStatus === "WAITING_PP_MANAGER_APPROVAL") activeIndex = 4;
+  if (currentStatus === "COMPLETED") activeIndex = 5;
+
+  return (
+    <Card className="mb-4 mt-4 overflow-hidden border-none shadow-sm bg-white">
+      <CardContent className="p-4 sm:p-6 overflow-x-auto">
+        <div className="flex items-center justify-between min-w-[600px] relative pb-8">
+          <div className="absolute left-4 right-4 top-4 -translate-y-1/2 h-1 bg-slate-100 z-0 rounded-full"></div>
+          <div className="absolute left-4 top-4 -translate-y-1/2 h-1 bg-green-500 z-0 transition-all duration-500 rounded-full" style={{ width: `calc(${Math.max(0, (activeIndex / (FPD_STEPS.length - 1)) * 100)}% - 2rem)` }}></div>
+          {FPD_STEPS.map((step, idx) => {
+            const isCompleted = activeIndex > idx || currentStatus === "COMPLETED";
+            const isActive = activeIndex === idx;
+            const isError = isRejected; // if rejected, the flow stopped
+            
+            let color = "bg-slate-200 text-slate-400";
+            if (isCompleted) color = "bg-green-500 text-white";
+            if (isActive && !isError) color = "bg-blue-500 text-white ring-4 ring-blue-100";
+            if (isActive && isError) color = "bg-red-500 text-white ring-4 ring-red-100";
+
+            return (
+              <div key={step.id} className="relative z-10 flex flex-col items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${color}`}>
+                  {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : (isActive && isError) ? <XCircle className="w-4 h-4" /> : idx + 1}
+                </div>
+                <div className="text-center absolute top-10 w-24 -ml-12 left-1/2">
+                  <p className={`text-[10px] font-bold ${isActive ? (isError ? 'text-red-600' : 'text-blue-700') : isCompleted ? 'text-green-700' : 'text-slate-400'}`}>{step.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function InfoRow({ label, value, link, onClickLink }: { label: string; value: string | null; link?: boolean; onClickLink?: (url: string) => void }) {
   if (!value) return null;
@@ -211,6 +264,8 @@ export default function DetailProjekPlanning() {
           </div>
           <span className="text-xs opacity-75">ID: {data.id}</span>
         </div>
+
+        <FpdTimeline currentStatus={data.status} />
 
         {/* Info Toko */}
         <Card>

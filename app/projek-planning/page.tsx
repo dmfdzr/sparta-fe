@@ -57,11 +57,18 @@ export default function ProjekPlanningPage() {
       const filters: Record<string, string> = {};
       if (statusFilter) filters.status = statusFilter;
       if (search.trim()) filters.cabang = search.trim();
+      
+      const isCoor = userRole.includes("COORDINATOR") || userRole.includes("KOORDINATOR");
+      if (isCoor && userEmail) {
+        filters.email_pembuat = userEmail;
+      }
+
       const res = await fetchProjekPlanningList(filters);
       setItems(res.data || []);
+      localStorage.setItem("last_checked_fpd", new Date().toISOString());
     } catch (e: any) { console.error(e); }
     setLoading(false);
-  }, [statusFilter, search]);
+  }, [statusFilter, search, userRole, userEmail]);
 
   useEffect(() => {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";

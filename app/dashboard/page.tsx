@@ -14,6 +14,7 @@ import { AlertTriangle, ChevronRight } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar'; // Import AppNavbar
 import { ALL_MENUS, ROLE_CONFIG } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
+import { fetchProjekPlanningList } from '@/lib/api';
 
 // =============================================================================
 // MAIN COMPONENT
@@ -26,6 +27,7 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading]         = useState(true);
     const [sidebarOpen, setSidebarOpen]     = useState(true);
     const [isContractor, setIsContractor]   = useState(false);
+    const [fpdHasUpdate, setFpdHasUpdate]   = useState(false);
 
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
     const [featureAlertOpen, setFeatureAlertOpen] = useState(false);
@@ -68,6 +70,19 @@ export default function DashboardPage() {
         setIsContractor(contractorFlag);
         if (window.innerWidth <= 768) setSidebarOpen(false);
         setIsLoading(false);
+
+        if (allowedIds.includes("project_planning")) {
+            const lastChecked = localStorage.getItem("last_checked_fpd") || "1970-01-01T00:00:00Z";
+            const filters: Record<string, string> = {};
+            const isCoor = roles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
+            if (isCoor) filters.email_pembuat = email;
+            
+            fetchProjekPlanningList(filters).then(r => {
+                const items = r.data || [];
+                const hasNew = items.some(i => new Date(i.updated_at) > new Date(lastChecked));
+                if (hasNew) setFpdHasUpdate(true);
+            }).catch(() => {});
+        }
     }, [router]);
 
 
@@ -144,9 +159,14 @@ export default function DashboardPage() {
                                     <div className="w-7 h-7 rounded-md bg-slate-100 group-hover:bg-red-100 flex items-center justify-center shrink-0 transition-colors">
                                         <IconComp className="w-3.5 h-3.5 text-slate-500 group-hover:text-red-600 transition-colors" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[12px] font-semibold text-slate-700 group-hover:text-red-700 truncate leading-tight transition-colors">{menu.title}</p>
-                                        <p className="text-[10px] text-slate-400 truncate leading-tight">{menu.desc}</p>
+                                    <div className="flex-1 min-w-0 flex items-center justify-between pr-2">
+                                        <div>
+                                            <p className="text-[12px] font-semibold text-slate-700 group-hover:text-red-700 truncate leading-tight transition-colors">{menu.title}</p>
+                                            <p className="text-[10px] text-slate-400 truncate leading-tight">{menu.desc}</p>
+                                        </div>
+                                        {menu.id === 'project_planning' && fpdHasUpdate && (
+                                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2 shrink-0" title="Ada FPD baru atau diperbarui" />
+                                        )}
                                     </div>
                                     <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-red-400 shrink-0 transition-colors" />
                                 </div>

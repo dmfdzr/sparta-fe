@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppNavbar from "@/components/AppNavbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Send, Loader2, ChevronDown, Building2, Droplets, Wind, Zap, ClipboardList, FileText } from "lucide-react";
-import { fetchTokoList, submitProjekPlanning } from "@/lib/api";
+import { fetchTokoList, submitProjekPlanning, resubmitProjekPlanning, fetchProjekPlanningDetail } from "@/lib/api";
 
 type TokoOption = { id: number; nomor_ulok: string; nama_toko: string; cabang: string; proyek: string; lingkup_pekerjaan: string; kode_toko: string };
 
@@ -48,6 +48,7 @@ export default function FormProjekPlanning() {
     catatan_design_1: "", catatan_design_2: "", catatan_design_3: "", catatan_design_4: "", catatan_design_5: "",
     link_gambar_rab_sipil: "", link_gambar_rab_me: "",
   });
+  const [originalF, setOriginalF] = useState<any>(null);
 
   const set = (key: string, val: any) => setF(p => ({ ...p, [key]: val }));
 
@@ -60,8 +61,14 @@ export default function FormProjekPlanning() {
     fetchTokoList().then(r => setTokoList(r.data || [])).catch(console.error);
 
     if (resubmitId) {
-      getProjekPlanningById(Number(resubmitId)).then(r => {
-        if (r.data) setF(r.data);
+      fetchProjekPlanningDetail(Number(resubmitId)).then(r => {
+        if (r.data && r.data.projek) {
+          const p = r.data.projek;
+          const merged = { ...f, ...p };
+          setF(merged as any);
+          setOriginalF(merged);
+          setTokoSearch(`${p.nomor_ulok} — ${p.nama_toko || p.nama_lokasi}`);
+        }
       });
     }
   }, [router, resubmitId]);
@@ -80,6 +87,16 @@ export default function FormProjekPlanning() {
     e.preventDefault();
     if (!f.id_toko) { setAlertMsg({ title: "Error", desc: "Pilih toko terlebih dahulu", type: "error" }); setAlertOpen(true); return; }
     if (!f.jenis_pengajuan) { setAlertMsg({ title: "Error", desc: "Pilih jenis pengajuan", type: "error" }); setAlertOpen(true); return; }
+    
+    if (resubmitId && originalF) {
+      // Cek apakah ada perubahan
+      const hasChanges = Object.keys(f).some(key => (f as any)[key] !== originalF[key]) || fileFpd !== null;
+      if (!hasChanges) {
+        setAlertMsg({ title: "Peringatan", desc: "Silakan ubah minimal satu data / isi form sebelum melakukan resubmit.", type: "error" });
+        setAlertOpen(true);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const payload = { ...f, email_pembuat: userEmail, estimasi_biaya: f.estimasi_biaya ? Number(f.estimasi_biaya) : undefined };
