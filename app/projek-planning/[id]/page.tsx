@@ -165,9 +165,11 @@ export default function DetailProjekPlanning() {
   );
 
   const st = STATUS_MAP[data.status] || { label: data.status, color: "bg-slate-100" };
-  const isBM = userRole.includes("MANAGER") && !userRole.includes("BUILDING");
+  const isBM = userRole.includes("MANAGER") && !userRole.includes("BUILDING") && !userRole.includes("PROJECT") && !userRole.includes("PP");
   const isBBMM = userRole.includes("BUILDING") && userRole.includes("MAINTENANCE") && userRole.includes("MANAGER");
   const isCoor = userRole.includes("COORDINATOR");
+  const isPPMgr = userRole.includes("PROJECT PLANNING MANAGER") || userRole.includes("PP MANAGER") || userEmail === "charderrabagas@gmail.com";
+  const isPP = userRole.includes("PROJECT PLANNING") || userRole.includes("PP SPECIALIST") || userEmail === "lina.yuliyanti@sat.co.id" || isPPMgr;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -260,7 +262,7 @@ export default function DetailProjekPlanning() {
         )}
 
         {/* PP Approval 1 */}
-        {data.status === "WAITING_PP_APPROVAL_1" && (
+        {data.status === "WAITING_PP_APPROVAL_1" && isPP && (
           <Card className="border-blue-200 bg-blue-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-blue-800">Approval PP Specialist (Tahap 1)</CardTitle></CardHeader>
             <CardContent className="space-y-3">
@@ -282,7 +284,7 @@ export default function DetailProjekPlanning() {
         )}
 
         {/* Upload 3D */}
-        {data.status === "PP_DESIGN_3D_REQUIRED" && (
+        {data.status === "PP_DESIGN_3D_REQUIRED" && isPP && (
           <Card className="border-purple-200 bg-purple-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-purple-800">Upload Desain 3D</CardTitle></CardHeader>
             <CardContent className="space-y-2">
@@ -309,7 +311,7 @@ export default function DetailProjekPlanning() {
         )}
 
         {/* PP Specialist 2 */}
-        {data.status === "WAITING_PP_APPROVAL_2" && (
+        {data.status === "WAITING_PP_APPROVAL_2" && isPP && (
           <Card className="border-cyan-200 bg-cyan-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-cyan-800">Approval PP Specialist</CardTitle></CardHeader>
             <CardContent className="flex gap-2">
@@ -325,7 +327,7 @@ export default function DetailProjekPlanning() {
         )}
 
         {/* PP Manager Final */}
-        {data.status === "WAITING_PP_MANAGER_APPROVAL" && (
+        {data.status === "WAITING_PP_MANAGER_APPROVAL" && isPPMgr && (
           <Card className="border-indigo-200 bg-indigo-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-indigo-800">Approval PP Manager (Final)</CardTitle></CardHeader>
             <CardContent className="flex gap-2">
