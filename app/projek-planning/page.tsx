@@ -49,6 +49,7 @@ export default function ProjekPlanningPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userCabang, setUserCabang] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
