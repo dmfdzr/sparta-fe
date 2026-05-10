@@ -2165,12 +2165,30 @@ export type ProjekPlanningListFilters = {
 // --- Fungsi ---
 
 /** Submit FPD baru (Coordinator/Cabang). */
-export const submitProjekPlanning = async (payload: Record<string, unknown>) => {
+export const submitProjekPlanning = async (payload: Record<string, unknown>, file?: File) => {
     const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/submit`;
+    
+    let body: BodyInit;
+    let headers: Record<string, string> = {};
+
+    if (file) {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                formData.append(key, String(value));
+            }
+        });
+        formData.append("file_fpd", file);
+        body = formData;
+    } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(payload);
+    }
+
     const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
     });
     const result = await res.json();
     if (res.status === 409) throw new Error(result.message || "Project planning aktif sudah ada untuk toko ini.");
@@ -2180,12 +2198,30 @@ export const submitProjekPlanning = async (payload: Record<string, unknown>) => 
 };
 
 /** Resubmit FPD (Coordinator — update record DRAFT). */
-export const resubmitProjekPlanning = async (id: number, payload: Record<string, unknown>) => {
+export const resubmitProjekPlanning = async (id: number, payload: Record<string, unknown>, file?: File) => {
     const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/resubmit`;
+    
+    let body: BodyInit;
+    let headers: Record<string, string> = {};
+
+    if (file) {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                formData.append(key, String(value));
+            }
+        });
+        formData.append("file_fpd", file);
+        body = formData;
+    } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(payload);
+    }
+
     const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
     });
     const result = await res.json();
     if (res.status === 409) throw new Error(result.message || "Hanya DRAFT yang bisa di-resubmit.");
@@ -2263,13 +2299,28 @@ export const processPpApproval1 = async (id: number, payload: {
 /** Upload desain 3D (PP Specialist). */
 export const uploadDesain3d = async (id: number, payload: {
     uploader_email: string;
-    link_desain_3d: string;
+    link_desain_3d?: string;
     keterangan?: string;
-}) => {
+}, file?: File) => {
+    let body: BodyInit;
+    let headers: Record<string, string> = {};
+
+    if (file) {
+        const formData = new FormData();
+        formData.append("uploader_email", payload.uploader_email);
+        if (payload.link_desain_3d) formData.append("link_desain_3d", payload.link_desain_3d);
+        if (payload.keterangan) formData.append("keterangan", payload.keterangan);
+        formData.append("file_desain_3d", file);
+        body = formData;
+    } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(payload);
+    }
+
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/upload-3d`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Gagal upload desain 3D.");
@@ -2282,11 +2333,28 @@ export const uploadRabGambarKerja = async (id: number, payload: {
     link_rab?: string;
     link_gambar_kerja?: string;
     keterangan?: string;
-}) => {
+}, fileRab?: File, fileGambar?: File) => {
+    let body: BodyInit;
+    let headers: Record<string, string> = {};
+
+    if (fileRab || fileGambar) {
+        const formData = new FormData();
+        formData.append("uploader_email", payload.uploader_email);
+        if (payload.link_rab) formData.append("link_rab", payload.link_rab);
+        if (payload.link_gambar_kerja) formData.append("link_gambar_kerja", payload.link_gambar_kerja);
+        if (payload.keterangan) formData.append("keterangan", payload.keterangan);
+        if (fileRab) formData.append("file_rab", fileRab);
+        if (fileGambar) formData.append("file_gambar_kerja", fileGambar);
+        body = formData;
+    } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(payload);
+    }
+
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/upload-rab`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Gagal upload RAB.");

@@ -22,7 +22,10 @@ const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "LAINNYA"];
 
 export default function FormProjekPlanning() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resubmitId = searchParams.get("resubmit");
   const [submitting, setSubmitting] = useState(false);
+  const [fileFpd, setFileFpd] = useState<File | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState({ title: "", desc: "", type: "" });
   const [tokoList, setTokoList] = useState<TokoOption[]>([]);
@@ -55,7 +58,13 @@ export default function FormProjekPlanning() {
     const nama = sessionStorage.getItem("nama_lengkap") || "";
     set("nama_pengaju", nama);
     fetchTokoList().then(r => setTokoList(r.data || [])).catch(console.error);
-  }, [router]);
+
+    if (resubmitId) {
+      getProjekPlanningById(Number(resubmitId)).then(r => {
+        if (r.data) setF(r.data);
+      });
+    }
+  }, [router, resubmitId]);
 
   const selectToko = (t: TokoOption) => {
     setF(p => ({ ...p, id_toko: t.id, nomor_ulok: t.nomor_ulok, nama_lokasi: t.nama_toko, lingkup_pekerjaan: t.lingkup_pekerjaan, jenis_proyek: t.proyek }));
@@ -74,7 +83,12 @@ export default function FormProjekPlanning() {
     setSubmitting(true);
     try {
       const payload = { ...f, email_pembuat: userEmail, estimasi_biaya: f.estimasi_biaya ? Number(f.estimasi_biaya) : undefined };
-      await submitProjekPlanning(payload);
+      let res;
+      if (resubmitId) {
+        res = await resubmitProjekPlanning(Number(resubmitId), payload, fileFpd ?? undefined);
+      } else {
+        res = await submitProjekPlanning(payload, fileFpd ?? undefined);
+      }
       setAlertMsg({ title: "Berhasil!", desc: "Pengajuan FPD berhasil disimpan. Menunggu approval B&M Manager.", type: "success" });
       setAlertOpen(true);
     } catch (err: any) {
@@ -231,10 +245,13 @@ export default function FormProjekPlanning() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600">Gambar Kerja / Foto Eksisting</Label>
-                  <Input placeholder="Link Google Drive..." value={(f as any).link_fpd} onChange={e => set("link_fpd", e.target.value)} className="bg-white" />
+                  <Input placeholder="Link Google Drive..." value={(f as any).link_fpd} onChange={e => { set("link_fpd", e.target.value); setFileFpd(null); }} className="bg-white" disabled={!!fileFpd} />
                   <Input type="file" accept="image/*,.pdf" className="mt-1 file:bg-red-50 file:text-red-600 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-red-100 cursor-pointer" 
-                    onChange={e => set("link_fpd", e.target.files?.[0] ? URL.createObjectURL(e.target.files[0]) : "")} />
-                  <p className="text-[10px] text-slate-400 mt-1">Pilih File (hanya tampil di PC Anda) atau Paste Link</p>
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) { setFileFpd(file); set("link_fpd", ""); } else { setFileFpd(null); }
+                    }} />
+                  {fileFpd ? <p className="text-[10px] text-red-600 mt-1">File siap diupload: {fileFpd.name}</p> : <p className="text-[10px] text-slate-400 mt-1">Pilih File (akan diupload ke GDrive) atau Paste Link</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600">File RAB Sipil</Label>

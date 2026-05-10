@@ -68,8 +68,11 @@ export default function DetailProjekPlanning() {
   const [alertMsg, setAlertMsg] = useState({ title: "", desc: "" });
   const [need3d, setNeed3d] = useState(false);
   const [link3d, setLink3d] = useState("");
+  const [file3d, setFile3d] = useState<File | null>(null);
   const [linkRab, setLinkRab] = useState("");
+  const [fileRab, setFileRab] = useState<File | null>(null);
   const [linkGambar, setLinkGambar] = useState("");
+  const [fileGambar, setFileGambar] = useState<File | null>(null);
   const [openedLinks, setOpenedLinks] = useState<Set<string>>(new Set());
 
   const handleLinkClick = (url: string) => {
@@ -137,31 +140,32 @@ export default function DetailProjekPlanning() {
   };
 
   const handleUpload3d = async () => {
-    if (!link3d.trim()) return;
+    if (!link3d.trim() && !file3d) return;
     setActionLoading(true);
     try {
-      await uploadDesain3d(id, { uploader_email: userEmail, link_desain_3d: link3d });
-      showAlert("Berhasil", "Desain 3D berhasil diupload."); setLink3d(""); await load();
+      await uploadDesain3d(id, { uploader_email: userEmail, link_desain_3d: link3d }, file3d ?? undefined);
+      showAlert("Berhasil", "Desain 3D berhasil diupload."); setLink3d(""); setFile3d(null); await load();
     } catch (e: any) { showAlert("Gagal", e.message); }
     setActionLoading(false);
   };
 
   const handleUploadRab = async () => {
-    if (!linkRab.trim() && !linkGambar.trim()) return;
+    if (!linkRab.trim() && !fileRab && !linkGambar.trim() && !fileGambar) return;
     setActionLoading(true);
     try {
-      await uploadRabGambarKerja(id, { uploader_email: userEmail, link_rab: linkRab, link_gambar_kerja: linkGambar });
-      showAlert("Berhasil", "RAB & Gambar Kerja berhasil diupload."); setLinkRab(""); setLinkGambar(""); await load();
+      await uploadRabGambarKerja(id, { uploader_email: userEmail, link_rab: linkRab, link_gambar_kerja: linkGambar }, fileRab ?? undefined, fileGambar ?? undefined);
+      showAlert("Berhasil", "RAB & Gambar Kerja berhasil diupload."); setLinkRab(""); setFileRab(null); setLinkGambar(""); setFileGambar(null); await load();
     } catch (e: any) { showAlert("Gagal", e.message); }
     setActionLoading(false);
   };
 
-  const handleFileChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (setLink: React.Dispatch<React.SetStateAction<string>>, setFile: React.Dispatch<React.SetStateAction<File | null>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setter(URL.createObjectURL(file));
+      setFile(file);
+      setLink(""); // clear link if file selected
     } else {
-      setter("");
+      setFile(null);
     }
   };
 
@@ -317,14 +321,15 @@ export default function DetailProjekPlanning() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs mb-1 block">Link Desain 3D GDrive</Label>
-                  <Input placeholder="https://drive.google.com/..." value={link3d} onChange={e => setLink3d(e.target.value)} className="bg-white" />
+                  <Input placeholder="https://drive.google.com/..." value={link3d} onChange={e => { setLink3d(e.target.value); setFile3d(null); }} className="bg-white" disabled={!!file3d} />
                 </div>
                 <div>
-                  <Label className="text-xs mb-1 block">Atau Pilih File (Otomatis jadi Link Lokal)</Label>
-                  <Input type="file" onChange={handleFileChange(setLink3d)} className="bg-white file:bg-purple-50 file:text-purple-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  <Label className="text-xs mb-1 block">Atau Upload File ke Drive</Label>
+                  <Input type="file" onChange={handleFileChange(setLink3d, setFile3d)} className="bg-white file:bg-purple-50 file:text-purple-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  {file3d && <p className="text-[10px] text-purple-600 mt-1">File siap diupload: {file3d.name}</p>}
                 </div>
               </div>
-              <Button onClick={handleUpload3d} className="w-full bg-purple-400 hover:bg-purple-500 text-white" disabled={actionLoading || !link3d.trim()}>
+              <Button onClick={handleUpload3d} className="w-full bg-purple-400 hover:bg-purple-500 text-white" disabled={actionLoading || (!link3d.trim() && !file3d)}>
                 <Send className="w-4 h-4 mr-1.5" /> Upload Desain 3D
               </Button>
             </CardContent>
@@ -338,17 +343,19 @@ export default function DetailProjekPlanning() {
             <CardContent className="p-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-slate-700">Link RAB Final</Label>
-                  <Input placeholder="Link RAB..." value={linkRab} onChange={e => setLinkRab(e.target.value)} className="bg-white" />
-                  <Input type="file" onChange={handleFileChange(setLinkRab)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  <Label className="text-xs font-semibold text-slate-700">Link / File RAB Final</Label>
+                  <Input placeholder="Link RAB..." value={linkRab} onChange={e => { setLinkRab(e.target.value); setFileRab(null); }} className="bg-white" disabled={!!fileRab} />
+                  <Input type="file" onChange={handleFileChange(setLinkRab, setFileRab)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  {fileRab && <p className="text-[10px] text-orange-600 mt-1">File siap diupload: {fileRab.name}</p>}
                 </div>
                 <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-slate-700">Link Gambar Kerja</Label>
-                  <Input placeholder="Link Gambar Kerja..." value={linkGambar} onChange={e => setLinkGambar(e.target.value)} className="bg-white" />
-                  <Input type="file" onChange={handleFileChange(setLinkGambar)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  <Label className="text-xs font-semibold text-slate-700">Link / File Gambar Kerja</Label>
+                  <Input placeholder="Link Gambar Kerja..." value={linkGambar} onChange={e => { setLinkGambar(e.target.value); setFileGambar(null); }} className="bg-white" disabled={!!fileGambar} />
+                  <Input type="file" onChange={handleFileChange(setLinkGambar, setFileGambar)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  {fileGambar && <p className="text-[10px] text-orange-600 mt-1">File siap diupload: {fileGambar.name}</p>}
                 </div>
               </div>
-              <Button onClick={handleUploadRab} className="w-full bg-orange-400 hover:bg-orange-500 text-white" disabled={actionLoading || (!linkRab.trim() && !linkGambar.trim())}>
+              <Button onClick={handleUploadRab} className="w-full bg-orange-400 hover:bg-orange-500 text-white" disabled={actionLoading || (!linkRab.trim() && !fileRab && !linkGambar.trim() && !fileGambar)}>
                 <Send className="w-4 h-4 mr-1.5" /> Submit RAB & Gambar
               </Button>
             </CardContent>
