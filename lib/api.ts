@@ -2069,3 +2069,258 @@ export const sendEmailNotification = async (payload: {
     }
     return result;
 };
+
+// =============================================================================
+// PROJECT PLANNING (FPD — Form Pengajuan Data)
+// =============================================================================
+
+// --- Types ---
+
+export type ProjekPlanningItem = {
+    id: number;
+    id_toko: number;
+    nomor_ulok: string;
+    email_pembuat: string;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    cabang: string | null;
+    proyek: string | null;
+    lingkup_pekerjaan: string | null;
+    jenis_proyek: string | null;
+    estimasi_biaya: string | null;
+    keterangan: string | null;
+    nama_pengaju: string | null;
+    nama_lokasi: string | null;
+    jenis_pengajuan: string | null;
+    jenis_pengajuan_lainnya: string | null;
+    fasilitas_air_bersih: boolean;
+    fasilitas_air_bersih_keterangan: string | null;
+    fasilitas_drain: boolean;
+    fasilitas_drain_keterangan: string | null;
+    fasilitas_ac: boolean;
+    fasilitas_ac_keterangan: string | null;
+    fasilitas_lainnya: string | null;
+    fasilitas_lainnya_keterangan: string | null;
+    ketentuan_1: string | null;
+    ketentuan_2: string | null;
+    ketentuan_3: string | null;
+    ketentuan_4: string | null;
+    ketentuan_5: string | null;
+    catatan_design_1: string | null;
+    catatan_design_2: string | null;
+    catatan_design_3: string | null;
+    catatan_design_4: string | null;
+    catatan_design_5: string | null;
+    link_fpd: string | null;
+    link_rab: string | null;
+    link_gambar_kerja: string | null;
+    link_desain_3d: string | null;
+    link_fpd_approved: string | null;
+    link_gambar_rab_sipil: string | null;
+    link_gambar_rab_me: string | null;
+    status: string;
+    butuh_desain_3d: boolean;
+    bm_approver_email: string | null;
+    bm_waktu_persetujuan: string | null;
+    bm_alasan_penolakan: string | null;
+    pp1_approver_email: string | null;
+    pp1_waktu_persetujuan: string | null;
+    pp1_alasan_penolakan: string | null;
+    pp_manager_approver_email: string | null;
+    pp_manager_waktu_persetujuan: string | null;
+    pp_manager_alasan_penolakan: string | null;
+    pp2_approver_email: string | null;
+    pp2_waktu_persetujuan: string | null;
+    pp2_alasan_penolakan: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export type ProjekPlanningLog = {
+    id: number;
+    projek_planning_id: number;
+    actor_email: string;
+    role: string;
+    aksi: string;
+    status_sebelum: string | null;
+    status_sesudah: string | null;
+    alasan_penolakan: string | null;
+    keterangan: string | null;
+    created_at: string;
+};
+
+export type ProjekPlanningDetail = {
+    projek: ProjekPlanningItem;
+    logs: ProjekPlanningLog[];
+};
+
+export type ProjekPlanningListFilters = {
+    status?: string;
+    nomor_ulok?: string;
+    cabang?: string;
+    email_pembuat?: string;
+    id_toko?: number;
+};
+
+// --- Fungsi ---
+
+/** Submit FPD baru (Coordinator/Cabang). */
+export const submitProjekPlanning = async (payload: Record<string, unknown>) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/submit`;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 409) throw new Error(result.message || "Project planning aktif sudah ada untuk toko ini.");
+    if (res.status === 422) throw new Error(result.message || "Validasi gagal. Pastikan seluruh form terisi.");
+    if (!res.ok) throw new Error(result.message || "Gagal menyimpan pengajuan.");
+    return result;
+};
+
+/** Resubmit FPD (Coordinator — update record DRAFT). */
+export const resubmitProjekPlanning = async (id: number, payload: Record<string, unknown>) => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/resubmit`;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 409) throw new Error(result.message || "Hanya DRAFT yang bisa di-resubmit.");
+    if (res.status === 422) throw new Error(result.message || "Validasi gagal.");
+    if (!res.ok) throw new Error(result.message || "Gagal mengajukan ulang.");
+    return result;
+};
+
+/** Ambil daftar Project Planning. */
+export const fetchProjekPlanningList = async (
+    filters?: ProjekPlanningListFilters
+): Promise<{ status: string; data: ProjekPlanningItem[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    if (filters?.cabang) params.append("cabang", filters.cabang);
+    if (filters?.email_pembuat) params.append("email_pembuat", filters.email_pembuat);
+    if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
+    const url = `${base}/api/projek-planning${params.toString() ? `?${params}` : ""}`;
+    return safeFetchJSON(url);
+};
+
+/** Ambil detail Project Planning berdasarkan ID. */
+export const fetchProjekPlanningDetail = async (
+    id: number
+): Promise<{ status: string; data: ProjekPlanningDetail }> => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}`;
+    const res = await fetch(url);
+    if (res.status === 404) throw new Error("Project planning tidak ditemukan.");
+    if (!res.ok) throw new Error(`Gagal memuat detail (${res.status})`);
+    return res.json();
+};
+
+/** Ambil logs / audit trail Project Planning. */
+export const fetchProjekPlanningLogs = async (
+    id: number
+): Promise<{ status: string; data: ProjekPlanningLog[] }> => {
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/logs`);
+};
+
+/** Proses approval BM Manager. */
+export const processBmApproval = async (id: number, payload: {
+    approver_email: string;
+    tindakan: "APPROVE" | "REJECT";
+    alasan_penolakan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/bm-approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memproses approval BM.");
+    return result;
+};
+
+/** Proses approval PP Specialist (Stage 1). */
+export const processPpApproval1 = async (id: number, payload: {
+    approver_email: string;
+    tindakan: "APPROVE" | "REJECT";
+    butuh_desain_3d?: boolean;
+    alasan_penolakan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/pp-approval-1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memproses approval PP.");
+    return result;
+};
+
+/** Upload desain 3D (PP Specialist). */
+export const uploadDesain3d = async (id: number, payload: {
+    uploader_email: string;
+    link_desain_3d: string;
+    keterangan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/upload-3d`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal upload desain 3D.");
+    return result;
+};
+
+/** Upload RAB & Gambar Kerja (Coordinator/Cabang). */
+export const uploadRabGambarKerja = async (id: number, payload: {
+    uploader_email: string;
+    link_rab?: string;
+    link_gambar_kerja?: string;
+    keterangan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/upload-rab`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal upload RAB.");
+    return result;
+};
+
+/** Proses approval PP Manager. */
+export const processPpManagerApproval = async (id: number, payload: {
+    approver_email: string;
+    tindakan: "APPROVE" | "REJECT";
+    alasan_penolakan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/pp-manager-approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memproses approval PP Manager.");
+    return result;
+};
+
+/** Proses approval PP Specialist (Stage 2 / Final). */
+export const processPpApproval2 = async (id: number, payload: {
+    approver_email: string;
+    tindakan: "APPROVE" | "REJECT";
+    alasan_penolakan?: string;
+}) => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/pp-approval-2`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || "Gagal memproses approval final PP.");
+    return result;
+};

@@ -7,7 +7,7 @@ import {
     FileText, Stamp, FileSignature, Users, CheckSquare,
     Camera, FilePlus, FolderArchive, BarChartHorizontal,
     AlertTriangle, Activity, PieChart, ClipboardCheck,
-    FileStack,
+    FileStack, ClipboardList,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -123,6 +123,13 @@ export const ALL_MENUS = [
         href: "/users",
         icon: Users,
     },
+    {
+        id: "menu-projek-planning",
+        title: "Project Planning",
+        desc: "Form Pengajuan Data (FPD) dan approval project planning.",
+        href: "/projek-planning",
+        icon: ClipboardList,
+    },
 ];
 
 // -----------------------------------------------------------------------------
@@ -132,13 +139,13 @@ export const ALL_MENUS = [
 
 export const ROLE_CONFIG: Record<string, string[]> = {
     "BRANCH MANAGER": [
-        "menu-approval", "menu-daftardokumen"
+        "menu-approval", "menu-daftardokumen", "menu-projek-planning"
     ],
 
     "BRANCH BUILDING & MAINTENANCE MANAGER": [
         "menu-spk", "menu-opname", "menu-tambahspk",
         "menu-gantt", "menu-dokumentasi", "menu-svdokumen", "menu-sp",
-        "menu-approval", "menu-daftardokumen"
+        "menu-approval", "menu-daftardokumen", "menu-projek-planning"
     ],
 
     "BRANCH BUILDING SUPPORT DOKUMENTASI": [
@@ -149,7 +156,8 @@ export const ROLE_CONFIG: Record<string, string[]> = {
 
     "BRANCH BUILDING COORDINATOR": [
         "menu-dokumentasi", "menu-svdokumen", "menu-gantt",
-        "menu-opname", "menu-sp", "menu-approval", "menu-daftardokumen", "menu-inputpic"
+        "menu-opname", "menu-sp", "menu-approval", "menu-daftardokumen", "menu-inputpic",
+        "menu-projek-planning"
     ],
 
     "BRANCH BUILDING SUPPORT": [
