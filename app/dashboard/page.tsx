@@ -347,9 +347,19 @@ export default function DashboardPage() {
                 
                 if (compareDateMs > deadlineMs) {
                     keterlambatan = Math.floor((compareDateMs - deadlineMs) / (1000 * 60 * 60 * 24));
+                    
+                    let projectDenda = 0;
+                    if (keterlambatan > 0) {
+                        const hariPertama = Math.min(keterlambatan, 5);
+                        const hariBerikutnya = Math.max(0, Math.min(keterlambatan - 5, 10));
+                        projectDenda = (hariPertama * 1000000) + (hariBerikutnya * 500000);
+                        projectDenda = Math.min(projectDenda, 10000000);
+                    }
+                    totalDenda += projectDenda;
                 }
                 
                 projectJHK = totalAllowedDays + keterlambatan;
+                totalDelay += keterlambatan;
             }
             totalJHK += projectJHK;
 
@@ -365,7 +375,7 @@ export default function DashboardPage() {
             penawaran: totalPenawaran,
             spk: totalSPK,
             avgJHK: Math.round(totalJHK / (jhkProjectCount || 1)),
-            avgDelay: Math.round(totalDelay / count),
+            avgDelay: Math.round(totalDelay / (jhkProjectCount || 1)),
             totalDenda: totalDenda,
             avgCostM2: 0,
             avgNilaiToko: (totalNilaiToko / count).toFixed(1),
@@ -796,6 +806,24 @@ export default function DashboardPage() {
                                     if (detailModal.context === 'PENAWARAN') {
                                         return (p.rab || []).length > 0;
                                     }
+                                    if (detailModal.context === 'JHK' || detailModal.context === 'DELAY' || detailModal.context === 'DENDA') {
+                                        const spkArr = Array.isArray(p.spk) ? p.spk : (p.spk ? [p.spk] : []);
+                                        const validSpk = spkArr.find((s: any) => ['APPROVED', 'ACTIVE', 'SPK_APPROVED', 'DISETUJUI', 'AKTIF', 'SELESAI'].includes((s.status || '').toUpperCase())) || spkArr[0];
+                                        if (!validSpk) return false;
+                                        if (detailModal.context === 'JHK') return true;
+
+                                        const durasi = Number(validSpk.durasi || 0);
+                                        const pertambahanArr = Array.isArray(validSpk.pertambahan_spk) ? validSpk.pertambahan_spk : [];
+                                        const totalPertambahan = pertambahanArr.filter((pt: any) => (pt.status_persetujuan || '').toUpperCase() === 'APPROVED').reduce((sum: number, pt: any) => sum + Number(pt.pertambahan_hari || 0), 0);
+                                        const totalAllowedDays = durasi + totalPertambahan;
+                                        const deadlineMs = new Date(validSpk.created_at || Date.now()).getTime() + (totalAllowedDays * 24 * 60 * 60 * 1000);
+                                        const stArr = Array.isArray(p.berkas_serah_terima) ? p.berkas_serah_terima : (p.berkas_serah_terima ? [p.berkas_serah_terima] : []);
+                                        let keterlambatan = 0;
+                                        const compareDateMs = stArr[0] ? new Date(stArr[0].created_at).getTime() : Date.now();
+                                        if (compareDateMs > deadlineMs) keterlambatan = Math.floor((compareDateMs - deadlineMs) / (1000 * 60 * 60 * 24));
+                                        
+                                        return keterlambatan > 0;
+                                    }
                                     return true;
                                 }
                                 
@@ -960,6 +988,46 @@ export default function DashboardPage() {
                                                                                 if (compareDateMs > deadlineMs) keterlambatan = Math.floor((compareDateMs - deadlineMs) / (1000 * 60 * 60 * 24));
                                                                                 return `${totalAllowedDays + keterlambatan} Hari (Durasi SPK : ${durasi}, Tambah SPK: ${totalPertambahan}, Terlambat: ${keterlambatan})`;
                                                                             })()
+                                                                            : detailModal.context === 'DELAY'
+                                                                                ? (() => {
+                                                                                    const spkArr = Array.isArray(p.spk) ? p.spk : (p.spk ? [p.spk] : []);
+                                                                                    const validSpk = spkArr.find((s: any) => ['APPROVED', 'ACTIVE', 'SPK_APPROVED', 'DISETUJUI', 'AKTIF', 'SELESAI'].includes((s.status || '').toUpperCase())) || spkArr[0];
+                                                                                    if (!validSpk) return '0 Hari';
+                                                                                    const durasi = Number(validSpk.durasi || 0);
+                                                                                    const pertambahanArr = Array.isArray(validSpk.pertambahan_spk) ? validSpk.pertambahan_spk : [];
+                                                                                    const totalPertambahan = pertambahanArr.filter((pt: any) => (pt.status_persetujuan || '').toUpperCase() === 'APPROVED').reduce((sum: number, pt: any) => sum + Number(pt.pertambahan_hari || 0), 0);
+                                                                                    const totalAllowedDays = durasi + totalPertambahan;
+                                                                                    const deadlineMs = new Date(validSpk.created_at || Date.now()).getTime() + (totalAllowedDays * 24 * 60 * 60 * 1000);
+                                                                                    const stArr = Array.isArray(p.berkas_serah_terima) ? p.berkas_serah_terima : (p.berkas_serah_terima ? [p.berkas_serah_terima] : []);
+                                                                                    let keterlambatan = 0;
+                                                                                    const compareDateMs = stArr[0] ? new Date(stArr[0].created_at).getTime() : Date.now();
+                                                                                    if (compareDateMs > deadlineMs) keterlambatan = Math.floor((compareDateMs - deadlineMs) / (1000 * 60 * 60 * 24));
+                                                                                    return `${keterlambatan} Hari`;
+                                                                                })()
+                                                                            : detailModal.context === 'DENDA'
+                                                                                ? (() => {
+                                                                                    const spkArr = Array.isArray(p.spk) ? p.spk : (p.spk ? [p.spk] : []);
+                                                                                    const validSpk = spkArr.find((s: any) => ['APPROVED', 'ACTIVE', 'SPK_APPROVED', 'DISETUJUI', 'AKTIF', 'SELESAI'].includes((s.status || '').toUpperCase())) || spkArr[0];
+                                                                                    if (!validSpk) return 'Rp 0';
+                                                                                    const durasi = Number(validSpk.durasi || 0);
+                                                                                    const pertambahanArr = Array.isArray(validSpk.pertambahan_spk) ? validSpk.pertambahan_spk : [];
+                                                                                    const totalPertambahan = pertambahanArr.filter((pt: any) => (pt.status_persetujuan || '').toUpperCase() === 'APPROVED').reduce((sum: number, pt: any) => sum + Number(pt.pertambahan_hari || 0), 0);
+                                                                                    const totalAllowedDays = durasi + totalPertambahan;
+                                                                                    const deadlineMs = new Date(validSpk.created_at || Date.now()).getTime() + (totalAllowedDays * 24 * 60 * 60 * 1000);
+                                                                                    const stArr = Array.isArray(p.berkas_serah_terima) ? p.berkas_serah_terima : (p.berkas_serah_terima ? [p.berkas_serah_terima] : []);
+                                                                                    let keterlambatan = 0;
+                                                                                    const compareDateMs = stArr[0] ? new Date(stArr[0].created_at).getTime() : Date.now();
+                                                                                    if (compareDateMs > deadlineMs) keterlambatan = Math.floor((compareDateMs - deadlineMs) / (1000 * 60 * 60 * 24));
+                                                                                    
+                                                                                    let denda = 0;
+                                                                                    if (keterlambatan > 0) {
+                                                                                        const hariPertama = Math.min(keterlambatan, 5);
+                                                                                        const hariBerikutnya = Math.max(0, Math.min(keterlambatan - 5, 10));
+                                                                                        denda = (hariPertama * 1000000) + (hariBerikutnya * 500000);
+                                                                                        denda = Math.min(denda, 10000000);
+                                                                                    }
+                                                                                    return formatRupiah(denda);
+                                                                                })()
                                                                             : detailModal.context === 'NILAI_TOKO'
                                                                                 ? `${p.toko?.nilai_toko || 0}`
                                                                                 : p.toko?.proyek
