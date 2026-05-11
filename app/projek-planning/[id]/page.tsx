@@ -291,30 +291,36 @@ export default function DetailProjekPlanning() {
         </Card>
 
         {/* Fasilitas */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Droplets className="w-4 h-4 text-blue-600" /> Fasilitas Yang Disediakan</CardTitle></CardHeader>
-          <CardContent className="space-y-0">
-            <InfoRow label="Sumber Air Bersih" value={data.fasilitas_air_bersih ? `Ya — ${data.fasilitas_air_bersih_keterangan || ""}` : "Tidak"} />
-            <InfoRow label="Drain Air Kotor" value={data.fasilitas_drain ? `Ya — ${data.fasilitas_drain_keterangan || ""}` : "Tidak"} />
-            <InfoRow label="AC" value={data.fasilitas_ac ? `Ya — ${data.fasilitas_ac_keterangan || ""}` : "Tidak"} />
-            {data.fasilitas_lainnya && <InfoRow label="Fasilitas Lainnya" value={`${data.fasilitas_lainnya} — ${data.fasilitas_lainnya_keterangan || ""}`} />}
-          </CardContent>
-        </Card>
-
-        {/* Ketentuan & Catatan */}
-        {(data.ketentuan_1 || data.ketentuan_2 || data.ketentuan_3) && (
+        {data.fasilitas && data.fasilitas.length > 0 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Ketentuan Pengelola / Landlord</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Droplets className="w-4 h-4 text-blue-600" /> Fasilitas Yang Disediakan</CardTitle></CardHeader>
             <CardContent className="space-y-0">
-              {[1, 2, 3, 4, 5].map(n => <InfoRow key={n} label={`Ketentuan ${n}`} value={(data as any)[`ketentuan_${n}`]} />)}
+              {data.fasilitas.map((f: any, idx: number) => {
+                let label = f.jenis_fasilitas;
+                if (label === 'AIR_BERSIH') label = "Sumber Air Bersih";
+                else if (label === 'DRAINASE') label = "Drain Air Kotor";
+                else if (label === 'LAINNYA') label = `Fasilitas Lainnya: ${f.nama_fasilitas_lainnya}`;
+                
+                return <InfoRow key={idx} label={label} value={f.is_tersedia ? `Ya — ${f.keterangan || ""}` : "Tidak"} />;
+              })}
             </CardContent>
           </Card>
         )}
-        {(data.catatan_design_1 || data.catatan_design_2) && (
+
+        {/* Ketentuan & Catatan */}
+        {data.ketentuan && data.ketentuan.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Ketentuan Pengelola / Landlord</CardTitle></CardHeader>
+            <CardContent className="space-y-0">
+              {data.ketentuan.map((k: any, idx: number) => <InfoRow key={idx} label={`Ketentuan ${idx + 1}`} value={k.isi_ketentuan} />)}
+            </CardContent>
+          </Card>
+        )}
+        {data.catatan_design && data.catatan_design.length > 0 && (
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Catatan Design</CardTitle></CardHeader>
             <CardContent className="space-y-0">
-              {[1, 2, 3, 4, 5].map(n => <InfoRow key={n} label={`Catatan ${n}`} value={(data as any)[`catatan_design_${n}`]} />)}
+              {data.catatan_design.map((c: any, idx: number) => <InfoRow key={idx} label={`Catatan ${idx + 1}`} value={c.isi_catatan} />)}
             </CardContent>
           </Card>
         )}

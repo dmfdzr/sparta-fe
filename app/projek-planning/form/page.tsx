@@ -35,18 +35,19 @@ function FormProjekPlanningInner() {
   const [userEmail, setUserEmail] = useState("");
 
   // Form state
-  const [ketentuanCount, setKetentuanCount] = useState(1);
-  const [catatanCount, setCatatanCount] = useState(1);
+  const [ketentuan, setKetentuan] = useState<string[]>([""]);
+  const [catatanDesign, setCatatanDesign] = useState<string[]>([""]);
+  const [fasilitas, setFasilitas] = useState<{jenis_fasilitas: string; nama_fasilitas_lainnya?: string; is_tersedia: boolean; keterangan?: string}[]>([
+    { jenis_fasilitas: "AIR_BERSIH", is_tersedia: false, keterangan: "" },
+    { jenis_fasilitas: "DRAINASE", is_tersedia: false, keterangan: "" },
+    { jenis_fasilitas: "AC", is_tersedia: false, keterangan: "" },
+    { jenis_fasilitas: "LAINNYA", nama_fasilitas_lainnya: "", is_tersedia: false, keterangan: "" }
+  ]);
+
   const [f, setF] = useState({
     id_toko: 0, nomor_ulok: "", lingkup_pekerjaan: "", jenis_proyek: "",
     nama_pengaju: "", nama_lokasi: "", jenis_pengajuan: "", jenis_pengajuan_lainnya: "",
     estimasi_biaya: "", keterangan: "", link_fpd: "",
-    fasilitas_air_bersih: false, fasilitas_air_bersih_keterangan: "",
-    fasilitas_drain: false, fasilitas_drain_keterangan: "",
-    fasilitas_ac: false, fasilitas_ac_keterangan: "",
-    fasilitas_lainnya: "", fasilitas_lainnya_keterangan: "",
-    ketentuan_1: "", ketentuan_2: "", ketentuan_3: "", ketentuan_4: "", ketentuan_5: "",
-    catatan_design_1: "", catatan_design_2: "", catatan_design_3: "", catatan_design_4: "", catatan_design_5: "",
     link_gambar_rab_sipil: "", link_gambar_rab_me: "",
   });
   const [originalF, setOriginalF] = useState<any>(null);
@@ -69,6 +70,10 @@ function FormProjekPlanningInner() {
           setF(merged as any);
           setOriginalF(merged);
           setTokoSearch(`${p.nomor_ulok} — ${p.nama_toko || p.nama_lokasi}`);
+          
+          if (p.ketentuan && p.ketentuan.length > 0) setKetentuan(p.ketentuan.map((k: any) => k.isi_ketentuan));
+          if (p.catatan_design && p.catatan_design.length > 0) setCatatanDesign(p.catatan_design.map((c: any) => c.isi_catatan));
+          if (p.fasilitas && p.fasilitas.length > 0) setFasilitas(p.fasilitas);
         }
       });
     }
@@ -100,7 +105,14 @@ function FormProjekPlanningInner() {
     }
     setSubmitting(true);
     try {
-      const payload = { ...f, email_pembuat: userEmail, estimasi_biaya: f.estimasi_biaya ? Number(f.estimasi_biaya) : undefined };
+      const payload = { 
+        ...f, 
+        email_pembuat: userEmail, 
+        estimasi_biaya: f.estimasi_biaya ? Number(f.estimasi_biaya) : undefined,
+        ketentuan: JSON.stringify(ketentuan.filter(k => k.trim() !== "")),
+        catatan_design: JSON.stringify(catatanDesign.filter(c => c.trim() !== "")),
+        fasilitas: JSON.stringify(fasilitas.filter(f => f.is_tersedia || f.jenis_fasilitas === "LAINNYA" && f.nama_fasilitas_lainnya?.trim()))
+      };
       let res;
       if (resubmitId) {
         res = await resubmitProjekPlanning(Number(resubmitId), payload, fileFpd ?? undefined, fileRabSipil ?? undefined, fileRabMe ?? undefined);
@@ -192,71 +204,105 @@ function FormProjekPlanningInner() {
 
               {/* === SECTION: Fasilitas === */}
               <SectionTitle icon={<Droplets className="w-4 h-4" />} title="Fasilitas Yang Disediakan" />
-              {[
-                { key: "air_bersih", label: "Sumber Air Bersih", icon: <Droplets className="w-3.5 h-3.5" /> },
-                { key: "drain", label: "Drain Pembuangan Air Kotor", icon: <Wind className="w-3.5 h-3.5" /> },
-                { key: "ac", label: "AC", icon: <Zap className="w-3.5 h-3.5" /> },
-              ].map(fac => (
-                <div key={fac.key} className="p-3 border rounded-lg space-y-2 bg-white">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id={`fas_${fac.key}`} checked={(f as any)[`fasilitas_${fac.key}`]}
-                      onCheckedChange={v => set(`fasilitas_${fac.key}`, !!v)} />
-                    <label htmlFor={`fas_${fac.key}`} className="text-sm font-medium flex items-center gap-1.5">
-                      {fac.icon} {fac.label}
-                    </label>
+              {fasilitas.map((fac, idx) => {
+                if (fac.jenis_fasilitas === "LAINNYA") return null;
+                const labels: Record<string, string> = { "AIR_BERSIH": "Sumber Air Bersih", "DRAINASE": "Drain Pembuangan Air Kotor", "AC": "AC" };
+                const icons: Record<string, any> = { "AIR_BERSIH": <Droplets className="w-3.5 h-3.5" />, "DRAINASE": <Wind className="w-3.5 h-3.5" />, "AC": <Zap className="w-3.5 h-3.5" /> };
+                return (
+                  <div key={idx} className="p-3 border rounded-lg space-y-2 bg-white">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id={`fas_${fac.jenis_fasilitas}`} checked={fac.is_tersedia}
+                        onCheckedChange={v => {
+                          const newF = [...fasilitas];
+                          newF[idx].is_tersedia = !!v;
+                          setFasilitas(newF);
+                        }} />
+                      <label htmlFor={`fas_${fac.jenis_fasilitas}`} className="text-sm font-medium flex items-center gap-1.5">
+                        {icons[fac.jenis_fasilitas]} {labels[fac.jenis_fasilitas]}
+                      </label>
+                    </div>
+                    {fac.is_tersedia && (
+                      <Input placeholder={`Keterangan ${labels[fac.jenis_fasilitas]}...`} value={fac.keterangan || ""}
+                        onChange={e => {
+                          const newF = [...fasilitas];
+                          newF[idx].keterangan = e.target.value;
+                          setFasilitas(newF);
+                        }} className="text-sm" />
+                    )}
                   </div>
-                  {(f as any)[`fasilitas_${fac.key}`] && (
-                    <Input placeholder={`Keterangan ${fac.label}...`} value={(f as any)[`fasilitas_${fac.key}_keterangan`]}
-                      onChange={e => set(`fasilitas_${fac.key}_keterangan`, e.target.value)} className="text-sm" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
               <div className="p-3 border rounded-lg space-y-2 bg-white">
                 <Label className="text-sm font-medium">Fasilitas Lainnya</Label>
-                <Input value={f.fasilitas_lainnya} onChange={e => set("fasilitas_lainnya", e.target.value)} placeholder="Nama fasilitas lainnya..." />
-                {f.fasilitas_lainnya && (
-                  <Input value={f.fasilitas_lainnya_keterangan} onChange={e => set("fasilitas_lainnya_keterangan", e.target.value)}
-                    placeholder="Keterangan fasilitas lainnya..." />
+                <Input value={fasilitas.find(f => f.jenis_fasilitas === "LAINNYA")?.nama_fasilitas_lainnya || ""} 
+                  onChange={e => {
+                    const newF = [...fasilitas];
+                    const idx = newF.findIndex(f => f.jenis_fasilitas === "LAINNYA");
+                    if(idx !== -1) {
+                      newF[idx].nama_fasilitas_lainnya = e.target.value;
+                      if(e.target.value) newF[idx].is_tersedia = true;
+                      else newF[idx].is_tersedia = false;
+                      setFasilitas(newF);
+                    }
+                  }} placeholder="Nama fasilitas lainnya..." />
+                {fasilitas.find(f => f.jenis_fasilitas === "LAINNYA")?.nama_fasilitas_lainnya && (
+                  <Input value={fasilitas.find(f => f.jenis_fasilitas === "LAINNYA")?.keterangan || ""} 
+                    onChange={e => {
+                      const newF = [...fasilitas];
+                      const idx = newF.findIndex(f => f.jenis_fasilitas === "LAINNYA");
+                      if(idx !== -1) {
+                        newF[idx].keterangan = e.target.value;
+                        setFasilitas(newF);
+                      }
+                    }} placeholder="Keterangan fasilitas lainnya..." />
                 )}
               </div>
 
               {/* === SECTION: Ketentuan === */}
               <SectionTitle icon={<FileText className="w-4 h-4" />} title="Ketentuan dari Pengelola / Landlord / Pihak Ketiga" />
-              {Array.from({ length: ketentuanCount }).map((_, i) => {
-                const n = i + 1;
-                return (
-                  <div key={n} className="flex gap-2 items-center">
-                    <div className="flex-1">
-                      <Label className="text-xs text-slate-500">Ketentuan {n}</Label>
-                      <Input value={(f as any)[`ketentuan_${n}`]} onChange={e => set(`ketentuan_${n}`, e.target.value)}
-                        placeholder={`Ketentuan ${n}...`} className="mt-1" />
-                    </div>
+              {ketentuan.map((k, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <Label className="text-xs text-slate-500">Ketentuan {i + 1}</Label>
+                    <Input value={k} onChange={e => {
+                      const newK = [...ketentuan];
+                      newK[i] = e.target.value;
+                      setKetentuan(newK);
+                    }} placeholder={`Ketentuan ${i + 1}...`} className="mt-1" />
                   </div>
-                );
-              })}
-              {ketentuanCount < 5 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setKetentuanCount(prev => prev + 1)} className="mt-2 text-xs">
-                  + Tambah Ketentuan
-                </Button>
-              )}
+                  {ketentuan.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setKetentuan(ketentuan.filter((_, idx) => idx !== i))} className="mt-5 text-red-500 hover:text-red-700 hover:bg-red-50">
+                      Hapus
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => setKetentuan([...ketentuan, ""])} className="mt-2 text-xs">
+                + Tambah Ketentuan
+              </Button>
 
               {/* === SECTION: Catatan Design === */}
               <SectionTitle icon={<ClipboardList className="w-4 h-4" />} title="Catatan Design (Hasil Ukur & Kondisi Lingkungan)" />
-              {Array.from({ length: catatanCount }).map((_, i) => {
-                const n = i + 1;
-                return (
-                  <div key={n}>
-                    <Label className="text-xs text-slate-500">Catatan {n}</Label>
-                    <Textarea value={(f as any)[`catatan_design_${n}`]} onChange={e => set(`catatan_design_${n}`, e.target.value)}
-                      placeholder={`Catatan ${n}...`} rows={2} className="mt-1" />
+              {catatanDesign.map((c, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <div className="flex-1">
+                    <Label className="text-xs text-slate-500">Catatan {i + 1}</Label>
+                    <Textarea value={c} onChange={e => {
+                      const newC = [...catatanDesign];
+                      newC[i] = e.target.value;
+                      setCatatanDesign(newC);
+                    }} placeholder={`Catatan ${i + 1}...`} rows={2} className="mt-1" />
                   </div>
-                );
-              })}
-              {catatanCount < 5 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setCatatanCount(prev => prev + 1)} className="mt-2 text-xs">
-                  + Tambah Catatan
-                </Button>
-              )}
+                  {catatanDesign.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCatatanDesign(catatanDesign.filter((_, idx) => idx !== i))} className="mt-5 text-red-500 hover:text-red-700 hover:bg-red-50">
+                      Hapus
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => setCatatanDesign([...catatanDesign, ""])} className="mt-2 text-xs">
+                + Tambah Catatan
+              </Button>
 
               {/* === SECTION: Upload Files === */}
               <SectionTitle icon={<FileText className="w-4 h-4" />} title="Upload Gambar Kerja & RAB (Link / File Lokal)" />
