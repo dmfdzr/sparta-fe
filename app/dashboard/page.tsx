@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import AppNavbar from '@/components/AppNavbar';
-import { ALL_MENUS, ROLE_CONFIG, getPpRoles } from '@/lib/constants';
+import { ALL_MENUS, ROLE_CONFIG } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
-import { fetchDashboardAll, fetchProjekPlanningList } from '@/lib/api';
+import { fetchDashboardAll } from '@/lib/api';
 import { 
     Activity, CheckCircle2, ChevronRight, Clock, FileCheck, FileEdit, FileText, 
     HardHat, Layers, Search, Store, Users, MapPin, RefreshCw,
@@ -39,7 +39,6 @@ export default function DashboardPage() {
     const itemsPerPage = 5;
     const [sidebarOpen, setSidebarOpen]     = useState(true);
     const [isContractor, setIsContractor]   = useState(false);
-    const [fpdHasUpdate, setFpdHasUpdate]   = useState(false);
 
     // Data State
     const [projects, setProjects] = useState<any[]>([]);
@@ -95,37 +94,6 @@ export default function DashboardPage() {
         // Initial Data Fetch
         fetchDashboardData(userCabang.toUpperCase());
         setIsLoading(false);
-
-        if (allowedIds.includes("menu-projek-planning")) {
-            const lastChecked = localStorage.getItem("last_checked_fpd") || "1970-01-01T00:00:00Z";
-            const filters: Record<string, string> = {};
-            
-            const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(roles, email);
-            
-            const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
-            if (isOnlyCoor) filters.email_pembuat = email;
-            
-            const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
-            if (!isHO && userCabang) filters.cabang = userCabang;
-            
-            fetchProjekPlanningList(filters).then(r => {
-                const items = r.data || [];
-                let actionRequired = false;
-                
-                if (isPPMgr) {
-                    actionRequired = items.some(i => i.status === "WAITING_PP_MANAGER_APPROVAL");
-                } else if (isPP) {
-                    actionRequired = items.some(i => i.status === "WAITING_PP_APPROVAL_1" || i.status === "WAITING_PP_APPROVAL_2");
-                } else if (isBM) {
-                    actionRequired = items.some(i => i.status === "WAITING_BM_APPROVAL");
-                } else if (isCoor) {
-                    actionRequired = items.some(i => ["DRAFT", "PP_DESIGN_3D_REQUIRED", "WAITING_RAB_UPLOAD", "REJECTED"].includes(i.status));
-                }
-                
-                const hasNew = items.some(i => new Date(i.updated_at) > new Date(lastChecked));
-                if (actionRequired || hasNew) setFpdHasUpdate(true);
-            }).catch(() => {});
-        }
     }, [router]);
 
     useEffect(() => {
@@ -460,9 +428,6 @@ export default function DashboardPage() {
                                             <p className="text-[12px] font-semibold text-slate-700 group-hover:text-red-700 leading-snug transition-colors wrap-break-word">{menu.title}</p>
                                             <p className="text-[10px] text-slate-400 leading-snug wrap-break-word mt-0.5">{menu.desc}</p>
                                         </div>
-                                        {menu.id === 'menu-projek-planning' && fpdHasUpdate && (
-                                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2 shrink-0" title="Ada FPD baru atau diperbarui" />
-                                        )}
                                     </div>
                                     <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-red-400 shrink-0 transition-colors" />
                                 </div>
