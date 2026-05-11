@@ -16,9 +16,8 @@ import {
   FileText, AlertTriangle, Filter, RefreshCw, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  fetchProjekPlanningList, type ProjekPlanningItem,
-} from "@/lib/api";
+import { fetchProjekPlanningList, type ProjekPlanningItem } from "@/lib/api";
+import { getPpRoles } from "@/lib/constants";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-700 border-slate-300", icon: <FileText className="w-3 h-3" /> },
@@ -58,10 +57,7 @@ export default function ProjekPlanningPage() {
       if (statusFilter) filters.status = statusFilter;
       
       const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
-      const isCoor = userRole.includes("COORDINATOR") || userRole.includes("KOORDINATOR");
-      const isBM = userRole.includes("BRANCH MANAGER") || userRole.includes("BM ");
-      const isPPMgr = userRole.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || userRole.includes("PROJECT PLANNING MANAGER") || userRole.includes("PP MANAGER") || userEmail === "charderrabagas@gmail.com" || userEmail === "wildan.pp.manager@gmail.com";
-      const isPP = userRole.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || userRole.includes("PROJECT PLANNING") || userRole.includes("PP SPECIALIST") || userEmail === "lina.yuliyanti@sat.co.id" || userEmail === "wildan.pp@gmail.com" || isPPMgr;
+      const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
 
       const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
 

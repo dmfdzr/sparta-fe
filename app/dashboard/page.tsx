@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import AppNavbar from '@/components/AppNavbar';
-import { ALL_MENUS, ROLE_CONFIG } from '@/lib/constants';
+import { ALL_MENUS, ROLE_CONFIG, getPpRoles } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
 import { fetchDashboardAll, fetchProjekPlanningList } from '@/lib/api';
 import { 
@@ -96,14 +96,11 @@ export default function DashboardPage() {
         fetchDashboardData(userCabang.toUpperCase());
         setIsLoading(false);
 
-        if (allowedIds.includes("project_planning")) {
+        if (allowedIds.includes("menu-projek-planning")) {
             const lastChecked = localStorage.getItem("last_checked_fpd") || "1970-01-01T00:00:00Z";
             const filters: Record<string, string> = {};
             
-            const isCoor = roles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
-            const isBM = roles.some(r => r.includes("BRANCH MANAGER") || r.includes("BM "));
-            const isPPMgr = roles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "charderrabagas@gmail.com" || email === "wildan.pp.manager@gmail.com";
-            const isPP = roles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST")) || email === "lina.yuliyanti@sat.co.id" || email === "wildan.pp@gmail.com" || isPPMgr;
+            const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(roles, email);
             
             const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
             if (isOnlyCoor) filters.email_pembuat = email;
@@ -463,7 +460,7 @@ export default function DashboardPage() {
                                             <p className="text-[12px] font-semibold text-slate-700 group-hover:text-red-700 leading-snug transition-colors wrap-break-word">{menu.title}</p>
                                             <p className="text-[10px] text-slate-400 leading-snug wrap-break-word mt-0.5">{menu.desc}</p>
                                         </div>
-                                        {menu.id === 'project_planning' && fpdHasUpdate && (
+                                        {menu.id === 'menu-projek-planning' && fpdHasUpdate && (
                                             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2 shrink-0" title="Ada FPD baru atau diperbarui" />
                                         )}
                                     </div>

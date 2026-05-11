@@ -17,7 +17,7 @@ import { fetchTokoList, submitProjekPlanning, resubmitProjekPlanning, fetchProje
 
 type TokoOption = { id: number; nomor_ulok: string; nama_toko: string; cabang: string; proyek: string; lingkup_pekerjaan: string; kode_toko: string };
 
-const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "LAINNYA"];
+const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "HEAD TO HEAD", "LAINNYA"];
 
 function FormProjekPlanningInner() {
   const router = useRouter();
@@ -264,7 +264,7 @@ function FormProjekPlanningInner() {
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600">Gambar Kerja / Foto Eksisting</Label>
                   <Input placeholder="Link Google Drive..." value={(f as any).link_fpd} onChange={e => { set("link_fpd", e.target.value); setFileFpd(null); }} className="bg-white" disabled={!!fileFpd} />
-                  <Input type="file" accept="image/*,.pdf" className="mt-1 file:bg-red-50 file:text-red-600 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-red-100 cursor-pointer" 
+                  <Input type="file" accept="image/*,.pdf,.dwg" className="mt-1 file:bg-red-50 file:text-red-600 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-red-100 cursor-pointer" 
                     onChange={e => {
                       const file = e.target.files?.[0];
                       if (file) { setFileFpd(file); set("link_fpd", ""); } else { setFileFpd(null); }

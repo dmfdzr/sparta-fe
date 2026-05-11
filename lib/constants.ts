@@ -285,3 +285,19 @@ export const BRANCH_TO_ULOK: Record<string, string> = {
     "MADIUN":          "2MZ1",
     "BINTAN":          "KZ01",
 };
+
+// -----------------------------------------------------------------------------
+// HELPER PERAN PROJECT PLANNING
+// -----------------------------------------------------------------------------
+
+export const getPpRoles = (userRole: string | string[], email: string) => {
+    const roles = Array.isArray(userRole) ? userRole : [userRole];
+    const upperRoles = roles.map(r => r.toUpperCase());
+    
+    const isCoor = upperRoles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
+    const isBM = upperRoles.some(r => r.includes("BRANCH MANAGER") || r.includes("BM "));
+    const isPPMgr = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "charderrabagas@gmail.com" || email === "wildan.pp.manager@gmail.com";
+    const isPP = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST")) || email === "lina.yuliyanti@sat.co.id" || email === "wildan.pp@gmail.com" || isPPMgr;
+    
+    return { isCoor, isBM, isPP, isPPMgr };
+};

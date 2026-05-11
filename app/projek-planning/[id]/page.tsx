@@ -21,6 +21,7 @@ import {
   uploadDesain3d, uploadRabGambarKerja, processPpManagerApproval, processPpApproval2,
   type ProjekPlanningItem, type ProjekPlanningLog,
 } from "@/lib/api";
+import { getPpRoles } from "@/lib/constants";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-700" },
@@ -242,11 +243,8 @@ export default function DetailProjekPlanning() {
   );
 
   const st = STATUS_MAP[data.status] || { label: data.status, color: "bg-slate-100" };
-  const isBM = userRole.includes("BRANCH MANAGER");
+  const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
   const isBBMM = userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM");
-  const isCoor = userRole.includes("COORDINATOR");
-  const isPPMgr = userRole.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || userRole.includes("PROJECT PLANNING MANAGER") || userRole.includes("PP MANAGER") || userEmail === "charderrabagas@gmail.com" || userEmail === "wildan.pp.manager@gmail.com";
-  const isPP = userRole.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || userRole.includes("PROJECT PLANNING") || userRole.includes("PP SPECIALIST") || userEmail === "lina.yuliyanti@sat.co.id" || userEmail === "wildan.pp@gmail.com" || isPPMgr;
 
   const requiredLinks = [data.link_gambar_rab_sipil, data.link_gambar_rab_me, data.link_fpd, data.link_desain_3d, data.link_rab, data.link_gambar_kerja, data.link_fpd_approved].filter(Boolean) as string[];
   const allLinksOpened = requiredLinks.length === 0 || requiredLinks.every(url => openedLinks.has(url));
@@ -264,7 +262,16 @@ export default function DetailProjekPlanning() {
             {data.status === "COMPLETED" ? <CheckCircle2 className="w-5 h-5" /> : data.status === "REJECTED" ? <XCircle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
             <span className="font-bold text-sm">{st.label}</span>
           </div>
-          <span className="text-xs opacity-75">ID: {data.id}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs opacity-75">ID: {data.id}</span>
+            {data.status === "COMPLETED" && (
+              <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/projek-planning/${data.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" variant="outline" className="h-7 text-xs bg-white text-slate-700 border-slate-300">
+                  <FileText className="w-3 h-3 mr-1" /> PDF
+                </Button>
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Info Toko */}
@@ -400,13 +407,13 @@ export default function DetailProjekPlanning() {
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold text-slate-700">Link / File RAB Final</Label>
                   <Input placeholder="Link RAB..." value={linkRab} onChange={e => { setLinkRab(e.target.value); setFileRab(null); }} className="bg-white" disabled={!!fileRab} />
-                  <Input type="file" onChange={handleFileChange(setLinkRab, setFileRab)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  <Input type="file" accept=".pdf,.xls,.xlsx" onChange={handleFileChange(setLinkRab, setFileRab)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
                   {fileRab && <p className="text-[10px] text-orange-600 mt-1">File siap diupload: {fileRab.name}</p>}
                 </div>
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold text-slate-700">Link / File Gambar Kerja</Label>
                   <Input placeholder="Link Gambar Kerja..." value={linkGambar} onChange={e => { setLinkGambar(e.target.value); setFileGambar(null); }} className="bg-white" disabled={!!fileGambar} />
-                  <Input type="file" onChange={handleFileChange(setLinkGambar, setFileGambar)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
+                  <Input type="file" accept="image/*,.pdf,.dwg" onChange={handleFileChange(setLinkGambar, setFileGambar)} className="bg-white file:bg-orange-50 file:text-orange-700 file:border-0 file:rounded file:px-2 file:mr-2 cursor-pointer" />
                   {fileGambar && <p className="text-[10px] text-orange-600 mt-1">File siap diupload: {fileGambar.name}</p>}
                 </div>
               </div>
