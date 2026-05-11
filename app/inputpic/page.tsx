@@ -79,8 +79,8 @@ function InfoItem({ icon, label, value, highlight }: {
 // =============================================================================
 
 function InteractiveGanttChart({
-    nomorUlok,
-    idToko,
+    ganttId,
+    readonlyDays,
     selectedDays,
     onToggleDay,
     spkStartDate,
@@ -88,8 +88,8 @@ function InteractiveGanttChart({
     onDataLoaded,
     requiredDays,
 }: {
-    nomorUlok: string;
-    idToko?: number;
+    ganttId: number;
+    readonlyDays?: boolean;
     selectedDays: number[];
     onToggleDay: (day: number) => void;
     spkStartDate?: string;  // ISO date string
@@ -103,32 +103,16 @@ function InteractiveGanttChart({
     const [tasks, setTasks] = useState<any[]>([]); 
     
     useEffect(() => {
-        if (!nomorUlok && !idToko) return;
+        if (!ganttId) return;
 
         setIsLoading(true);
         setErrorMsg('');
 
-        const fetchPromise = idToko
-            ? fetchGanttDetailByToko(idToko).then((res: any) => {
-                if (!res || !res.gantt_data) throw new Error("Gantt Chart belum dibuat untuk proyek ini.");
-                return {
-                    data: {
-                        gantt: res.gantt_data,
-                        toko: res.toko,
-                        kategori_pekerjaan: res.kategori_pekerjaan,
-                        day_items: res.day_gantt_data,
-                        dependencies: res.dependency_data || []
-                    }
-                };
+        fetchGanttDetail(ganttId)
+            .then(res => {
+                if (!res || !res.data) throw new Error("Gantt Chart belum dibuat untuk proyek ini.");
+                return res;
             })
-            : fetchGanttList({ nomor_ulok: nomorUlok })
-                .then(res => {
-                    const list = res.data || [];
-                    if (list.length === 0) throw new Error("Gantt Chart belum dibuat untuk proyek ini.");
-                    return fetchGanttDetail(list[0].id);
-                });
-
-        fetchPromise
             .then(detailRes => {
                 if (!detailRes) return;
                 const { gantt, toko, kategori_pekerjaan, day_items, dependencies } = detailRes.data;
@@ -161,6 +145,7 @@ function InteractiveGanttChart({
                     startDate: projectStart.toISOString().split('T')[0],
                     useSpkDates: !!(spkStartDate && spkDuration && spkDuration > 0),
                     spkStartDateObj: spkStartDate ? new Date(spkStartDate.split('T')[0] + 'T00:00:00') : projectStart,
+                    lingkup_pekerjaan: toko?.lingkup_pekerjaan || '',
                 });
 
                 if (onDataLoaded) onDataLoaded(finalDuration);
@@ -220,7 +205,7 @@ function InteractiveGanttChart({
                 setErrorMsg(err?.message || "Gagal memuat detail Gantt Chart.");
                 setIsLoading(false);
             });
-    }, [nomorUlok, idToko, spkStartDate, spkDuration]);
+    }, [ganttId, spkStartDate, spkDuration]);
 
     const chartData = useMemo(() => {
         if (!projectData || tasks.length === 0) return null;
@@ -332,26 +317,30 @@ function InteractiveGanttChart({
                 <div>
                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                         <BarChartHorizontal className="w-4 h-4 text-blue-600" />
-                        2. Gantt Chart & Hari Pengawasan
+                        2. Gantt Chart {projectData?.lingkup_pekerjaan ? `(${projectData.lingkup_pekerjaan})` : ''}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                        Klik angka pada header hari untuk menandai hari pengawasan PIC.
-                        {requiredDays > 0 && (
-                            <span className="font-bold text-indigo-600 ml-1">
-                                (Wajib pilih tepat {requiredDays} hari)
-                            </span>
-                        )}
-                    </p>
+                    {!readonlyDays && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Klik angka pada header hari untuk menandai hari pengawasan PIC.
+                            {requiredDays > 0 && (
+                                <span className="font-bold text-indigo-600 ml-1">
+                                    (Wajib pilih tepat {requiredDays} hari)
+                                </span>
+                            )}
+                        </p>
+                    )}
                 </div>
-                <div className={`border rounded-full px-3 py-1 text-xs font-bold ${
-                    requiredDays > 0 && selectedDays.length === requiredDays
-                        ? 'bg-green-100 text-green-700 border-green-200'
-                        : requiredDays > 0 && selectedDays.length > requiredDays
-                            ? 'bg-red-100 text-red-700 border-red-200'
-                            : 'bg-blue-100 text-blue-700 border-blue-200'
-                }`}>
-                    {selectedDays.length}{requiredDays > 0 ? ` / ${requiredDays}` : ''} hari dipilih
-                </div>
+                {!readonlyDays && (
+                    <div className={`border rounded-full px-3 py-1 text-xs font-bold ${
+                        requiredDays > 0 && selectedDays.length === requiredDays
+                            ? 'bg-green-100 text-green-700 border-green-200'
+                            : requiredDays > 0 && selectedDays.length > requiredDays
+                                ? 'bg-red-100 text-red-700 border-red-200'
+                                : 'bg-blue-100 text-blue-700 border-blue-200'
+                    }`}>
+                        {selectedDays.length}{requiredDays > 0 ? ` / ${requiredDays}` : ''} hari dipilih
+                    </div>
+                )}
             </div>
             <div className="flex border-b overflow-hidden relative" style={{ maxHeight: "450px" }}>
                 {/* Left Pane — Task Names */}
@@ -392,14 +381,20 @@ function InteractiveGanttChart({
                             return (
                                 <div
                                     key={i}
-                                    className={`shrink-0 border-r border-slate-200 font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-150 ${
+                                    className={`shrink-0 border-r border-slate-200 font-bold flex items-center justify-center select-none transition-all duration-150 ${
                                         isSelected
                                             ? 'bg-blue-600 text-white shadow-inner'
-                                            : 'bg-slate-50 text-slate-500 hover:bg-blue-100 hover:text-blue-700'
-                                    }`}
+                                            : readonlyDays 
+                                                ? 'bg-slate-50 text-slate-500' 
+                                                : 'bg-slate-50 text-slate-500 hover:bg-blue-100 hover:text-blue-700'
+                                    } ${!readonlyDays ? 'cursor-pointer' : ''}`}
                                     style={{ width: DAY_WIDTH, fontSize: projectData?.useSpkDates ? '9px' : undefined }}
-                                    onClick={() => onToggleDay(dayNumber)}
-                                    title={isSelected ? `Hari ke-${dayNumber} (terpilih — klik untuk batal)` : `Klik untuk pilih hari ke-${dayNumber}`}
+                                    onClick={() => !readonlyDays && onToggleDay(dayNumber)}
+                                    title={
+                                        readonlyDays 
+                                            ? isSelected ? `Hari ke-${dayNumber} (terpilih)` : `Hari ke-${dayNumber}` 
+                                            : isSelected ? `Hari ke-${dayNumber} (terpilih — klik untuk batal)` : `Klik untuk pilih hari ke-${dayNumber}`
+                                    }
                                 >
                                     {label}
                                 </div>
@@ -475,7 +470,7 @@ function InteractiveGanttChart({
             </div>
 
             {/* Selected days summary */}
-            {selectedDays.length > 0 && (
+            {!readonlyDays && selectedDays.length > 0 && (
                 <div className="p-3 bg-blue-50 border-t border-blue-100">
                     <div className="flex items-center justify-between mb-1.5">
                         <p className="text-xs font-bold text-blue-700">Hari Pengawasan Terpilih:</p>
@@ -561,6 +556,7 @@ export default function InputPICPage() {
     const [picList, setPicList] = useState<any[]>([]);
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [ganttDuration, setGanttDuration] = useState<number>(0);
+    const [ganttIds, setGanttIds] = useState<number[]>([]);
 
     const requiredDays = useMemo(() => {
         if (!rabDetail?.kategori_lokasi) return 0;
@@ -694,6 +690,7 @@ export default function InputPICPage() {
         setSelectedDays([]);
         setGanttDuration(0);
         setRabDetail(null);
+        setGanttIds([]);
 
         if (!spkId) {
             setSelectedSpk(null);
@@ -722,6 +719,19 @@ export default function InputPICPage() {
             // No existing PIC — continue
         }
 
+        // Fetch Gantt IDs
+        try {
+            const ganttListRes = await fetchGanttList({ nomor_ulok: selected.nomor_ulok });
+            if (ganttListRes.data && ganttListRes.data.length > 0) {
+                setGanttIds(ganttListRes.data.map((g: any) => g.id));
+            } else {
+                setGanttIds([]);
+            }
+        } catch (err) {
+            console.warn("Gagal memuat daftar Gantt Chart:", err);
+            setGanttIds([]);
+        }
+
         // Fetch RAB detail for id_rab and kategori_lokasi
         try {
             const rabList = await fetchRABList({ nomor_ulok: selected.nomor_ulok });
@@ -745,7 +755,7 @@ export default function InputPICPage() {
 
     // ── Handle Gantt Data Load ──
     const handleDataLoaded = useCallback((duration: number) => {
-        setGanttDuration(duration);
+        setGanttDuration(prev => Math.max(prev, duration));
         // Otomatis pilih hari terakhir pekerjaan
         setSelectedDays(prev => {
             if (!prev.includes(duration)) {
@@ -837,18 +847,7 @@ export default function InputPICPage() {
         setIsSubmitting(true);
         try {
             // Cek apakah Gantt Chart sudah ada
-            let id_gantt = null;
-            try {
-                const ganttListRes = await fetchGanttList({ nomor_ulok: selectedSpk.nomor_ulok });
-                const existingGantt = ganttListRes.data?.[0];
-                if (existingGantt) {
-                    id_gantt = existingGantt.id;
-                }
-            } catch (err) {
-                throw new Error("Gagal memeriksa Gantt Chart untuk proyek ini.");
-            }
-
-            if (!id_gantt) {
+            if (ganttIds.length === 0) {
                 throw new Error("Gantt Chart belum dibuat untuk proyek ini. Harap lengkapi Jadwal Kerja terlebih dahulu.");
             }
 
@@ -862,8 +861,10 @@ export default function InputPICPage() {
                 return `${d}/${m}/${y}`;
             });
 
-            // Submit ke Gantt
-            await submitGanttPengawasan(id_gantt, tglPengawasan);
+            // Submit ke semua Gantt Chart terkait ULOK ini
+            for (const gid of ganttIds) {
+                await submitGanttPengawasan(gid, tglPengawasan);
+            }
 
             const payloadPIC = {
                 id_toko: idToko,
@@ -1063,18 +1064,21 @@ export default function InputPICPage() {
                             {/* ═══════════════════════════════════════════════════
                                 SECTION 2: GANTT CHART INTERAKTIF
                             ═══════════════════════════════════════════════════ */}
-                            {selectedSpk && !isLocked && (
+                            {selectedSpk && !isLocked && ganttIds.length > 0 && (
                                 <div className="space-y-4">
-                                    <InteractiveGanttChart
-                                        nomorUlok={selectedSpk.nomor_ulok}
-                                        idToko={selectedSpk.toko ? undefined : undefined}
-                                        selectedDays={selectedDays}
-                                        onToggleDay={handleToggleDay}
-                                        spkStartDate={selectedSpk.waktu_mulai}
-                                        spkDuration={selectedSpk.durasi}
-                                        requiredDays={requiredDays}
-                                        onDataLoaded={handleDataLoaded}
-                                    />
+                                    {ganttIds.map((gid, idx) => (
+                                        <InteractiveGanttChart
+                                            key={gid}
+                                            ganttId={gid}
+                                            readonlyDays={idx > 0}
+                                            selectedDays={selectedDays}
+                                            onToggleDay={handleToggleDay}
+                                            spkStartDate={selectedSpk.waktu_mulai}
+                                            spkDuration={selectedSpk.durasi}
+                                            requiredDays={requiredDays}
+                                            onDataLoaded={handleDataLoaded}
+                                        />
+                                    ))}
 
                                     {/* Validation hints below Gantt */}
                                     {requiredDays > 0 && (
