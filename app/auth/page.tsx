@@ -94,10 +94,10 @@ export default function LoginPage() {
         
         // 1. Tangkap data dari response API
         const jabatanFromAPI = String(result?.data?.jabatan || "").toUpperCase().trim();
-        const namaLengkapFromAPI = result?.data?.nama_lengkap || "";
-        const cabangFromAPI = result?.data?.cabang || password; 
-        const emailFromAPI = result?.data?.email_sat || email;
-        const namaPtFromAPI = result?.data?.nama_pt || "";
+        const namaLengkapFromAPI = (result?.data?.nama_lengkap || "").trim();
+        const cabangFromAPI = (result?.data?.cabang || password).trim(); 
+        const emailFromAPI = (result?.data?.email_sat || email).trim();
+        const namaPtFromAPI = (result?.data?.nama_pt || "").trim();
 
         // 2. FUNGSI PEMETAAN (MAPPING) JABATAN
         let mappedRole = jabatanFromAPI;
