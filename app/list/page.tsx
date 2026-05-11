@@ -1350,7 +1350,7 @@ export default function DaftarDokumenPage() {
                                                         <p className="text-sm font-bold text-slate-800">
                                                             {selectedKategori === 'PERTAMBAHAN_SPK'
                                                                 ? `+${doc.pertambahan_hari || '-'} Hari`
-                                                                : selectedKategori === 'PENGAWASAN'
+                                                                : (selectedKategori === 'PENGAWASAN' || selectedKategori === 'DOKUMENTASI_BANGUNAN')
                                                                 ? null
                                                                 : formatRupiah(doc.total_nilai)
                                                             }
