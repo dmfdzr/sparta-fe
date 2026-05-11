@@ -29,6 +29,9 @@ export default function InstruksiLapanganPage() {
     const [lampiranFileName, setLampiranFileName] = useState<string | null>(null);
     const lampiranFileRef = useRef<HTMLInputElement>(null);
 
+    const [tanggalMulai, setTanggalMulai] = useState('');
+    const [tanggalSelesai, setTanggalSelesai] = useState('');
+
     const [isLoading, setIsLoading] = useState(false);
     const [isTokoLoading, setIsTokoLoading] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
@@ -64,6 +67,8 @@ export default function InstruksiLapanganPage() {
 
             setSelectedToko(toko || null);
             setTableRows([]);
+            setTanggalMulai('');
+            setTanggalSelesai('');
             
             if (toko && toko.lingkup_pekerjaan) {
                 let scope = toko.lingkup_pekerjaan;
@@ -79,6 +84,8 @@ export default function InstruksiLapanganPage() {
                 if (rejectedIL) {
                     const detailRes = await fetchInstruksiLapanganDetail(rejectedIL.id);
                     const items = detailRes.data?.items || [];
+                    setTanggalMulai(detailRes.data?.tanggal_mulai || '');
+                    setTanggalSelesai(detailRes.data?.tanggal_selesai || '');
                     
                     const newTableRows = items.map((it: any) => {
                         const itemPriceData = priceData[it.kategori_pekerjaan]?.find((p: any) => p["Jenis Pekerjaan"] === it.jenis_pekerjaan);
@@ -181,6 +188,9 @@ export default function InstruksiLapanganPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedToko) return showAlert("Peringatan", "Silakan pilih Toko terlebih dahulu.", "error");
+        if (!tanggalMulai || !tanggalSelesai) {
+            return showAlert("Peringatan", "Tanggal mulai dan tanggal selesai wajib diisi.", "warning");
+        }
 
         const detailItems = tableRows
             .filter(row => row.jenisPekerjaan && row.volume > 0)
@@ -203,6 +213,8 @@ export default function InstruksiLapanganPage() {
         const fields = {
             nomor_ulok: selectedToko.nomor_ulok,
             email_pembuat: sessionStorage.getItem("loggedInUserEmail") || "",
+            tanggal_mulai: tanggalMulai,
+            tanggal_selesai: tanggalSelesai,
         };
 
         try {
@@ -252,6 +264,24 @@ export default function InstruksiLapanganPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Tanggal Mulai <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        type="date"
+                                        value={tanggalMulai}
+                                        onChange={(e) => setTanggalMulai(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Tanggal Selesai <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        type="date"
+                                        value={tanggalSelesai}
+                                        onChange={(e) => setTanggalSelesai(e.target.value)}
+                                        required
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Lampiran Pendukung (Opsional)</Label>
