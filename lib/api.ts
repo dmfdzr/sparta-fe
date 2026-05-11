@@ -1842,7 +1842,8 @@ export const submitDokumentasiBangunan = async (
         if (data.url.startsWith('data:')) {
             const res = await fetch(data.url);
             const blob = await res.blob();
-            form.append("foto", blob, `photo_${idStr}.jpg`);
+            // Documentation requires foto_items_1, foto_items_2, etc.
+            form.append(`foto_items_${idStr}`, blob, `photo_${idStr}.jpg`);
         }
     }
 

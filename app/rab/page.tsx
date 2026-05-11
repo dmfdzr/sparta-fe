@@ -179,6 +179,7 @@ export default function RABPage() {
           else if (upperProyek === 'PERPANJANGAN') { finalProyek = 'Perpanjangan'; isRenovasi = true; }
           else if (upperProyek === 'TOKO TUTUP') { finalProyek = 'Toko Tutup'; isRenovasi = true; }
           else if (upperProyek === 'PEREMAJAAN/PERBAIKAN' || upperProyek === 'PEREMAJAAN PERBAIKAN') { finalProyek = 'Peremajaan/Perbaikan'; isRenovasi = true; }
+          else if (upperProyek === 'PERLUASAN') { finalProyek = 'Perluasan'; isRenovasi = true; }
 
           let finalKategori = rabRef.kategori_lokasi || data["Kategori_Lokasi"] || formData.kategoriLokasi;
           if (finalKategori?.toUpperCase() === 'RUKO') finalKategori = 'Ruko';
@@ -647,6 +648,7 @@ export default function RABPage() {
                         <SelectItem value="Perpanjangan">Perpanjangan</SelectItem>
                         <SelectItem value="Toko Tutup">Toko Tutup</SelectItem>
                         <SelectItem value="Peremajaan/Perbaikan">Peremajaan/Perbaikan</SelectItem>
+                        <SelectItem value="Perluasan">Perluasan</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (

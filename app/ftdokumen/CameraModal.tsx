@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, X, Upload, Ban, RotateCcw, Check } from 'lucide-react';
+import { Camera, X, Upload, Ban, RotateCcw, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { PhotoPoint } from './photoPoints';
 
@@ -11,10 +11,11 @@ interface CameraModalProps {
     point: PhotoPoint;
     onClose: () => void;
     onCapture: (pointId: number, data: PhotoData) => void;
+    onDelete?: (pointId: number) => void;
     existingPhoto?: PhotoData | null;
 }
 
-export default function CameraModal({ point, onClose, onCapture, existingPhoto }: CameraModalProps) {
+export default function CameraModal({ point, onClose, onCapture, onDelete, existingPhoto }: CameraModalProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,10 +194,19 @@ export default function CameraModal({ point, onClose, onCapture, existingPhoto }
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex justify-center">
-                            <Button onClick={handleRetake} variant="outline" className="h-10 bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs">
+                        <div className="flex gap-2 w-full">
+                            <Button onClick={handleRetake} variant="outline" className="flex-1 h-10 bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs">
                                 <RotateCcw className="w-4 h-4 mr-1" /> Ambil Ulang Foto
                             </Button>
+                            {onDelete && (
+                                <Button 
+                                    onClick={() => { onDelete(point.id); onClose(); }} 
+                                    variant="destructive" 
+                                    className="h-10 bg-red-600 hover:bg-red-700 text-white text-xs"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-1" /> Hapus Foto
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>

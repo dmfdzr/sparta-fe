@@ -148,6 +148,14 @@ export default function FTDokumenPage() {
         showAlert({ message: `Foto #${pointId} berhasil disimpan!`, type: 'success' });
     };
 
+    const handleDeletePhoto = (pointId: number) => {
+        setPhotos(prev => {
+            const next = { ...prev };
+            delete next[pointId];
+            return next;
+        });
+    };
+
     const handleSavePdf = async () => {
         if (completedCount < TOTAL_PHOTOS) {
             showAlert({ message: `Mohon lengkapi seluruh ${TOTAL_PHOTOS} foto sebelum menyimpan.`, type: 'warning' });
@@ -170,7 +178,7 @@ export default function FTDokumenPage() {
                 tanggal_ambil_foto: formData.tanggalAmbilFoto,
                 email_pengirim: sessionStorage.getItem('loggedInUserEmail') || '',
                 status_validasi: 'submitted',
-                pic_dokumentasi: sessionStorage.getItem('loggedInUserName') || 'PIC'
+                pic_dokumentasi: sessionStorage.getItem('nama_lengkap') || sessionStorage.getItem('loggedInUserEmail')?.split('@')[0] || 'PIC'
             };
 
             await submitDokumentasiBangunan(payloadFields, photos);
@@ -226,6 +234,7 @@ export default function FTDokumenPage() {
                     existingPhoto={photos[cameraPoint.id] || null}
                     onClose={() => setCameraPoint(null)}
                     onCapture={handleCapture}
+                    onDelete={handleDeletePhoto}
                 />
             )}
         </>

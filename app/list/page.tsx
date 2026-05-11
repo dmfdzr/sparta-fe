@@ -12,7 +12,7 @@ import {
     Eye, FileDown, Building2, CalendarDays, User, XCircle,
     CheckCircle, Hash, Clock, ChevronRight, Filter,
     RefreshCw, AlertTriangle, Download, FilePlus, CheckSquare,
-    ClipboardList,
+    ClipboardList, Camera, MapPin,
 } from 'lucide-react';
 
 import {
@@ -27,6 +27,7 @@ import {
     fetchGanttList, fetchGanttDetail,
     updateRABStatus, fetchBerkasSerahTerimaList,
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
+    fetchDokumentasiBangunanList, fetchDokumentasiBangunanDetail, generateDokumentasiBangunanPdf,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
 import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
@@ -34,7 +35,7 @@ import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 // =============================================================================
 // TYPES
 // =============================================================================
-type DokumenKategori = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL' | 'PENGAWASAN' | 'BERKAS_SERAH_TERIMA' | 'INSTRUKSI_LAPANGAN';
+type DokumenKategori = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL' | 'PENGAWASAN' | 'BERKAS_SERAH_TERIMA' | 'INSTRUKSI_LAPANGAN' | 'DOKUMENTASI_BANGUNAN';
 type ActiveView = 'menu' | 'list' | 'detail';
 
 interface NormalizedDoc {
@@ -68,6 +69,9 @@ interface NormalizedDoc {
     id_pengawasan_gantt?: number;
     tanggal_pengawasan?: string;
     grouped_items?: any[];
+    // Dokumentasi Bangunan specific
+    kode_toko?: string;
+    pic_dokumentasi?: string;
 }
 
 interface NormalizedDetail {
@@ -148,6 +152,17 @@ interface NormalizedDetail {
     link_pdf_pengawasan?: string | null;
     tanggal_pengawasan?: string;
     pengawasan_items?: any[];
+    // Dokumentasi Bangunan specific
+    kode_toko?: string;
+    tanggal_go?: string;
+    tanggal_serah_terima?: string;
+    tanggal_ambil_foto?: string;
+    spk_awal?: string;
+    spk_akhir?: string;
+    kontraktor_sipil?: string;
+    kontraktor_me?: string;
+    pic_dokumentasi?: string;
+    dokumentasi_items?: any[];
 }
 
 // =============================================================================
@@ -240,6 +255,17 @@ const KATEGORI_CONFIG: Record<DokumenKategori, {
         hoverBorder: 'hover:border-pink-400',
         badgeColor: 'bg-pink-100 text-pink-700 border-pink-200',
         description: 'Daftar dokumen instruksi lapangan.',
+    },
+    DOKUMENTASI_BANGUNAN: {
+        label: 'Dok. Bangunan',
+        fullLabel: 'Dokumentasi Bangunan',
+        icon: <Camera className="w-10 h-10" />,
+        color: 'text-rose-600',
+        bgColor: 'bg-rose-50',
+        borderColor: 'border-rose-200',
+        hoverBorder: 'hover:border-rose-400',
+        badgeColor: 'bg-rose-100 text-rose-700 border-rose-200',
+        description: 'Daftar dokumentasi foto bangunan toko baru.',
     },
 };
 
@@ -474,6 +500,23 @@ const normalizeInstruksiLapanganDocs = (items: any[]): NormalizedDoc[] =>
         created_at:    i.created_at ?? i.timestamp ?? '-',
         link_pdf:      i.link_pdf_gabungan ?? null,
     }));
+ 
+const normalizeDokumentasiBangunanDocs = (items: any[]): NormalizedDoc[] =>
+    items.map(d => ({
+        id: d.id,
+        tipe: 'DOKUMENTASI_BANGUNAN' as DokumenKategori,
+        nomor_ulok:    d.nomor_ulok || '-',
+        nama_toko:     d.nama_toko  || '-',
+        cabang:        d.cabang     || '-',
+        proyek:        '-', // Dokumentasi bangunan doesn't usually have project name field in DB
+        status:        d.status_validasi || 'submitted',
+        email_pembuat: d.email_pengirim || '-',
+        total_nilai:   0,
+        created_at:    d.created_at,
+        link_pdf:      d.link_pdf || null,
+        kode_toko:     d.kode_toko,
+        pic_dokumentasi: d.pic_dokumentasi,
+    }));
 
 // =============================================================================
 // MAIN COMPONENT
@@ -509,6 +552,10 @@ export default function DaftarDokumenPage() {
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [selectedNewStatus, setSelectedNewStatus] = useState('');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    // --- Foto Pagination (Dokumentasi Bangunan) ---
+    const [fotoPage, setFotoPage] = useState(1);
+    const FOTO_PER_PAGE = 10;
 
     // =========================================================================
     // AUTH + INIT
@@ -582,6 +629,9 @@ export default function DaftarDokumenPage() {
             } else if (kategori === 'INSTRUKSI_LAPANGAN') {
                 const res = await fetchInstruksiLapanganList();
                 docs = normalizeInstruksiLapanganDocs(res.data ?? []);
+            } else if (kategori === 'DOKUMENTASI_BANGUNAN') {
+                const res = await fetchDokumentasiBangunanList();
+                docs = normalizeDokumentasiBangunanDocs(res.data ?? []);
             }
 
             // Filter by cabang for non-HO users (branch group aware)
@@ -823,9 +873,38 @@ export default function DaftarDokumenPage() {
                         catatan:         it.instruksi || it.keterangan || it.catatan || '-',
                     })),
                 };
+            } else if (doc.tipe === 'DOKUMENTASI_BANGUNAN') {
+                const res = await fetchDokumentasiBangunanDetail(doc.id);
+                const d = res.data.dokumentasi;
+                const pdfObj = res.data.pdf;
+                detail = {
+                    id: d.id,
+                    tipe: 'DOKUMENTASI_BANGUNAN',
+                    nomor_ulok:        d.nomor_ulok,
+                    nama_toko:         d.nama_toko,
+                    kode_toko:         d.kode_toko,
+                    cabang:            d.cabang,
+                    proyek:            '-',
+                    status:            d.status_validasi,
+                    email_pembuat:     d.email_pengirim,
+                    total_nilai:       0,
+                    created_at:        d.created_at,
+                    tanggal_go:        d.tanggal_go,
+                    tanggal_serah_terima: d.tanggal_serah_terima,
+                    tanggal_ambil_foto: d.tanggal_ambil_foto,
+                    spk_awal:          d.spk_awal,
+                    spk_akhir:         d.spk_akhir,
+                    kontraktor_sipil:  d.kontraktor_sipil,
+                    kontraktor_me:     d.kontraktor_me,
+                    pic_dokumentasi:   d.pic_dokumentasi,
+                    alasan_penolakan:  d.alasan_revisi,
+                    link_pdf:          pdfObj?.link_pdf || d.link_pdf,
+                    dokumentasi_items: res.data.items || [],
+                };
             }
-
+ 
             setSelectedDetail(detail);
+            setFotoPage(1); // reset foto pagination on new detail
         } catch (err: any) {
             showToast(err.message || 'Gagal memuat detail.', 'error');
             setActiveView('list');
@@ -848,6 +927,14 @@ export default function DaftarDokumenPage() {
                 await downloadOpnameFinalPdf(id);
             } else if (tipe === 'INSTRUKSI_LAPANGAN') {
                 await downloadInstruksiLapanganPdf(id);
+            } else if (tipe === 'DOKUMENTASI_BANGUNAN') {
+                const result = await generateDokumentasiBangunanPdf(id);
+                const pdfLink = result?.data?.link_pdf;
+                if (pdfLink) {
+                    window.open(pdfLink, '_blank', 'noopener,noreferrer');
+                } else {
+                    throw new Error('Link PDF tidak tersedia setelah generate.');
+                }
             }
             showToast('PDF berhasil diunduh.', 'success');
         } catch (err: any) {
@@ -1220,6 +1307,8 @@ export default function DaftarDokumenPage() {
                                                                 ? <CheckCircle className="w-5 h-5" />
                                                                 : selectedKategori === 'INSTRUKSI_LAPANGAN'
                                                                 ? <ClipboardList className="w-5 h-5" />
+                                                                : selectedKategori === 'DOKUMENTASI_BANGUNAN'
+                                                                ? <Camera className="w-5 h-5" />
                                                                 : <FilePlus className="w-5 h-5" />
                                                             }
                                                         </div>
@@ -1227,9 +1316,11 @@ export default function DaftarDokumenPage() {
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <span className="font-bold text-slate-800 text-sm">{doc.nomor_ulok}</span>
-                                                            <Badge className={`${getStatusBadgeClass(doc.status)} text-[10px] font-semibold border px-2 py-0`}>
-                                                                {getStatusLabel(doc.status)}
-                                                            </Badge>
+                                                            {doc.status && doc.status !== 'submitted' && (
+                                                                <Badge className={`${getStatusBadgeClass(doc.status)} text-[10px] font-semibold border px-2 py-0`}>
+                                                                    {getStatusLabel(doc.status)}
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                         <p className="text-sm text-slate-600 truncate mt-0.5">
                                                             {selectedKategori === 'RAB' 
@@ -1306,6 +1397,7 @@ export default function DaftarDokumenPage() {
                                         : selectedDetail.tipe === 'PENGAWASAN' ? 'bg-linear-to-r from-indigo-50 to-indigo-100/50 border-b border-indigo-100'
                                         : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'bg-linear-to-r from-teal-50 to-teal-100/50 border-b border-teal-100'
                                         : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'bg-linear-to-r from-pink-50 to-pink-100/50 border-b border-pink-100'
+                                        : selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'bg-linear-to-r from-rose-50 to-rose-100/50 border-b border-rose-100'
                                         : 'bg-linear-to-r from-purple-50 to-purple-100/50 border-b border-purple-100'
                                     }`}>
                                         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1317,6 +1409,7 @@ export default function DaftarDokumenPage() {
                                                     : selectedDetail.tipe === 'PENGAWASAN' ? 'bg-indigo-100'
                                                     : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'bg-teal-100'
                                                     : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'bg-pink-100'
+                                                    : selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'bg-rose-100'
                                                     : 'bg-purple-100'
                                                 } flex items-center justify-center`}>
                                                     {selectedDetail.tipe === 'RAB'
@@ -1331,6 +1424,8 @@ export default function DaftarDokumenPage() {
                                                         ? <CheckCircle className="w-5 h-5 text-teal-600" />
                                                         : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN'
                                                         ? <ClipboardList className="w-5 h-5 text-pink-600" />
+                                                        : selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN'
+                                                        ? <Camera className="w-5 h-5 text-rose-600" />
                                                         : <FileSignature className="w-5 h-5 text-purple-600" />
                                                     }
                                                 </div>
@@ -1343,15 +1438,18 @@ export default function DaftarDokumenPage() {
                                                         : selectedDetail.tipe === 'PENGAWASAN' ? 'Detail Pengawasan'
                                                         : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'Detail Serah Terima'
                                                         : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'Detail Instruksi Lapangan'
+                                                        : selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'Detail Dokumentasi Bangunan'
                                                         : 'Detail Dokumen'}
                                                     </h3>
                                                     <p className="text-sm text-slate-500">ID: {selectedDetail.id}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <Badge className={`${getStatusBadgeClass(selectedDetail.status)} font-semibold text-xs border px-3 py-1`}>
-                                                    {getStatusLabel(selectedDetail.status)}
-                                                </Badge>
+                                                {selectedDetail.status && selectedDetail.status !== 'submitted' && (
+                                                    <Badge className={`${getStatusBadgeClass(selectedDetail.status)} font-semibold text-xs border px-3 py-1`}>
+                                                        {getStatusLabel(selectedDetail.status)}
+                                                    </Badge>
+                                                )}
                                                 {isHO && selectedDetail.tipe === 'RAB' && (
                                                     <Button
                                                         size="sm"
@@ -1462,12 +1560,27 @@ export default function DaftarDokumenPage() {
                                                     )}
                                                 </>
                                             )}
+ 
+                                            {/* Dokumentasi Bangunan-specific fields */}
+                                            {selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' && (
+                                                <>
+                                                    <InfoRow icon={<Hash className="w-4 h-4" />} label="Kode Toko" value={selectedDetail.kode_toko || '-'} />
+                                                    <InfoRow icon={<User className="w-4 h-4" />} label="PIC Dokumentasi" value={selectedDetail.pic_dokumentasi || '-'} />
+                                                    <InfoRow icon={<CalendarDays className="w-4 h-4" />} label="Tanggal GO" value={selectedDetail.tanggal_go ? formatDateFull(selectedDetail.tanggal_go) : '-'} />
+                                                    <InfoRow icon={<CalendarDays className="w-4 h-4" />} label="Tanggal Serah Terima" value={selectedDetail.tanggal_serah_terima ? formatDateFull(selectedDetail.tanggal_serah_terima) : '-'} />
+                                                    <InfoRow icon={<CalendarDays className="w-4 h-4" />} label="Tanggal Ambil Foto" value={selectedDetail.tanggal_ambil_foto ? formatDateFull(selectedDetail.tanggal_ambil_foto) : '-'} />
+                                                    <InfoRow icon={<FileText className="w-4 h-4" />} label="SPK Awal" value={selectedDetail.spk_awal || '-'} />
+                                                    <InfoRow icon={<FileText className="w-4 h-4" />} label="SPK Akhir" value={selectedDetail.spk_akhir || '-'} />
+                                                    <InfoRow icon={<Building2 className="w-4 h-4" />} label="Kontraktor Sipil" value={selectedDetail.kontraktor_sipil || '-'} />
+                                                    <InfoRow icon={<Building2 className="w-4 h-4" />} label="Kontraktor ME" value={selectedDetail.kontraktor_me || '-'} />
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Nilai Kontrak Card — hide for PERTAMBAHAN_SPK & PENGAWASAN */}
-                                {selectedDetail.tipe !== 'PERTAMBAHAN_SPK' && selectedDetail.tipe !== 'PENGAWASAN' && (
+                                {/* Nilai Kontrak Card — hide for PERTAMBAHAN_SPK, PENGAWASAN & DOKUMENTASI_BANGUNAN */}
+                                {selectedDetail.tipe !== 'PERTAMBAHAN_SPK' && selectedDetail.tipe !== 'PENGAWASAN' && selectedDetail.tipe !== 'DOKUMENTASI_BANGUNAN' && (
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                         <div className="w-1.5 h-5 bg-red-500 rounded-full" />
@@ -1500,26 +1613,41 @@ export default function DaftarDokumenPage() {
                                 </div>
                                 )}
 
-                                {/* Approval Trail (RAB & INSTRUKSI_LAPANGAN) */}
-                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && (
+                                 {/* Approval Trail (RAB, INSTRUKSI_LAPANGAN & DOKUMENTASI_BANGUNAN) */}
+                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' || selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN') && (
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                            <div className="w-1.5 h-5 bg-green-500 rounded-full" />
-                                            Riwayat Persetujuan
+                                            <div className={`w-1.5 h-5 ${selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'bg-rose-500' : 'bg-green-500'} rounded-full`} />
+                                            {selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'Status Validasi' : 'Riwayat Persetujuan'}
                                         </h4>
                                         <div className="space-y-3">
-                                            <ApprovalRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
-                                            <ApprovalRow label="Manager" pemberi={selectedDetail.approval_manager?.pemberi} waktu={selectedDetail.approval_manager?.waktu} />
-                                            {selectedDetail.tipe === 'RAB' ? (
-                                                <ApprovalRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
-                                            ) : (
-                                                <ApprovalRow label="Kontraktor" pemberi={selectedDetail.approval_kontraktor?.pemberi} waktu={selectedDetail.approval_kontraktor?.waktu} />
+                                            {selectedDetail.tipe !== 'DOKUMENTASI_BANGUNAN' && (
+                                                <>
+                                                    <ApprovalRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
+                                                    <ApprovalRow label="Manager" pemberi={selectedDetail.approval_manager?.pemberi} waktu={selectedDetail.approval_manager?.waktu} />
+                                                    {selectedDetail.tipe === 'RAB' ? (
+                                                        <ApprovalRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
+                                                    ) : (
+                                                        <ApprovalRow label="Kontraktor" pemberi={selectedDetail.approval_kontraktor?.pemberi} waktu={selectedDetail.approval_kontraktor?.waktu} />
+                                                    )}
+                                                </>
+                                            )}
+                                            {selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' && (
+                                                <div className="flex items-center gap-3 text-sm">
+                                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                                        <User className="w-5 h-5 text-slate-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] text-slate-400 font-medium uppercase">PIC Dokumentasi</p>
+                                                        <p className="text-sm text-slate-800 font-bold">{selectedDetail.pic_dokumentasi}</p>
+                                                    </div>
+                                                </div>
                                             )}
                                             {selectedDetail.alasan_penolakan && (
                                                 <div className="flex items-start gap-3 text-sm mt-2 bg-red-50 rounded-lg p-3 border border-red-100">
                                                     <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                                                     <div>
-                                                        <span className="text-red-700 font-semibold">Alasan Penolakan: </span>
+                                                        <span className="text-red-700 font-semibold">{selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ? 'Alasan Revisi: ' : 'Alasan Penolakan: '}</span>
                                                         <span className="text-red-600">{selectedDetail.alasan_penolakan}</span>
                                                     </div>
                                                 </div>
@@ -1674,6 +1802,73 @@ export default function DaftarDokumenPage() {
                                     </div>
                                 )}
 
+                                {/* Photo List with Pagination (DOKUMENTASI_BANGUNAN) */}
+                                {selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' && selectedDetail.dokumentasi_items && selectedDetail.dokumentasi_items.length > 0 && (() => {
+                                    const totalPages = Math.ceil(selectedDetail.dokumentasi_items.length / FOTO_PER_PAGE);
+                                    const startIdx = (fotoPage - 1) * FOTO_PER_PAGE;
+                                    const pageItems = selectedDetail.dokumentasi_items.slice(startIdx, startIdx + FOTO_PER_PAGE);
+                                    return (
+                                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                                <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                    <div className="w-1.5 h-5 bg-rose-500 rounded-full" />
+                                                    Daftar Foto Dokumentasi
+                                                </h4>
+                                                <Badge className="bg-rose-100 text-rose-700 border-rose-200 border text-xs font-semibold">
+                                                    {selectedDetail.dokumentasi_items.length} Foto
+                                                </Badge>
+                                            </div>
+                                            <div className="divide-y divide-slate-100">
+                                                {pageItems.map((item: any, idx: number) => (
+                                                    <div key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-7 h-7 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+                                                                <span className="text-[11px] font-bold text-rose-500">{startIdx + idx + 1}</span>
+                                                            </div>
+                                                            <span className="text-sm text-slate-600">Foto #{startIdx + idx + 1}</span>
+                                                            {item.created_at && (
+                                                                <span className="text-[11px] text-slate-400 hidden sm:block">{formatDateFull(item.created_at)}</span>
+                                                            )}
+                                                        </div>
+                                                        <a href={item.link_foto} target="_blank" rel="noopener noreferrer">
+                                                            <Button variant="outline" size="sm" className="h-7 text-xs border-rose-200 text-rose-600 hover:bg-rose-50">
+                                                                <Eye className="w-3 h-3 mr-1" /> Lihat Foto
+                                                            </Button>
+                                                        </a>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {totalPages > 1 && (
+                                                <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50">
+                                                    <span className="text-xs text-slate-500">
+                                                        Halaman {fotoPage} dari {totalPages}
+                                                    </span>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 text-xs"
+                                                            disabled={fotoPage <= 1}
+                                                            onClick={() => setFotoPage(p => Math.max(1, p - 1))}
+                                                        >
+                                                            ← Sebelumnya
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 text-xs"
+                                                            disabled={fotoPage >= totalPages}
+                                                            onClick={() => setFotoPage(p => Math.min(totalPages, p + 1))}
+                                                        >
+                                                            Berikutnya →
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* PDF Download Actions */}
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -1681,7 +1876,7 @@ export default function DaftarDokumenPage() {
                                         Unduh Dokumen
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
-                                        {/* Download button for RAB, SPK, OPNAME_FINAL, INSTRUKSI_LAPANGAN */}
+                                        {/* Download button for RAB, SPK, OPNAME_FINAL, INSTRUKSI_LAPANGAN, DOKUMENTASI_BANGUNAN */}
                                         {(
                                             (selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_gabungan) ||
                                             (selectedDetail.tipe === 'SPK' && selectedDetail.link_pdf) ||
@@ -1699,6 +1894,22 @@ export default function DaftarDokumenPage() {
                                                     <Download className="w-4 h-4 mr-2" />
                                                 )}
                                                 Unduh PDF {selectedDetail.tipe}
+                                            </Button>
+                                        )}
+
+                                        {/* Dokumentasi Bangunan — Generate & Open PDF */}
+                                        {selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' && (
+                                            <Button
+                                                className="bg-rose-600 hover:bg-rose-700 text-white"
+                                                disabled={downloadingId === selectedDetail.id}
+                                                onClick={() => handleDownloadPDF(selectedDetail.id, selectedDetail.tipe)}
+                                            >
+                                                {downloadingId === selectedDetail.id ? (
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Download className="w-4 h-4 mr-2" />
+                                                )}
+                                                Generate & Unduh PDF
                                             </Button>
                                         )}
 
