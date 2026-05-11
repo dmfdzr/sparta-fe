@@ -55,7 +55,7 @@ function FpdTimeline({ currentStatus }: { currentStatus: string }) {
   if (currentStatus === "COMPLETED") activeIndex = 5;
 
   return (
-    <div className="mb-2 mt-6 w-full relative">
+    <div className="mb-10 mt-2 w-full relative">
       <div className="relative flex justify-between items-center w-full px-2 sm:px-6">
         <div className="absolute left-4 right-4 sm:left-10 sm:right-10 top-1/2 -translate-y-1/2 h-1 bg-slate-200 z-0"></div>
         <div className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 h-1 bg-green-500 z-0 transition-all duration-500" style={{ width: `calc(${Math.max(0, (activeIndex / (FPD_STEPS.length - 1)) * 100)}% - 2rem)` }}></div>

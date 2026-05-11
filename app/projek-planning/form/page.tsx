@@ -25,6 +25,8 @@ function FormProjekPlanningInner() {
   const resubmitId = searchParams.get("resubmit");
   const [submitting, setSubmitting] = useState(false);
   const [fileFpd, setFileFpd] = useState<File | null>(null);
+  const [fileRabSipil, setFileRabSipil] = useState<File | null>(null);
+  const [fileRabMe, setFileRabMe] = useState<File | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState({ title: "", desc: "", type: "" });
   const [tokoList, setTokoList] = useState<TokoOption[]>([]);
@@ -89,7 +91,7 @@ function FormProjekPlanningInner() {
     
     if (resubmitId && originalF) {
       // Cek apakah ada perubahan
-      const hasChanges = Object.keys(f).some(key => (f as any)[key] !== originalF[key]) || fileFpd !== null;
+      const hasChanges = Object.keys(f).some(key => (f as any)[key] !== originalF[key]) || fileFpd !== null || fileRabSipil !== null || fileRabMe !== null;
       if (!hasChanges) {
         setAlertMsg({ title: "Peringatan", desc: "Silakan ubah minimal satu data / isi form sebelum melakukan resubmit.", type: "error" });
         setAlertOpen(true);
@@ -101,9 +103,9 @@ function FormProjekPlanningInner() {
       const payload = { ...f, email_pembuat: userEmail, estimasi_biaya: f.estimasi_biaya ? Number(f.estimasi_biaya) : undefined };
       let res;
       if (resubmitId) {
-        res = await resubmitProjekPlanning(Number(resubmitId), payload, fileFpd ?? undefined);
+        res = await resubmitProjekPlanning(Number(resubmitId), payload, fileFpd ?? undefined, fileRabSipil ?? undefined, fileRabMe ?? undefined);
       } else {
-        res = await submitProjekPlanning(payload, fileFpd ?? undefined);
+        res = await submitProjekPlanning(payload, fileFpd ?? undefined, fileRabSipil ?? undefined, fileRabMe ?? undefined);
       }
       setAlertMsg({ title: "Berhasil!", desc: "Pengajuan FPD berhasil disimpan. Menunggu approval B&M Manager.", type: "success" });
       setAlertOpen(true);
@@ -271,15 +273,23 @@ function FormProjekPlanningInner() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600">File RAB Sipil</Label>
-                  <Input placeholder="Link Google Drive..." value={(f as any).link_gambar_rab_sipil} onChange={e => set("link_gambar_rab_sipil", e.target.value)} className="bg-white" />
+                  <Input placeholder="Link Google Drive..." value={(f as any).link_gambar_rab_sipil} onChange={e => { set("link_gambar_rab_sipil", e.target.value); setFileRabSipil(null); }} className="bg-white" disabled={!!fileRabSipil} />
                   <Input type="file" accept=".pdf,.xls,.xlsx" className="mt-1 file:bg-blue-50 file:text-blue-600 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-blue-100 cursor-pointer"
-                    onChange={e => set("link_gambar_rab_sipil", e.target.files?.[0] ? URL.createObjectURL(e.target.files[0]) : "")} />
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) { setFileRabSipil(file); set("link_gambar_rab_sipil", ""); } else { setFileRabSipil(null); }
+                    }} />
+                  {fileRabSipil && <p className="text-[10px] text-blue-600 mt-1">File siap diupload: {fileRabSipil.name}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-slate-600">File RAB ME</Label>
-                  <Input placeholder="Link Google Drive..." value={(f as any).link_gambar_rab_me} onChange={e => set("link_gambar_rab_me", e.target.value)} className="bg-white" />
+                  <Input placeholder="Link Google Drive..." value={(f as any).link_gambar_rab_me} onChange={e => { set("link_gambar_rab_me", e.target.value); setFileRabMe(null); }} className="bg-white" disabled={!!fileRabMe} />
                   <Input type="file" accept=".pdf,.xls,.xlsx" className="mt-1 file:bg-blue-50 file:text-blue-600 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-blue-100 cursor-pointer"
-                    onChange={e => set("link_gambar_rab_me", e.target.files?.[0] ? URL.createObjectURL(e.target.files[0]) : "")} />
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) { setFileRabMe(file); set("link_gambar_rab_me", ""); } else { setFileRabMe(null); }
+                    }} />
+                  {fileRabMe && <p className="text-[10px] text-blue-600 mt-1">File siap diupload: {fileRabMe.name}</p>}
                 </div>
               </div>
               
