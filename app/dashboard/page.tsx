@@ -538,7 +538,7 @@ export default function DashboardPage() {
 
                             <div className="text-right hidden sm:block border-l border-slate-200 pl-3">
                                 <p className="text-xs font-bold text-slate-700 leading-tight">Live Dashboard</p>
-                                <p className="text-[10px] text-slate-400 leading-tight">Monitoring Terpadu</p>
+                                <p className="text-[10px] text-slate-400 leading-tight">Project Monitoring</p>
                             </div>
                         </div>
                     </div>
