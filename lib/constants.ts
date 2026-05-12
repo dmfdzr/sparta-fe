@@ -168,11 +168,11 @@ export const ROLE_CONFIG: Record<string, string[]> = {
     ],
 
     "PROJECT PLANNING & DEVELOPMENT SPECIALIST": [
-        "menu-projek-planning"
+        "menu-projek-planning", "menu-daftardokumen"
     ],
 
     "PROJECT PLANNING & DEVELOPMENT MANAGER": [
-        "menu-projek-planning"
+        "menu-projek-planning", "menu-daftardokumen"
     ],
 
     // ─── Super Human: akses penuh ke semua menu ───────────────────────────────
@@ -298,8 +298,8 @@ export const getPpRoles = (userRole: string | string[], email: string) => {
     
     const isCoor = upperRoles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
     const isBM = upperRoles.some(r => r.includes("BRANCH MANAGER") || r.includes("BM "));
-    const isPPMgr = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "charderrabagas@gmail.com" || email === "wildan.pp.manager@gmail.com";
-    const isPP = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST")) || email === "lina.yuliyanti@sat.co.id" || email === "wildan.pp@gmail.com" || isPPMgr;
+    const isPPMgr = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "wildan.pp.manager@gmail.com";
+    const isPP = upperRoles.some(r => (r.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || r.includes("PP SPECIALIST") || (r.includes("PROJECT PLANNING") && !r.includes("MANAGER")))) || email === "wildan.pp@gmail.com";
     
     return { isCoor, isBM, isPP, isPPMgr };
 };

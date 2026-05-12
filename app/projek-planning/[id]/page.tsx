@@ -20,6 +20,7 @@ import {
 import {
   fetchProjekPlanningDetail, processBmApproval, processPpApproval1,
   uploadDesain3d, uploadRabGambarKerja, processPpManagerApproval, processPpApproval2,
+  downloadProjekPlanningPdf,
   type ProjekPlanningItem, type ProjekPlanningLog,
 } from "@/lib/api";
 import { getPpRoles } from "@/lib/constants";
@@ -300,11 +301,13 @@ export default function DetailProjekPlanning() {
           <div className="flex items-center gap-2">
             <span className="text-xs opacity-75">ID: {data.id}</span>
             {data.status === "COMPLETED" && (
-              <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/projek-planning/${data.id}/pdf`} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline" className="h-7 text-xs bg-white text-slate-700 border-slate-300">
-                  <FileText className="w-3 h-3 mr-1" /> PDF
-                </Button>
-              </a>
+              <Button size="sm" variant="outline" className="h-7 text-xs bg-white text-slate-700 border-slate-300"
+                onClick={async () => {
+                  try { await downloadProjekPlanningPdf(data.id); }
+                  catch (e: any) { showAlert("Gagal", e.message); }
+                }}>
+                <FileText className="w-3 h-3 mr-1" /> PDF
+              </Button>
             )}
           </div>
         </div>

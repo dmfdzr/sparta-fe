@@ -97,8 +97,10 @@ export default function DashboardPage() {
             allowedIds = ALL_MENUS.map(m => m.id);
         }
 
+        const isOnlyPPRoles = roles.every(r => r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST") || r.includes("PP MANAGER"));
+
         // Super Human gets menu-users explicitly (already in ROLE_CONFIG but ensure it)
-        if (isSuperHuman) {
+        if (isSuperHuman || (isHO && !isOnlyPPRoles)) {
             allowedIds.push("menu-users");
         }
 

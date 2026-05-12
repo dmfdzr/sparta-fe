@@ -2156,9 +2156,6 @@ export type ProjekPlanningItem = {
     link_fpd_approved: string | null;
     link_gambar_rab_sipil: string | null;
     link_gambar_rab_me: string | null;
-    fasilitas?: any[];
-    ketentuan?: any[];
-    catatan_design?: any[];
     status: string;
     butuh_desain_3d: boolean;
     bm_approver_email: string | null;
@@ -2173,6 +2170,15 @@ export type ProjekPlanningItem = {
     pp2_approver_email: string | null;
     pp2_waktu_persetujuan: string | null;
     pp2_alasan_penolakan: string | null;
+    fasilitas?: {
+        id?: number;
+        jenis_fasilitas: string;
+        nama_fasilitas_lainnya?: string | null;
+        is_tersedia: boolean;
+        keterangan?: string | null;
+    }[];
+    ketentuan?: { id?: number; isi_ketentuan: string | null }[];
+    catatan_design?: { id?: number; isi_catatan: string | null }[];
     created_at: string;
     updated_at: string;
 };
@@ -2308,6 +2314,38 @@ export const fetchProjekPlanningLogs = async (
     id: number
 ): Promise<{ status: string; data: ProjekPlanningLog[] }> => {
     return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/logs`);
+};
+
+/**
+ * Download PDF Project Planning ke browser.
+ * Nama file diambil dari header Content-Disposition jika tersedia.
+ */
+export const downloadProjekPlanningPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/pdf`);
+    if (res.status === 404) throw new Error(`Project Planning dengan ID ${id} tidak ditemukan.`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal mengunduh PDF (${res.status}): ${text.substring(0, 100)}`);
+    }
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `Project_Planning_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
 };
 
 /** Proses approval BM Manager. */
