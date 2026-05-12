@@ -102,9 +102,16 @@ function FormProjekPlanningInner() {
           setOriginalF(merged);
           setTokoSearch(`${p.nomor_ulok} — ${p.nama_toko || p.nama_lokasi}`);
           
-          if (p.ketentuan && p.ketentuan.length > 0) setKetentuan(p.ketentuan.map((k: any) => k.isi_ketentuan));
-          if (p.catatan_design && p.catatan_design.length > 0) setCatatanDesign(p.catatan_design.map((c: any) => c.isi_catatan));
-          if (p.fasilitas && p.fasilitas.length > 0) setFasilitas(p.fasilitas);
+          if (p.ketentuan && p.ketentuan.length > 0) setKetentuan(p.ketentuan.map((k: any) => k.isi_ketentuan || ""));
+          if (p.catatan_design && p.catatan_design.length > 0) setCatatanDesign(p.catatan_design.map((c: any) => c.isi_catatan || ""));
+          if (p.fasilitas && p.fasilitas.length > 0) {
+            setFasilitas(p.fasilitas.map(item => ({
+              jenis_fasilitas: item.jenis_fasilitas,
+              nama_fasilitas_lainnya: item.nama_fasilitas_lainnya || undefined,
+              is_tersedia: item.is_tersedia,
+              keterangan: item.keterangan || undefined,
+            })));
+          }
         }
       });
     }
@@ -207,14 +214,10 @@ function FormProjekPlanningInner() {
                   <div><span className="text-slate-500">Proyek:</span> <span className="font-semibold">{f.jenis_proyek}</span></div>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <Label className="text-xs font-semibold text-slate-600">Nama Pengaju *</Label>
                   <Input value={f.nama_pengaju} onChange={e => set("nama_pengaju", e.target.value)} required className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold text-slate-600">Estimasi Biaya (Rp)</Label>
-                  <Input type="number" value={f.estimasi_biaya} onChange={e => set("estimasi_biaya", e.target.value)} className="mt-1" placeholder="0" />
                 </div>
               </div>
 
