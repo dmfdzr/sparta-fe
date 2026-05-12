@@ -21,6 +21,7 @@ import {
     fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList,
     type OpnameItem, type RABDetailItem, type RABDetailToko, type RABListItem,
 } from '@/lib/api';
+import { BRANCH_GROUPS } from '@/lib/constants';
 
 // =============================================================================
 // HELPERS
@@ -1156,6 +1157,15 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     const [downloadingFotoId, setDownloadingFotoId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
 
+    const userCabang = (userInfo.cabang || '').toUpperCase();
+    const allowedBranches = useMemo(() => {
+        const group = BRANCH_GROUPS[userCabang];
+        if (group) return group.map(b => b.toUpperCase());
+        return [userCabang];
+    }, [userCabang]);
+
+    const [selectedCabangFilter, setSelectedCabangFilter] = useState<string>('ALL');
+
     // Load all opname + RAB list
     useEffect(() => {
         setIsLoading(true);
@@ -1180,7 +1190,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
 
     // Group opname by toko for project selection
     const tokoGroups = useMemo(() => {
-        const map = new Map<number, { id_toko: number; nomor_ulok: string; nama_toko: string; count: number; items: OpnameItem[] }>();
+        const map = new Map<number, { id_toko: number; nomor_ulok: string; nama_toko: string; cabang: string; count: number; items: OpnameItem[] }>();
         opnameList.forEach(item => {
             const id = item.id_toko;
             if (!map.has(id)) {
@@ -1189,6 +1199,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                     id_toko: id,
                     nomor_ulok: rab?.nomor_ulok || item.toko?.nomor_ulok || '-',
                     nama_toko: rab?.nama_toko || item.toko?.nama_toko || 'Toko',
+                    cabang: (rab?.cabang || item.toko?.cabang || '').toUpperCase(),
                     count: 0,
                     items: [],
                 });
@@ -1200,14 +1211,21 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
         return Array.from(map.values());
     }, [opnameList, rabList]);
 
-    // Filter by search
+    // Filter by search and branch
     const filteredTokoGroups = useMemo(() => {
         const q = searchQuery.toLowerCase();
-        return tokoGroups.filter(g =>
-            g.nomor_ulok.toLowerCase().includes(q) ||
-            g.nama_toko.toLowerCase().includes(q)
-        );
-    }, [tokoGroups, searchQuery]);
+        return tokoGroups.filter(g => {
+            // Strict branch checking for Contractor
+            if (g.cabang && !allowedBranches.includes(g.cabang)) return false;
+            if (!g.cabang && allowedBranches.length > 0 && allowedBranches[0] !== '') return false;
+            
+            // Dropdown filter check
+            if (selectedCabangFilter !== 'ALL' && g.cabang !== selectedCabangFilter) return false;
+
+            return g.nomor_ulok.toLowerCase().includes(q) ||
+                   g.nama_toko.toLowerCase().includes(q);
+        });
+    }, [tokoGroups, searchQuery, allowedBranches, selectedCabangFilter]);
 
     // Handle toko selection
     const handleSelectToko = async (tokoId: number) => {
@@ -1377,15 +1395,32 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                         {/* Project Selector */}
                         {!selectedToko ? (
                             <div className="space-y-4">
-                                <div className="relative mb-4">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Cari proyek berdasarkan ULOK atau nama toko..."
-                                        className="w-full pl-9 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
+                                <div className="relative mb-4 flex gap-3 flex-col sm:flex-row">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Cari proyek berdasarkan ULOK atau nama toko..."
+                                            className="w-full pl-9 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                    {allowedBranches.length > 1 && (
+                                        <div className="relative shrink-0 w-full sm:w-48">
+                                            <select
+                                                value={selectedCabangFilter}
+                                                onChange={(e) => setSelectedCabangFilter(e.target.value)}
+                                                className="w-full p-2.5 border rounded-lg bg-slate-50 outline-none text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 appearance-none font-semibold text-slate-700"
+                                            >
+                                                <option value="ALL">Semua Cabang</option>
+                                                {allowedBranches.map(b => (
+                                                    <option key={b} value={b}>{b}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {isLoading ? (
