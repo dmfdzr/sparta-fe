@@ -578,7 +578,14 @@ export default function InputPICPage() {
 
         if (isAuth !== "true" || !role) { router.push('/auth'); return; }
 
-        if (role.toUpperCase() !== 'BRANCH BUILDING COORDINATOR') {
+        const roleUpper = role.toUpperCase();
+        const cabangUpper = cabang.toUpperCase();
+
+        const isAllowed = 
+            roleUpper === 'BRANCH BUILDING COORDINATOR' ||
+            (cabangUpper === 'MANADO' && roleUpper === 'BRANCH BUILDING & MAINTENANCE MANAGER');
+
+        if (!isAllowed) {
             showAlert({
                 message: "Hanya Branch Building Coordinator yang dapat mengakses halaman ini.",
                 type: "warning",

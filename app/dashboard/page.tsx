@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
 import AppNavbar from '@/components/AppNavbar';
 import { ALL_MENUS, ROLE_CONFIG } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
-import { fetchDashboardAll } from '@/lib/api';
+import { fetchDashboardAll, fetchRABDetail } from '@/lib/api';
 import { 
     Activity, CheckCircle2, ChevronRight, Clock, FileCheck, FileEdit, FileText, 
     HardHat, Layers, Search, Store, Users, MapPin, RefreshCw,
@@ -45,6 +45,10 @@ export default function DashboardPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCabang, setSelectedCabang] = useState('ALL');
     const [cabangList, setCabangList] = useState<string[]>([]);
+
+    // Caching RAB items for Cost/m2 calculations
+    const fetchingIds = useRef<Set<number>>(new Set());
+    const [rabItemsMap, setRabItemsMap] = useState<Record<number, any[]>>({});
 
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
     const [featureAlertOpen, setFeatureAlertOpen] = useState(false);
@@ -83,6 +87,10 @@ export default function DashboardPage() {
 
         if (isHO) {
             allowedIds.push("menu-users");
+        }
+
+        if (userCabang.toUpperCase() === 'MANADO' && roles.includes('BRANCH BUILDING & MAINTENANCE MANAGER')) {
+            allowedIds.push("menu-inputpic");
         }
 
         setAllowedMenus(ALL_MENUS.filter(m => allowedIds.includes(m.id)));
@@ -143,6 +151,40 @@ export default function DashboardPage() {
         });
     }, [projects, searchQuery, selectedCabang]);
 
+    // Fetch RAB Details asynchronously for Cost/m2 items calculations
+    useEffect(() => {
+        if (!filteredProjects || filteredProjects.length === 0) return;
+        
+        const missingIds: number[] = [];
+        filteredProjects.forEach(p => {
+            const rabs = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
+            rabs.forEach((r: any) => {
+                if (r && r.id && !rabItemsMap[r.id] && !fetchingIds.current.has(r.id)) {
+                    missingIds.push(r.id);
+                    fetchingIds.current.add(r.id);
+                }
+            });
+        });
+
+        if (missingIds.length === 0) return;
+
+        const fetchAll = async () => {
+            const newMap: Record<number, any[]> = {};
+            await Promise.all(missingIds.map(async (id) => {
+                try {
+                    const res = await fetchRABDetail(id);
+                    newMap[id] = res?.data?.items || [];
+                } catch (e) {
+                    newMap[id] = [];
+                }
+            }));
+            
+            setRabItemsMap(prev => ({ ...prev, ...newMap }));
+        };
+
+        fetchAll();
+    }, [filteredProjects, rabItemsMap]);
+
     // Summary Stats
     const stats = useMemo(() => {
         let totalPenawaran = 0;
@@ -150,7 +192,11 @@ export default function DashboardPage() {
         let totalJHK = 0;
         let totalDelay = 0;
         let totalDenda = 0;
-        let totalCostM2 = 0;
+        
+        let sumRatioTerbuka = 0; let countTerbuka = 0;
+        let sumRatioBangunan = 0; let countBangunan = 0;
+        let sumRatioTerbangun = 0; let countTerbangun = 0;
+
         let totalNilaiToko = 0;
         let totalNilaiKontraktor = 0;
         let totalBeanspot = 0;
@@ -330,6 +376,58 @@ export default function DashboardPage() {
 
             totalNilaiToko += Number(p.toko?.nilai_toko || 0);
             totalNilaiKontraktor += Number(p.toko?.nilai_kontraktor || 0);
+
+            // Perhitungan Cost/m2 per Toko/Ulok
+            let costTerbukaToko = 0;
+            let costBangunanToko = 0;
+            let costTerbangunToko = 0;
+            let luasTerbukaToko = 0;
+            let luasBangunanToko = 0;
+            let luasTerbangunToko = 0;
+
+            const rabArr = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
+            rabArr.forEach((rab: any) => {
+                luasTerbukaToko = Math.max(luasTerbukaToko, Number(rab.luas_area_terbuka || 0));
+                luasBangunanToko = Math.max(luasBangunanToko, Number(rab.luas_bangunan || 0));
+                luasTerbangunToko = Math.max(luasTerbangunToko, Number(rab.luas_terbangun || 0));
+                
+                costTerbangunToko += Number(rab.grand_total_final || 0);
+                
+                // Coba ambil dari rabItemsMap (hasil fetch detail)
+                const itemsFromCache = rabItemsMap[rab.id] || [];
+                // Fallback dari RAB asli
+                const itemsData = typeof rab.items === 'string' ? JSON.parse(rab.items) : (rab.items || []);
+                const itemsFromJson = typeof rab.Item_Details_JSON === 'string' ? JSON.parse(rab.Item_Details_JSON) : (rab.Item_Details_JSON || []);
+                const finalItems = itemsFromCache.length > 0 ? itemsFromCache : (itemsData.length > 0 ? itemsData : itemsFromJson);
+                
+                if (finalItems.length > 0) {
+                    finalItems.forEach((item: any) => {
+                        const itemTotal = Number(item.total_harga || (item.volume * (item.harga_material + item.harga_upah)) || 0);
+                        const kat = (item.kategori_pekerjaan || item.Kategori_Pekerjaan || '').toUpperCase();
+                        if (kat === 'PEKERJAAN AREA TERBUKA') {
+                            costTerbukaToko += itemTotal;
+                        } else {
+                            costBangunanToko += itemTotal;
+                        }
+                    });
+                } else {
+                    // Fallback jika tidak ada items sama sekali
+                    costBangunanToko += Number(rab.grand_total_final || 0);
+                }
+            });
+
+            if (luasTerbukaToko > 0 && costTerbukaToko > 0) {
+                sumRatioTerbuka += (costTerbukaToko / luasTerbukaToko);
+                countTerbuka++;
+            }
+            if (luasBangunanToko > 0 && costBangunanToko > 0) {
+                sumRatioBangunan += (costBangunanToko / luasBangunanToko);
+                countBangunan++;
+            }
+            if (luasTerbangunToko > 0 && costTerbangunToko > 0) {
+                sumRatioTerbangun += (costTerbangunToko / luasTerbangunToko);
+                countTerbangun++;
+            }
         });
 
         const count = filteredProjects.length || 1;
@@ -342,14 +440,16 @@ export default function DashboardPage() {
             avgJHK: Math.round(totalJHK / (jhkProjectCount || 1)),
             avgDelay: Math.round(totalDelay / (jhkProjectCount || 1)),
             totalDenda: totalDenda,
-            avgCostM2: 0,
+            avgCostTerbuka: countTerbuka > 0 ? Math.round(sumRatioTerbuka / countTerbuka) : 0,
+            avgCostBangunan: countBangunan > 0 ? Math.round(sumRatioBangunan / countBangunan) : 0,
+            avgCostTerbangun: countTerbangun > 0 ? Math.round(sumRatioTerbangun / countTerbangun) : 0,
             avgNilaiToko: (totalNilaiToko / count).toFixed(1),
             avgNilaiKontraktor: (totalNilaiKontraktor / count).toFixed(1),
             avgBeanspot: totalBeanspot,
             miniStats,
             miniPerhatian
         };
-    }, [filteredProjects]);
+    }, [filteredProjects, rabItemsMap]);
 
     const handleLogout = () => { sessionStorage.clear(); router.push('/'); };
 
@@ -619,11 +719,11 @@ export default function DashboardPage() {
                                 />
                                 <StatCard 
                                     title="Rata-rata Cost/m²" 
-                                    value={formatRupiah(stats.avgCostM2)} 
+                                    value={formatRupiah(stats.avgCostTerbangun)} 
                                     icon={<Layers />} 
                                     bgColor="#faf5ff"
                                     textColor="#805ad5"
-                                    subLabel="Terbangun | Bangunan | Terbuka"
+                                    subLabel="Nilai Area Terbangun (Detail klik sini)"
                                     isLoading={isDataLoading}
                                     onClick={() => setDetailModal({ open: true, title: 'Rata-rata Cost/m²', context: 'COST_M2', subContext: '' })}
                                 />
@@ -989,6 +1089,49 @@ export default function DashboardPage() {
                                                                                         denda = Math.min(denda, 10000000);
                                                                                     }
                                                                                     return formatRupiah(denda);
+                                                                                })()
+                                                                            : detailModal.context === 'COST_M2'
+                                                                                ? (() => {
+                                                                                    let costTerbuka = 0; let costBangunan = 0; let costTerbangun = 0;
+                                                                                    let luasTerbuka = 0; let luasBangunan = 0; let luasTerbangun = 0;
+                                                                                    const rabArr = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
+                                                                                    rabArr.forEach((rab: any) => {
+                                                                                        luasTerbuka = Math.max(luasTerbuka, Number(rab.luas_area_terbuka || 0));
+                                                                                        luasBangunan = Math.max(luasBangunan, Number(rab.luas_bangunan || 0));
+                                                                                        luasTerbangun = Math.max(luasTerbangun, Number(rab.luas_terbangun || 0));
+                                                                                        costTerbangun += Number(rab.grand_total_final || 0);
+                                                                                        
+                                                                                        const itemsFromCache = rabItemsMap[rab.id] || [];
+                                                                                        const itemsData = typeof rab.items === 'string' ? JSON.parse(rab.items) : (rab.items || []);
+                                                                                        const itemsFromJson = typeof rab.Item_Details_JSON === 'string' ? JSON.parse(rab.Item_Details_JSON) : (rab.Item_Details_JSON || []);
+                                                                                        const finalItems = itemsFromCache.length > 0 ? itemsFromCache : (itemsData.length > 0 ? itemsData : itemsFromJson);
+                                                                                        
+                                                                                        if (finalItems.length > 0) {
+                                                                                            finalItems.forEach((item: any) => {
+                                                                                                const itemTotal = Number(item.total_harga || (item.volume * (item.harga_material + item.harga_upah)) || 0);
+                                                                                                const kat = (item.kategori_pekerjaan || item.Kategori_Pekerjaan || '').toUpperCase();
+                                                                                                if (kat === 'PEKERJAAN AREA TERBUKA') {
+                                                                                                    costTerbuka += itemTotal;
+                                                                                                } else {
+                                                                                                    costBangunan += itemTotal;
+                                                                                                }
+                                                                                            });
+                                                                                        } else {
+                                                                                            costBangunan += Number(rab.grand_total_final || 0);
+                                                                                        }
+                                                                                    });
+                                                                                    
+                                                                                    const rTerbuka = luasTerbuka > 0 && costTerbuka > 0 ? Math.round(costTerbuka / luasTerbuka) : 0;
+                                                                                    const rBangunan = luasBangunan > 0 && costBangunan > 0 ? Math.round(costBangunan / luasBangunan) : 0;
+                                                                                    const rTerbangun = luasTerbangun > 0 && costTerbangun > 0 ? Math.round(costTerbangun / luasTerbangun) : 0;
+                                                                                    
+                                                                                    return (
+                                                                                        <div className="flex flex-col gap-1 text-right">
+                                                                                            <span className="text-[10px] text-slate-500">Terbangun: <span className="text-slate-800 font-bold">{formatRupiah(rTerbangun)}</span>/m²</span>
+                                                                                            <span className="text-[10px] text-slate-500">Bangunan: <span className="text-slate-800 font-bold">{formatRupiah(rBangunan)}</span>/m²</span>
+                                                                                            <span className="text-[10px] text-slate-500">Terbuka: <span className="text-slate-800 font-bold">{formatRupiah(rTerbuka)}</span>/m²</span>
+                                                                                        </div>
+                                                                                    );
                                                                                 })()
                                                                             : detailModal.context === 'NILAI_TOKO'
                                                                                 ? `${p.toko?.nilai_toko || 0}`

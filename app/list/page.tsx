@@ -1715,7 +1715,7 @@ export default function DaftarDokumenPage() {
                                                     <tr>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">No</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Kategori</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Jenis Pekerjaan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap min-w-62.5">Jenis Pekerjaan</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs min-w-48">Catatan</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Satuan</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Volume</th>
@@ -1729,7 +1729,7 @@ export default function DaftarDokumenPage() {
                                                         <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/50">
                                                             <td className="px-4 py-2.5 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
                                                             <td className="px-4 py-2.5 text-slate-600 font-medium text-xs whitespace-nowrap">{item.kategori}</td>
-                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.jenis_pekerjaan}</td>
+                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-62.5">{item.jenis_pekerjaan}</td>
                                                             <td className="px-4 py-2.5 text-slate-500 italic text-xs">{item.catatan || '-'}</td>
                                                             <td className="px-4 py-2.5 text-center text-slate-500 whitespace-nowrap">{item.satuan}</td>
                                                             <td className="px-4 py-2.5 text-center text-slate-600 whitespace-nowrap">{item.volume}</td>
@@ -1767,7 +1767,7 @@ export default function DaftarDokumenPage() {
                                                     <tr>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">No</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Kategori</th>
-                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Jenis Pekerjaan</th>
+                                                        <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap min-w-62.5">Jenis Pekerjaan</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs min-w-48">Catatan</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Status</th>
                                                         <th className="text-center px-4 py-3 font-semibold text-xs whitespace-nowrap">Dokumentasi</th>
@@ -1778,7 +1778,7 @@ export default function DaftarDokumenPage() {
                                                         <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/50">
                                                             <td className="px-4 py-2.5 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
                                                             <td className="px-4 py-2.5 text-slate-600 font-medium text-xs whitespace-nowrap">{item.kategori_pekerjaan}</td>
-                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.jenis_pekerjaan}</td>
+                                                            <td className="px-4 py-2.5 text-slate-700 whitespace-normal min-w-62.5">{item.jenis_pekerjaan}</td>
                                                             <td className="px-4 py-2.5 text-slate-500 italic text-xs">{item.catatan || '-'}</td>
                                                             <td className="px-4 py-2.5 text-center whitespace-nowrap">
                                                                 <Badge className={`${getStatusBadgeClass(item.status)} text-[10px] font-semibold border px-2 py-0`}>
