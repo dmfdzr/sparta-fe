@@ -19,7 +19,7 @@ interface AppNavbarProps {
 }
 
 export default function AppNavbar({
-  title = "SPARTA",
+  title = "SPARTA Building",
   showBackButton = false,
   backHref = "/dashboard",
   showMenuToggle = false,

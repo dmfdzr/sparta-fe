@@ -482,7 +482,7 @@ export default function DashboardPage() {
                 HEADER — Menggunakan AppNavbar dengan konfigurasi khusus Dashboard
             ================================================================ */}
             <AppNavbar 
-                title="SPARTA"
+                title="SPARTA Building"
                 showBuildingLogo={true}
                 showMenuToggle={true}
                 isMenuOpen={sidebarOpen}
@@ -782,7 +782,7 @@ export default function DashboardPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Konfirmasi Keluar</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Apakah Anda yakin ingin keluar dari sistem SPARTA? Sesi Anda akan diakhiri.
+                            Apakah Anda yakin ingin keluar dari sistem SPARTA Building? Sesi Anda akan diakhiri.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
