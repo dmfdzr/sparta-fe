@@ -47,13 +47,13 @@ export default function DashboardPage() {
     const [selectedCabang, setSelectedCabang] = useState('ALL');
     const [cabangList, setCabangList] = useState<string[]>([]);
 
-    // Caching RAB items for Cost/m2 calculations
-    const fetchingIds = useRef<Set<number>>(new Set());
-    const [rabItemsMap, setRabItemsMap] = useState<Record<number, any[]>>({});
-
-    // Caching Opname items for Nilai Toko calculations
-    const fetchingOpnameIds = useRef<Set<number>>(new Set());
+    // Opname items map keyed by id_toko — populated once via bulk fetch
     const [opnameItemsMap, setOpnameItemsMap] = useState<Record<number, any[]>>({});
+    const opnameFetched = useRef(false);
+
+    // RAB items map keyed by rab.id — populated once after dashboard load
+    const [rabItemsMap, setRabItemsMap] = useState<Record<number, any[]>>({});
+    const rabFetched = useRef(false);
 
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
     const [featureAlertOpen, setFeatureAlertOpen] = useState(false);
@@ -133,6 +133,30 @@ export default function DashboardPage() {
             // Extract unique branches for HO selector
             const branches: string[] = Array.from(new Set(data.map((p: any) => p.toko?.cabang?.toUpperCase()).filter(Boolean)));
             setCabangList(branches.sort());
+
+            // Fetch semua RAB items sekaligus (background) untuk Cost/m2 & Beanspot
+            if (!rabFetched.current) {
+                rabFetched.current = true;
+                const rabIds: number[] = [];
+                data.forEach((p: any) => {
+                    const rabs = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
+                    rabs.forEach((r: any) => { if (r?.id) rabIds.push(r.id); });
+                });
+                if (rabIds.length > 0) {
+                    const BATCH = 20;
+                    const newMap: Record<number, any[]> = {};
+                    for (let i = 0; i < rabIds.length; i += BATCH) {
+                        const batch = rabIds.slice(i, i + BATCH);
+                        await Promise.all(batch.map(async (id) => {
+                            try {
+                                const res = await fetchRABDetail(id);
+                                newMap[id] = res?.data?.items || [];
+                            } catch { newMap[id] = []; }
+                        }));
+                        setRabItemsMap(prev => ({ ...prev, ...newMap }));
+                    }
+                }
+            }
         } catch (err) {
             console.error('Gagal memuat data dashboard:', err);
             setProjects([]);
@@ -159,79 +183,31 @@ export default function DashboardPage() {
         });
     }, [projects, searchQuery, selectedCabang]);
 
-    // Fetch RAB Details asynchronously for Cost/m2 & Beanspot calculations (batched, progressive)
+    // Fetch semua Opname Items sekaligus (1 request) untuk Nilai Toko, Kontraktor
     useEffect(() => {
-        if (!filteredProjects || filteredProjects.length === 0) return;
-        
-        const missingIds: number[] = [];
-        filteredProjects.forEach(p => {
-            const rabs = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
-            rabs.forEach((r: any) => {
-                if (r && r.id && !rabItemsMap[r.id] && !fetchingIds.current.has(r.id)) {
-                    missingIds.push(r.id);
-                    fetchingIds.current.add(r.id);
-                }
-            });
-        });
+        if (opnameFetched.current) return;
+        opnameFetched.current = true;
 
-        if (missingIds.length === 0) return;
-
-        const BATCH_SIZE = 20;
         const fetchAll = async () => {
-            const newMap: Record<number, any[]> = {};
-            for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
-                const batch = missingIds.slice(i, i + BATCH_SIZE);
-                await Promise.all(batch.map(async (id) => {
-                    try {
-                        const res = await fetchRABDetail(id);
-                        newMap[id] = res?.data?.items || [];
-                    } catch (e) {
-                        newMap[id] = [];
-                    }
-                }));
-                // Progressive update per batch — Beanspot & Cost/m2 cards populate as data arrives
-                setRabItemsMap(prev => ({ ...prev, ...newMap }));
+            try {
+                const res = await fetchOpnameList();
+                const items: any[] = res?.data || [];
+                // Group by id_toko
+                const map: Record<number, any[]> = {};
+                items.forEach((item: any) => {
+                    const tid = item.id_toko;
+                    if (!tid) return;
+                    if (!map[tid]) map[tid] = [];
+                    map[tid].push(item);
+                });
+                setOpnameItemsMap(map);
+            } catch (e) {
+                console.error('Gagal fetch opname bulk:', e);
             }
         };
 
         fetchAll();
-    }, [filteredProjects, rabItemsMap]);
-
-    // Fetch Opname Items asynchronously for Nilai Toko & Nilai Kontraktor (batched, progressive)
-    useEffect(() => {
-        if (!filteredProjects || filteredProjects.length === 0) return;
-        
-        const missingIds: number[] = [];
-        filteredProjects.forEach(p => {
-            if (p.toko && p.toko.id && !opnameItemsMap[p.toko.id] && !fetchingOpnameIds.current.has(p.toko.id)) {
-                missingIds.push(p.toko.id);
-                fetchingOpnameIds.current.add(p.toko.id);
-            }
-        });
-
-        if (missingIds.length === 0) return;
-
-        const BATCH_SIZE = 10;
-        const fetchAll = async () => {
-            const newMap: Record<number, any[]> = {};
-            for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
-                const batch = missingIds.slice(i, i + BATCH_SIZE);
-                await Promise.all(batch.map(async (id_toko) => {
-                    try {
-                        const res = await fetchOpnameList({ id_toko });
-                        newMap[id_toko] = res?.data || [];
-                    } catch (e) {
-                        newMap[id_toko] = [];
-                    }
-                }));
-                // Progressive update per batch — Nilai Toko & Kontraktor cards populate as data arrives
-                setOpnameItemsMap(prev => ({ ...prev, ...newMap }));
-            }
-        };
-
-        fetchAll();
-    }, [filteredProjects, opnameItemsMap]);
-
+    }, []);
 
 
     // Summary Stats
@@ -479,9 +455,8 @@ export default function DashboardPage() {
                 
                 costTerbangunToko += Number(rab.grand_total_final || 0);
                 
-                // Coba ambil dari rabItemsMap (hasil fetch detail)
+                // Ambil dari rabItemsMap (hasil fetch background), fallback ke rab.items
                 const itemsFromCache = rabItemsMap[rab.id] || [];
-                // Fallback dari RAB asli
                 const itemsData = typeof rab.items === 'string' ? JSON.parse(rab.items) : (rab.items || []);
                 const itemsFromJson = typeof rab.Item_Details_JSON === 'string' ? JSON.parse(rab.Item_Details_JSON) : (rab.Item_Details_JSON || []);
                 const finalItems = itemsFromCache.length > 0 ? itemsFromCache : (itemsData.length > 0 ? itemsData : itemsFromJson);
