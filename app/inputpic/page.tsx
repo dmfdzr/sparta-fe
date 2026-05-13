@@ -14,10 +14,9 @@ import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import AppNavbar from '@/components/AppNavbar';
 import {
     fetchSPKList, fetchRABList, fetchRABDetail,
-    fetchGanttList, fetchGanttDetail, fetchGanttDetailByToko, submitGanttPengawasan,
+    fetchGanttList, fetchGanttDetail, submitGanttPengawasan,
     submitPICPengawasan, fetchPICPengawasanList, fetchUserCabangList,
-    type SPKListItem, type RABListItem, type GanttDetailDayItem,
-    type GanttDetailKategori, type GanttDetailDependency,
+    type SPKListItem
 } from '@/lib/api';
 import { BRANCH_GROUPS } from '@/lib/constants';
 
@@ -27,12 +26,6 @@ import { BRANCH_GROUPS } from '@/lib/constants';
 
 const DAY_WIDTH = 40;
 const ROW_HEIGHT = 50;
-
-const SUPERVISION_RULES: Record<number, number[]> = {
-    10: [2, 5, 8, 10], 14: [2, 7, 10, 14], 20: [2, 12, 16, 20],
-    30: [2, 7, 14, 18, 23, 30], 35: [2, 7, 17, 22, 28, 35],
-    40: [2, 7, 17, 25, 33, 40], 48: [2, 10, 25, 32, 41, 48]
-};
 
 // =============================================================================
 // HELPERS
@@ -58,7 +51,6 @@ function parseDateDDMMYYYY(dateStr: string) {
 // SUB-COMPONENTS
 // =============================================================================
 
-/** Info item card for project details */
 function InfoItem({ icon, label, value, highlight }: {
     icon: React.ReactNode; label: string; value: string; highlight?: boolean;
 }) {
@@ -76,7 +68,7 @@ function InfoItem({ icon, label, value, highlight }: {
 }
 
 // =============================================================================
-// INTERACTIVE GANTT CHART COMPONENT (with clickable day headers)
+// INTERACTIVE GANTT CHART COMPONENT
 // =============================================================================
 
 function InteractiveGanttChart({
@@ -93,8 +85,8 @@ function InteractiveGanttChart({
     readonlyDays?: boolean;
     selectedDays: number[];
     onToggleDay: (day: number) => void;
-    spkStartDate?: string;  // ISO date string
-    spkDuration?: number;   // SPK duration in days
+    spkStartDate?: string;
+    spkDuration?: number;
     onDataLoaded?: (duration: number) => void;
     requiredDays: number;
 }) {
@@ -318,7 +310,7 @@ function InteractiveGanttChart({
                 <div>
                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                         <BarChartHorizontal className="w-4 h-4 text-blue-600" />
-                        2. Gantt Chart {projectData?.lingkup_pekerjaan ? `(${projectData.lingkup_pekerjaan})` : ''}
+                        Gantt Chart {projectData?.lingkup_pekerjaan ? `(${projectData.lingkup_pekerjaan})` : ''}
                     </h3>
                     {!readonlyDays && (
                         <p className="text-xs text-slate-500 mt-0.5">
@@ -522,62 +514,338 @@ function InteractiveGanttChart({
 }
 
 // =============================================================================
+// SUB-COMPONENT: SPK PIC FORM
+// =============================================================================
+
+function SpkPicForm({
+    spk,
+    rabDetail,
+    picList,
+    userInfo,
+    onSuccess
+}: {
+    spk: SPKListItem;
+    rabDetail: any;
+    picList: any[];
+    userInfo: { name: string; role: string; cabang: string; email: string };
+    onSuccess: (spkId: number, picName: string) => void;
+}) {
+    const { showAlert } = useGlobalAlert();
+    const [picName, setPicName] = useState('');
+    const [selectedDays, setSelectedDays] = useState<number[]>([]);
+    const [ganttDuration, setGanttDuration] = useState<number>(0);
+    const [ganttIds, setGanttIds] = useState<number[]>([]);
+    const [isLocked, setIsLocked] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusMsg, setStatusMsg] = useState({ text: '', type: '' as '' | 'info' | 'success' | 'warning' | 'error' });
+
+    const requiredDays = useMemo(() => {
+        if (!rabDetail?.kategori_lokasi) return 0;
+        const katStr = rabDetail.kategori_lokasi.toLowerCase();
+        if (katStr.includes('non ruko') || katStr.includes('non-ruko')) return 8;
+        if (katStr.includes('ruko')) return 4;
+        return 0;
+    }, [rabDetail]);
+
+    useEffect(() => {
+        if (!spk.id) return;
+        fetchPICPengawasanList({ id_spk: spk.id })
+            .then(res => {
+                if (res.data && res.data.length > 0) {
+                    setIsLocked(true);
+                    setStatusMsg({
+                        text: `PIC Pengawasan untuk Lingkup ${spk.lingkup_pekerjaan} sudah ditentukan (${res.data[0].plc_building_support}).`,
+                        type: 'success'
+                    });
+                }
+            })
+            .catch(console.error);
+    }, [spk.id, spk.lingkup_pekerjaan]);
+
+    useEffect(() => {
+        if (!spk.nomor_ulok) return;
+        fetchGanttList({ nomor_ulok: spk.nomor_ulok })
+            .then(res => {
+                if (res.data && res.data.length > 0) {
+                    const fetchDetails = res.data.map((g: any) => fetchGanttDetail(g.id));
+                    Promise.all(fetchDetails).then(details => {
+                        const matching = details.filter(d => {
+                            if (!d.data?.toko?.lingkup_pekerjaan) return false;
+                            const gScope = d.data.toko.lingkup_pekerjaan.toUpperCase();
+                            const sScope = spk.lingkup_pekerjaan.toUpperCase();
+                            return gScope.includes(sScope) || sScope.includes(gScope);
+                        });
+                        setGanttIds(matching.map(d => d.data.gantt.id));
+                    });
+                }
+            })
+            .catch(console.error);
+    }, [spk.nomor_ulok, spk.lingkup_pekerjaan]);
+
+    const handleDataLoaded = useCallback((duration: number) => {
+        setGanttDuration(prev => Math.max(prev, duration));
+        setSelectedDays(prev => {
+            if (!prev.includes(duration)) {
+                return [...prev, duration].sort((a, b) => a - b);
+            }
+            return prev;
+        });
+    }, []);
+
+    const handleToggleDay = useCallback((day: number) => {
+        if (ganttDuration > 0 && day === ganttDuration) {
+            showAlert({ message: "Hari terakhir pekerjaan wajib dipilih dan tidak dapat dibatalkan.", type: "warning" });
+            return;
+        }
+
+        setSelectedDays(prev => {
+            if (prev.includes(day)) return prev.filter(d => d !== day);
+            if (requiredDays > 0 && prev.length >= requiredDays) {
+                setTimeout(() => {
+                    showAlert({
+                        message: `Jumlah hari pengawasan sudah mencapai batas maksimal (${requiredDays} hari).`,
+                        type: "warning"
+                    });
+                }, 0);
+                return prev;
+            }
+            return [...prev, day].sort((a, b) => a - b);
+        });
+    }, [ganttDuration, requiredDays, showAlert]);
+
+    const handleSubmit = async () => {
+        if (!picName.trim()) return;
+
+        const idToko = spk.toko?.id ?? spk.id_toko;
+        if (!idToko) {
+            showAlert({ message: "ID toko tidak ditemukan pada data SPK.", type: "warning" });
+            return;
+        }
+
+        if (!rabDetail?.id) {
+            showAlert({ message: "Data RAB belum dimuat.", type: "warning" });
+            return;
+        }
+
+        if (!selectedDays.includes(1) && !selectedDays.includes(2)) {
+            showAlert({ message: "Wajib memilih H1 atau H2.", type: "warning" });
+            return;
+        }
+
+        if (ganttDuration > 0 && !selectedDays.includes(ganttDuration)) {
+            showAlert({ message: `Wajib memilih H${ganttDuration}.`, type: "warning" });
+            return;
+        }
+
+        if (requiredDays > 0 && selectedDays.length !== requiredDays) {
+            showAlert({ message: `Wajib tepat ${requiredDays} hari.`, type: "warning" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            if (ganttIds.length === 0) {
+                throw new Error("Gantt Chart belum dibuat untuk lingkup ini.");
+            }
+
+            const startDateStr = spk.waktu_mulai?.split('T')[0] || '';
+            const tglPengawasan = selectedDays.map(day => {
+                const tempDate = new Date(startDateStr);
+                tempDate.setDate(tempDate.getDate() + (day - 1));
+                const d = tempDate.getDate().toString().padStart(2, '0');
+                const m = (tempDate.getMonth() + 1).toString().padStart(2, '0');
+                const y = tempDate.getFullYear();
+                return `${d}/${m}/${y}`;
+            });
+
+            for (const gid of ganttIds) {
+                await submitGanttPengawasan(gid, tglPengawasan);
+            }
+
+            const payloadPIC = {
+                id_toko: idToko,
+                nomor_ulok: spk.nomor_ulok,
+                id_rab: rabDetail.id,
+                id_spk: spk.id,
+                kategori_lokasi: rabDetail.kategori_lokasi || '-',
+                durasi: `${spk.durasi} Hari`,
+                tanggal_mulai_spk: startDateStr,
+                plc_building_support: picName.trim(),
+                hari_pengawasan: selectedDays,
+            };
+
+            await submitPICPengawasan(payloadPIC);
+            setIsLocked(true);
+            setStatusMsg({ text: `Berhasil disimpan! PIC yang ditunjuk: ${picName}`, type: 'success' });
+            onSuccess(spk.id, picName);
+        } catch (err: any) {
+            showAlert({ message: err.message || "Gagal menyimpan data PIC Pengawasan.", type: "error" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div className="bg-indigo-50 border-b border-indigo-100 p-4">
+                <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-indigo-600" />
+                    Lingkup Pekerjaan: {spk.lingkup_pekerjaan}
+                </h3>
+            </div>
+            <div className="p-5 space-y-6">
+                {statusMsg.text && (
+                    <div className={`p-4 rounded-lg flex items-start gap-3 font-medium text-sm ${
+                        statusMsg.type === 'error'   ? 'bg-red-50 text-red-700 border border-red-200' :
+                        statusMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+                        statusMsg.type === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                        'bg-blue-50 text-blue-700 border border-blue-200'
+                    }`}>
+                        {statusMsg.type === 'success' ? <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />}
+                        <p>{statusMsg.text}</p>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <InfoItem icon={<Users className="w-3.5 h-3.5" />} label="Kontraktor" value={spk.nama_kontraktor || '-'} />
+                    <InfoItem icon={<Clock className="w-3.5 h-3.5" />} label="Durasi" value={`${spk.durasi} Hari`} />
+                    <InfoItem icon={<Calendar className="w-3.5 h-3.5" />} label="Tgl Mulai SPK" value={formatTanggal(spk.waktu_mulai)} highlight />
+                    <InfoItem icon={<BarChartHorizontal className="w-3.5 h-3.5" />} label="Gantt Chart" value={ganttIds.length > 0 ? 'Tersedia' : 'Belum Ada'} />
+                </div>
+
+                {!isLocked && ganttIds.length > 0 && (
+                    <div className="space-y-4">
+                        {ganttIds.map((gid, idx) => (
+                            <InteractiveGanttChart
+                                key={gid}
+                                ganttId={gid}
+                                readonlyDays={idx > 0}
+                                selectedDays={selectedDays}
+                                onToggleDay={handleToggleDay}
+                                spkStartDate={spk.waktu_mulai}
+                                spkDuration={spk.durasi}
+                                requiredDays={requiredDays}
+                                onDataLoaded={handleDataLoaded}
+                            />
+                        ))}
+
+                        {requiredDays > 0 && (
+                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+                                <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <Info className="w-4 h-4 text-indigo-500" />
+                                    Syarat Hari Pengawasan ({rabDetail?.kategori_lokasi})
+                                </h4>
+                                <ul className="text-xs space-y-1.5 ml-6">
+                                    <li className={`flex items-center gap-2 ${(selectedDays.includes(1) || selectedDays.includes(2)) ? 'text-green-600' : 'text-slate-500'}`}>
+                                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${(selectedDays.includes(1) || selectedDays.includes(2)) ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-300'}`}>
+                                            {(selectedDays.includes(1) || selectedDays.includes(2)) ? '✓' : ''}
+                                        </span>
+                                        Wajib pilih <strong>H1</strong> atau <strong>H2</strong>
+                                    </li>
+                                    <li className={`flex items-center gap-2 ${ganttDuration > 0 && selectedDays.includes(ganttDuration) ? 'text-green-600' : 'text-slate-500'}`}>
+                                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${ganttDuration > 0 && selectedDays.includes(ganttDuration) ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-300'}`}>
+                                            {ganttDuration > 0 && selectedDays.includes(ganttDuration) ? '✓' : ''}
+                                        </span>
+                                        Wajib pilih <strong>H terakhir (H{ganttDuration || '?'})</strong>
+                                    </li>
+                                    <li className={`flex items-center gap-2 ${selectedDays.length === requiredDays ? 'text-green-600' : selectedDays.length > requiredDays ? 'text-red-600' : 'text-slate-500'}`}>
+                                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${selectedDays.length === requiredDays ? 'border-green-500 bg-green-50 text-green-600' : selectedDays.length > requiredDays ? 'border-red-500 bg-red-50 text-red-600' : 'border-slate-300'}`}>
+                                            {selectedDays.length === requiredDays ? '✓' : selectedDays.length > requiredDays ? '!' : ''}
+                                        </span>
+                                        Jumlah hari harus tepat <strong>{requiredDays} hari</strong> — saat ini: {selectedDays.length}/{requiredDays}
+                                    </li>
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!isLocked && (
+                    <div className="space-y-4 bg-slate-50 p-5 rounded-lg border border-slate-200">
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700">Nama PIC (Branch Building Support) *</label>
+                            <select
+                                required
+                                className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold cursor-pointer"
+                                value={picName}
+                                onChange={(e) => setPicName(e.target.value)}
+                            >
+                                <option value="" disabled>-- Pilih Branch Building Support --</option>
+                                {picList.map((pic, idx) => (
+                                    <option key={pic.id || idx} value={pic.nama_lengkap || pic.email}>
+                                        {pic.nama_lengkap || pic.email}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
+
+                {!isLocked && (
+                    <div className="pt-2">
+                        <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={
+                                isSubmitting || 
+                                !picName.trim() || 
+                                selectedDays.length === 0 ||
+                                (!selectedDays.includes(1) && !selectedDays.includes(2)) ||
+                                (ganttDuration > 0 && !selectedDays.includes(ganttDuration)) ||
+                                (requiredDays > 0 && selectedDays.length !== requiredDays)
+                            }
+                            className="w-full h-12 text-base font-bold shadow-md transition-all bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-400 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting
+                                ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Menyimpan...</>
+                                : <><Save className="w-5 h-5 mr-2" /> Simpan PIC ({spk.lingkup_pekerjaan})</>
+                            }
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
 // MAIN PAGE COMPONENT
 // =============================================================================
+
+type UlokGroup = {
+    nomor_ulok: string;
+    lingkup_gabungan: string;
+    toko: any;
+    proyek: string;
+    kode_toko: string;
+    spks: SPKListItem[];
+};
 
 export default function InputPICPage() {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
 
-    // ── Auth & User ──
     const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
-
-    // ── Loading & Submit ──
     const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // ── Modal ──
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-    // ── Data ──
-    const [approvedSpks, setApprovedSpks] = useState<SPKListItem[]>([]);
-    const [selectedSpk, setSelectedSpk] = useState<SPKListItem | null>(null);
+    
+    // UI states
     const [searchQuery, setSearchQuery] = useState('');
     const [cabangFilter, setCabangFilter] = useState('');
-
-    // ── RAB detail for id_rab & kategori_lokasi ──
-    const [rabDetail, setRabDetail] = useState<any>(null);
-
-    // ── Status ──
     const [statusMsg, setStatusMsg] = useState({ text: '', type: '' as '' | 'info' | 'success' | 'warning' | 'error' });
-    const [isLocked, setIsLocked] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    // ── Form ──
-    const [picName, setPicName] = useState('');
+    // Data states
+    const [approvedGroups, setApprovedGroups] = useState<UlokGroup[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<UlokGroup | null>(null);
+    const [rabDetail, setRabDetail] = useState<any>(null);
     const [picList, setPicList] = useState<any[]>([]);
-    const [selectedDays, setSelectedDays] = useState<number[]>([]);
-    const [ganttDuration, setGanttDuration] = useState<number>(0);
-    const [ganttIds, setGanttIds] = useState<number[]>([]);
 
-    const requiredDays = useMemo(() => {
-        if (!rabDetail?.kategori_lokasi) return 0;
-        const katStr = rabDetail.kategori_lokasi.toLowerCase();
-        if (katStr.includes('non ruko') || katStr.includes('non-ruko')) {
-            return 8;
-        } else if (katStr.includes('ruko')) {
-            return 4;
-        }
-        return 0; // Kategori lainnya, biarkan 0 (tidak ada batasan ketat sementara ini, atau set limit khusus jika ada)
-    }, [rabDetail]);
-
-    // ── Auth guard: Only BRANCH BUILDING COORDINATOR ──
     const { user } = useSession();
 
     useEffect(() => {
         if (!user) return;
 
         const { role, email, cabang } = user;
-
         const roleUpper = role.toUpperCase();
         const cabangUpper = cabang.toUpperCase();
 
@@ -610,7 +878,6 @@ export default function InputPICPage() {
         }
     };
 
-    // ── Load approved SPKs filtered by user's cabang (branch group aware) ──
     const loadApprovedSpks = async (cabang: string) => {
         setIsLoading(true);
         try {
@@ -630,27 +897,32 @@ export default function InputPICPage() {
                 return spkCabang === upperCabang;
             });
             
-            // Group by ULOK
-            const map = new Map<string, SPKListItem>();
+            const map = new Map<string, UlokGroup>();
             filtered.forEach((s: SPKListItem) => {
                 const ulok = s.nomor_ulok;
-                if (!ulok) {
-                    map.set(s.id.toString(), s);
-                    return;
-                }
+                if (!ulok) return;
+                
                 if (!map.has(ulok)) {
-                    map.set(ulok, { ...s });
+                    map.set(ulok, {
+                        nomor_ulok: ulok,
+                        lingkup_gabungan: s.lingkup_pekerjaan || '',
+                        toko: s.toko,
+                        proyek: s.proyek || '',
+                        kode_toko: s.toko?.kode_toko || s.kode_toko || '',
+                        spks: [s]
+                    });
                 } else {
                     const existing = map.get(ulok)!;
-                    const l1 = existing.lingkup_pekerjaan || '';
+                    const l1 = existing.lingkup_gabungan;
                     const l2 = s.lingkup_pekerjaan || '';
                     if (l1 && l2 && l1 !== l2 && !l1.includes(l2)) {
-                        existing.lingkup_pekerjaan = `${l1} & ${l2}`;
+                        existing.lingkup_gabungan = `${l1} & ${l2}`;
                     }
+                    existing.spks.push(s);
                 }
             });
 
-            setApprovedSpks(Array.from(map.values()));
+            setApprovedGroups(Array.from(map.values()));
         } catch (error: any) {
             setStatusMsg({ text: "Gagal memuat data SPK: " + error.message, type: 'error' });
         } finally {
@@ -658,7 +930,6 @@ export default function InputPICPage() {
         }
     };
 
-    // ── Cabang options for branch group users ──
     const cabangOptions = useMemo(() => {
         const upper = userInfo.cabang?.toUpperCase();
         if (!upper) return [];
@@ -672,76 +943,38 @@ export default function InputPICPage() {
         return userGroup ? [...userGroup].sort() : [];
     }, [userInfo.cabang]);
 
-    // ── Filtered SPKs by search + cabang ──
-    const filteredSpks = useMemo(() => {
+    const filteredGroups = useMemo(() => {
         const q = searchQuery.toLowerCase();
-        return approvedSpks.filter(s => {
+        return approvedGroups.filter(g => {
             const matchSearch =
-                (s.nomor_ulok || '').toLowerCase().includes(q) ||
-                (s.nomor_spk || '').toLowerCase().includes(q) ||
-                (s.toko?.nama_toko || '').toLowerCase().includes(q) ||
-                (s.toko?.kode_toko || s.kode_toko || '').toLowerCase().includes(q) ||
-                (s.proyek || '').toLowerCase().includes(q);
+                (g.nomor_ulok || '').toLowerCase().includes(q) ||
+                (g.kode_toko || '').toLowerCase().includes(q) ||
+                (g.toko?.nama_toko || '').toLowerCase().includes(q) ||
+                (g.proyek || '').toLowerCase().includes(q);
             const matchCabang = cabangFilter
-                ? (s.toko?.cabang || '').toUpperCase() === cabangFilter.toUpperCase()
+                ? (g.toko?.cabang || '').toUpperCase() === cabangFilter.toUpperCase()
                 : true;
             return matchSearch && matchCabang;
         });
-    }, [approvedSpks, searchQuery, cabangFilter]);
+    }, [approvedGroups, searchQuery, cabangFilter]);
 
-    // ── Handle ULOK selection ──
-    const handleSpkSelect = async (spkId: string) => {
+    const handleGroupSelect = async (ulok: string) => {
         setStatusMsg({ text: '', type: '' });
-        setIsLocked(false);
-        setPicName('');
-        setSelectedDays([]);
-        setGanttDuration(0);
         setRabDetail(null);
-        setGanttIds([]);
 
-        if (!spkId) {
-            setSelectedSpk(null);
+        if (!ulok) {
+            setSelectedGroup(null);
             return;
         }
 
-        const selected = approvedSpks.find(s => s.id === parseInt(spkId));
+        const selected = approvedGroups.find(g => g.nomor_ulok === ulok);
         if (!selected) return;
 
-        setSelectedSpk(selected);
+        setSelectedGroup(selected);
         setStatusMsg({ text: 'Memuat detail proyek...', type: 'info' });
 
-        // Check if PIC already assigned for this ULOK
         try {
-            const picRes = await fetchPICPengawasanList({ nomor_ulok: selected.nomor_ulok });
-            const existingPics = picRes.data || [];
-            if (existingPics.length > 0) {
-                setStatusMsg({
-                    text: `PIC Pengawasan untuk ULOK ${selected.nomor_ulok} sudah ditentukan (${existingPics[0].plc_building_support}).`,
-                    type: 'warning'
-                });
-                setIsLocked(true);
-                return;
-            }
-        } catch {
-            // No existing PIC — continue
-        }
-
-        // Fetch Gantt IDs
-        try {
-            const ganttListRes = await fetchGanttList({ nomor_ulok: selected.nomor_ulok });
-            if (ganttListRes.data && ganttListRes.data.length > 0) {
-                setGanttIds(ganttListRes.data.map((g: any) => g.id));
-            } else {
-                setGanttIds([]);
-            }
-        } catch (err) {
-            console.warn("Gagal memuat daftar Gantt Chart:", err);
-            setGanttIds([]);
-        }
-
-        // Fetch RAB detail for id_rab and kategori_lokasi
-        try {
-            const rabList = await fetchRABList({ nomor_ulok: selected.nomor_ulok });
+            const rabList = await fetchRABList({ nomor_ulok: ulok });
             const approvedRab = (rabList.data || []).find(r =>
                 r.status?.toUpperCase().includes('DISETUJUI') || r.status?.toUpperCase().includes('APPROVED')
             );
@@ -757,144 +990,25 @@ export default function InputPICPage() {
             console.warn("Gagal memuat detail RAB:", err);
         }
 
-        setStatusMsg({ text: 'Detail proyek berhasil dimuat. Silakan pilih PIC dan hari pengawasan.', type: 'info' });
+        setStatusMsg({ text: 'Detail proyek berhasil dimuat. Silakan isi form pengawasan untuk masing-masing lingkup pekerjaan.', type: 'info' });
     };
 
-    // ── Handle Gantt Data Load ──
-    const handleDataLoaded = useCallback((duration: number) => {
-        setGanttDuration(prev => Math.max(prev, duration));
-        // Otomatis pilih hari terakhir pekerjaan
-        setSelectedDays(prev => {
-            if (!prev.includes(duration)) {
-                return [...prev, duration].sort((a, b) => a - b);
+    const handleSuccess = (spkId: number, picName: string) => {
+        // Cek apakah semua SPK dalam group sudah disubmit/locked
+        const checkAll = async () => {
+            try {
+                if (!selectedGroup) return;
+                const checks = selectedGroup.spks.map(s => fetchPICPengawasanList({ id_spk: s.id }));
+                const results = await Promise.all(checks);
+                const allLocked = results.every(res => res.data && res.data.length > 0);
+                if (allLocked) {
+                    setShowSuccessModal(true);
+                }
+            } catch (err) {
+                console.error(err);
             }
-            return prev;
-        });
-    }, []);
-
-    // ── Toggle day selection ──
-    const handleToggleDay = useCallback((day: number) => {
-        // Hari terakhir pekerjaan wajib terpilih dan tidak bisa dibatalkan
-        if (ganttDuration > 0 && day === ganttDuration) {
-            showAlert({ message: "Hari terakhir pekerjaan wajib dipilih dan tidak dapat dibatalkan.", type: "warning" });
-            return;
-        }
-
-        // Cek batas maksimal sebelum masuk state updater (agar showAlert tidak dipanggil saat render)
-        setSelectedDays(prev => {
-            // Jika sudah terpilih, hapus (toggle off)
-            if (prev.includes(day)) {
-                return prev.filter(d => d !== day);
-            }
-            // Jika requiredDays > 0, cek apakah sudah mencapai batas
-            if (requiredDays > 0 && prev.length >= requiredDays) {
-                // Gunakan setTimeout agar showAlert dipanggil di luar render cycle
-                setTimeout(() => {
-                    showAlert({
-                        message: `Jumlah hari pengawasan sudah mencapai batas maksimal (${requiredDays} hari). Hapus salah satu hari terlebih dahulu jika ingin menggantinya.`,
-                        type: "warning"
-                    });
-                }, 0);
-                return prev;
-            }
-            return [...prev, day].sort((a, b) => a - b);
-        });
-    }, [ganttDuration, requiredDays, showAlert]);
-
-    // ── Submit PIC Pengawasan ──
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedSpk || !picName.trim()) return;
-
-        const idToko = selectedSpk.toko?.id ?? selectedSpk.id_toko;
-        if (!idToko) {
-            showAlert({
-                message: "ID toko tidak ditemukan pada data SPK. Coba muat ulang daftar SPK.",
-                type: "warning"
-            });
-            return;
-        }
-
-        if (!rabDetail?.id) {
-            showAlert({
-                message: "Data RAB belum dimuat. Pastikan ULOK memiliki RAB yang disetujui.",
-                type: "warning"
-            });
-            return;
-        }
-
-        // 1. Validasi wajib H-1 atau H-2
-        if (!selectedDays.includes(1) && !selectedDays.includes(2)) {
-            showAlert({
-                message: "Anda wajib memilih Hari ke-1 (H1) atau Hari ke-2 (H2) sebagai hari pengawasan awal.",
-                type: "warning"
-            });
-            return;
-        }
-
-        // 2. Validasi H terakhir pekerjaan wajib dipilih
-        if (ganttDuration > 0 && !selectedDays.includes(ganttDuration)) {
-            showAlert({
-                message: `Anda wajib memilih Hari terakhir pekerjaan (H${ganttDuration}) sebagai hari pengawasan.`,
-                type: "warning"
-            });
-            return;
-        }
-
-        // 3. Validasi jumlah hari pengawasan harus tepat sesuai kategori lokasi
-        if (requiredDays > 0 && selectedDays.length !== requiredDays) {
-            const katLokasi = rabDetail?.kategori_lokasi || 'N/A';
-            showAlert({
-                message: `Kategori lokasi "${katLokasi}" mengharuskan tepat ${requiredDays} hari pengawasan. Saat ini Anda memilih ${selectedDays.length} hari.`,
-                type: "warning"
-            });
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            // Cek apakah Gantt Chart sudah ada
-            if (ganttIds.length === 0) {
-                throw new Error("Gantt Chart belum dibuat untuk proyek ini. Harap lengkapi Jadwal Kerja terlebih dahulu.");
-            }
-
-            const startDateStr = selectedSpk.waktu_mulai?.split('T')[0] || '';
-            const tglPengawasan = selectedDays.map(day => {
-                const tempDate = new Date(startDateStr);
-                tempDate.setDate(tempDate.getDate() + (day - 1));
-                const d = tempDate.getDate().toString().padStart(2, '0');
-                const m = (tempDate.getMonth() + 1).toString().padStart(2, '0');
-                const y = tempDate.getFullYear();
-                return `${d}/${m}/${y}`;
-            });
-
-            // Submit ke semua Gantt Chart terkait ULOK ini
-            for (const gid of ganttIds) {
-                await submitGanttPengawasan(gid, tglPengawasan);
-            }
-
-            const payloadPIC = {
-                id_toko: idToko,
-                nomor_ulok: selectedSpk.nomor_ulok,
-                id_rab: rabDetail.id,
-                id_spk: selectedSpk.id,
-                kategori_lokasi: rabDetail.kategori_lokasi || '-',
-                durasi: `${selectedSpk.durasi} Hari`,
-                tanggal_mulai_spk: startDateStr,
-                plc_building_support: picName.trim(),
-                hari_pengawasan: selectedDays,
-            };
-
-            await submitPICPengawasan(payloadPIC);
-            setShowSuccessModal(true);
-        } catch (err: any) {
-            showAlert({
-                message: err.message || "Gagal menyimpan data PIC Pengawasan.",
-                type: "error"
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        };
+        checkAll();
     };
 
     return (
@@ -907,30 +1021,25 @@ export default function InputPICPage() {
 
             <main className="max-w-6xl mx-auto p-4 md:p-8 mt-4">
                 <Card className="shadow-sm border-slate-200 relative z-10">
-                    {/* ──── HEADER ──── */}
                     <div className="p-6 border-b border-slate-100 bg-white rounded-t-xl flex items-center gap-3">
                         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                             <Users className="w-6 h-6" />
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-800">Input PIC Pengawasan</h2>
-                            <p className="text-sm text-slate-500">Tentukan PIC (Branch Building Support) untuk mengawasi proyek.</p>
+                            <p className="text-sm text-slate-500">Tentukan PIC (Branch Building Support) untuk mengawasi proyek per lingkup pekerjaan.</p>
                         </div>
                     </div>
 
                     <CardContent className="p-6 md:p-8 bg-slate-50/50">
-                        <form onSubmit={handleSubmit} className="space-y-8">
-
-                            {/* ═══════════════════════════════════════════════════
-                                SECTION 1: PILIH ULOK
-                            ═══════════════════════════════════════════════════ */}
+                        <div className="space-y-8">
+                            {/* SECTION 1: PILIH ULOK */}
                             <div className="space-y-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                 <h3 className="font-bold text-slate-700 border-b pb-2 mb-4 flex items-center gap-2">
                                     <Hash className="w-4 h-4 text-indigo-600" />
                                     1. Pilih ULOK Proyek
                                 </h3>
 
-                                {/* Search */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">Cari &amp; Pilih ULOK *</label>
                                     <div className="relative mb-2">
@@ -957,11 +1066,8 @@ export default function InputPICPage() {
                                                     value={cabangFilter}
                                                     onChange={(e) => {
                                                         setCabangFilter(e.target.value);
-                                                        setSelectedSpk(null);
-                                                        setSelectedDays([]);
+                                                        setSelectedGroup(null);
                                                         setRabDetail(null);
-                                                        setPicName('');
-                                                        // Reload PIC list for selected branch
                                                         if (e.target.value) {
                                                             loadPicList(e.target.value);
                                                         } else {
@@ -975,15 +1081,14 @@ export default function InputPICPage() {
                                             )}
                                             <div className="relative flex-1">
                                                 <select
-                                                    required
                                                     className="w-full p-3 border rounded-lg bg-slate-50 outline-none font-semibold text-slate-700 cursor-pointer focus:bg-white focus:ring-2 focus:ring-indigo-500 appearance-none pr-10"
-                                                    value={selectedSpk?.id?.toString() || ''}
-                                                    onChange={(e) => handleSpkSelect(e.target.value)}
+                                                    value={selectedGroup?.nomor_ulok || ''}
+                                                    onChange={(e) => handleGroupSelect(e.target.value)}
                                                 >
                                                     <option value="">-- Klik untuk Pilih ULOK --</option>
-                                                    {filteredSpks.map(s => (
-                                                        <option key={s.id} value={s.id.toString()}>
-                                                            {s.nomor_ulok} ({s.lingkup_pekerjaan}) — {s.toko?.kode_toko || s.kode_toko || ''} — {s.toko?.nama_toko || ''} — {s.proyek}
+                                                    {filteredGroups.map(g => (
+                                                        <option key={g.nomor_ulok} value={g.nomor_ulok}>
+                                                            {g.nomor_ulok} ({g.lingkup_gabungan}) — {g.kode_toko} — {g.toko?.nama_toko || ''} — {g.proyek}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -993,7 +1098,6 @@ export default function InputPICPage() {
                                     )}
                                 </div>
 
-                                {/* Status Message */}
                                 {statusMsg.text && (
                                     <div className={`p-4 rounded-lg flex items-start gap-3 mt-4 font-medium text-sm ${
                                         statusMsg.type === 'error'   ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -1006,198 +1110,48 @@ export default function InputPICPage() {
                                     </div>
                                 )}
 
-                                {/* Project Detail Cards */}
-                                {selectedSpk && (
+                                {selectedGroup && (
                                     <div className="pt-4 border-t mt-4 border-slate-100">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-linear-to-br from-slate-50 to-indigo-50/30 p-4 rounded-xl border border-slate-200">
-                                            <InfoItem
-                                                icon={<Hash className="w-3.5 h-3.5" />}
-                                                label="Nomor ULOK"
-                                                value={selectedSpk.nomor_ulok}
-                                            />
-                                            <InfoItem
-                                                icon={<Building2 className="w-3.5 h-3.5" />}
-                                                label="Nama Toko"
-                                                value={selectedSpk.toko?.nama_toko || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<Hash className="w-3.5 h-3.5" />}
-                                                label="Kode Toko"
-                                                value={selectedSpk.toko?.kode_toko || selectedSpk.kode_toko || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<MapPin className="w-3.5 h-3.5" />}
-                                                label="Cabang"
-                                                value={selectedSpk.toko?.cabang || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<Briefcase className="w-3.5 h-3.5" />}
-                                                label="Proyek"
-                                                value={selectedSpk.proyek || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<Eye className="w-3.5 h-3.5" />}
-                                                label="Lingkup Pekerjaan"
-                                                value={selectedSpk.lingkup_pekerjaan || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<Users className="w-3.5 h-3.5" />}
-                                                label="Kontraktor"
-                                                value={selectedSpk.nama_kontraktor || '-'}
-                                            />
-                                            <InfoItem
-                                                icon={<Clock className="w-3.5 h-3.5" />}
-                                                label="Durasi"
-                                                value={`${selectedSpk.durasi} Hari`}
-                                            />
-                                            <InfoItem
-                                                icon={<Calendar className="w-3.5 h-3.5" />}
-                                                label="Tgl Mulai SPK"
-                                                value={formatTanggal(selectedSpk.waktu_mulai)}
-                                                highlight
-                                            />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-linear-to-br from-slate-50 to-indigo-50/30 p-4 rounded-xl border border-slate-200">
+                                            <InfoItem icon={<Hash className="w-3.5 h-3.5" />} label="Nomor ULOK" value={selectedGroup.nomor_ulok} />
+                                            <InfoItem icon={<Building2 className="w-3.5 h-3.5" />} label="Nama Toko" value={selectedGroup.toko?.nama_toko || '-'} />
+                                            <InfoItem icon={<Hash className="w-3.5 h-3.5" />} label="Kode Toko" value={selectedGroup.kode_toko || '-'} />
+                                            <InfoItem icon={<MapPin className="w-3.5 h-3.5" />} label="Cabang" value={selectedGroup.toko?.cabang || '-'} />
+                                            <InfoItem icon={<Briefcase className="w-3.5 h-3.5" />} label="Proyek" value={selectedGroup.proyek || '-'} />
+                                            <InfoItem icon={<Eye className="w-3.5 h-3.5" />} label="Lingkup Gabungan" value={selectedGroup.lingkup_gabungan} />
                                             {rabDetail && (
-                                                <InfoItem
-                                                    icon={<MapPin className="w-3.5 h-3.5" />}
-                                                    label="Kategori Lokasi"
-                                                    value={rabDetail.kategori_lokasi}
-                                                />
+                                                <InfoItem icon={<MapPin className="w-3.5 h-3.5" />} label="Kategori Lokasi" value={rabDetail.kategori_lokasi} />
                                             )}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* ═══════════════════════════════════════════════════
-                                SECTION 2: GANTT CHART INTERAKTIF
-                            ═══════════════════════════════════════════════════ */}
-                            {selectedSpk && !isLocked && ganttIds.length > 0 && (
-                                <div className="space-y-4">
-                                    {ganttIds.map((gid, idx) => (
-                                        <InteractiveGanttChart
-                                            key={gid}
-                                            ganttId={gid}
-                                            readonlyDays={idx > 0}
-                                            selectedDays={selectedDays}
-                                            onToggleDay={handleToggleDay}
-                                            spkStartDate={selectedSpk.waktu_mulai}
-                                            spkDuration={selectedSpk.durasi}
-                                            requiredDays={requiredDays}
-                                            onDataLoaded={handleDataLoaded}
+                            {/* SECTION 2: FORMS PER LINGKUP PEKERJAAN */}
+                            {selectedGroup && rabDetail && (
+                                <div className="space-y-6 pt-4">
+                                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 mb-4">
+                                        <BarChartHorizontal className="w-5 h-5 text-indigo-600" />
+                                        2. Jadwal &amp; Pengawasan per Lingkup
+                                    </h3>
+                                    {selectedGroup.spks.map(spk => (
+                                        <SpkPicForm
+                                            key={spk.id}
+                                            spk={spk}
+                                            rabDetail={rabDetail}
+                                            picList={picList}
+                                            userInfo={userInfo}
+                                            onSuccess={handleSuccess}
                                         />
                                     ))}
-
-                                    {/* Validation hints below Gantt */}
-                                    {requiredDays > 0 && (
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
-                                            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                                <Info className="w-4 h-4 text-indigo-500" />
-                                                Syarat Hari Pengawasan
-                                            </h4>
-                                            <ul className="text-xs space-y-1.5 ml-6">
-                                                <li className={`flex items-center gap-2 ${
-                                                    (selectedDays.includes(1) || selectedDays.includes(2)) ? 'text-green-600' : 'text-slate-500'
-                                                }`}>
-                                                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                                                        (selectedDays.includes(1) || selectedDays.includes(2)) ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-300'
-                                                    }`}>
-                                                        {(selectedDays.includes(1) || selectedDays.includes(2)) ? '✓' : ''}
-                                                    </span>
-                                                    Wajib pilih <strong>H1</strong> atau <strong>H2</strong> (hari pengawasan awal)
-                                                </li>
-                                                <li className={`flex items-center gap-2 ${
-                                                    ganttDuration > 0 && selectedDays.includes(ganttDuration) ? 'text-green-600' : 'text-slate-500'
-                                                }`}>
-                                                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                                                        ganttDuration > 0 && selectedDays.includes(ganttDuration) ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-300'
-                                                    }`}>
-                                                        {ganttDuration > 0 && selectedDays.includes(ganttDuration) ? '✓' : ''}
-                                                    </span>
-                                                    Wajib pilih <strong>H terakhir pekerjaan (H{ganttDuration || '?'})</strong>
-                                                </li>
-                                                <li className={`flex items-center gap-2 ${
-                                                    selectedDays.length === requiredDays ? 'text-green-600' : selectedDays.length > requiredDays ? 'text-red-600' : 'text-slate-500'
-                                                }`}>
-                                                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                                                        selectedDays.length === requiredDays ? 'border-green-500 bg-green-50 text-green-600' : selectedDays.length > requiredDays ? 'border-red-500 bg-red-50 text-red-600' : 'border-slate-300'
-                                                    }`}>
-                                                        {selectedDays.length === requiredDays ? '✓' : selectedDays.length > requiredDays ? '!' : ''}
-                                                    </span>
-                                                    Jumlah hari harus tepat <strong>{requiredDays} hari</strong> ({rabDetail?.kategori_lokasi}) — saat ini: {selectedDays.length}/{requiredDays}
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
-                            {/* ═══════════════════════════════════════════════════
-                                SECTION 3: PEMILIHAN PIC
-                            ═══════════════════════════════════════════════════ */}
-                            {selectedSpk && !isLocked && (
-                                <div className="space-y-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                    <h3 className="font-bold text-slate-700 border-b pb-2 mb-4 flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-indigo-600" />
-                                        3. Pilih PIC Pengawasan
-                                    </h3>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-700">
-                                            Nama PIC (Branch Building Support) *
-                                        </label>
-                                        <select
-                                            required
-                                            className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold cursor-pointer"
-                                            value={picName}
-                                            onChange={(e) => setPicName(e.target.value)}
-                                        >
-                                            <option value="" disabled>-- Pilih Branch Building Support --</option>
-                                            {picList.map((pic, idx) => (
-                                                <option key={pic.id || idx} value={pic.nama_lengkap || pic.email}>
-                                                    {pic.nama_lengkap || pic.email}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="text-xs text-slate-500">
-                                            Pilih nama PIC dari Branch Building Support di cabang <strong>{userInfo.cabang || '-'}</strong>.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ═══════════════════════════════════════════════════
-                                TOMBOL SUBMIT
-                            ═══════════════════════════════════════════════════ */}
-                            {selectedSpk && !isLocked && (
-                                <div className="pt-4 pb-4">
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            isSubmitting || 
-                                            !selectedSpk || 
-                                            !picName.trim() || 
-                                            selectedDays.length === 0 ||
-                                            (!selectedDays.includes(1) && !selectedDays.includes(2)) ||
-                                            (ganttDuration > 0 && !selectedDays.includes(ganttDuration)) ||
-                                            (requiredDays > 0 && selectedDays.length !== requiredDays)
-                                        }
-                                        className="w-full h-14 text-lg font-bold shadow-lg transition-all bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-400 disabled:cursor-not-allowed"
-                                    >
-                                        {isSubmitting
-                                            ? <><Loader2 className="w-6 h-6 mr-2 animate-spin" /> Menyimpan Data...</>
-                                            : <><Save className="w-6 h-6 mr-2" /> Simpan PIC Pengawasan</>
-                                        }
-                                    </Button>
-                                </div>
-                            )}
-                        </form>
+                        </div>
                     </CardContent>
                 </Card>
             </main>
 
-            {/* ════════════════════════════════════════════════════════════
-                MODAL: SUKSES
-            ════════════════════════════════════════════════════════════ */}
             {showSuccessModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-300">
@@ -1206,8 +1160,7 @@ export default function InputPICPage() {
                         </div>
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">Berhasil!</h2>
                         <p className="text-slate-600 mb-8 leading-relaxed">
-                            PIC Pengawasan untuk ULOK <b>{selectedSpk?.nomor_ulok}</b> berhasil disimpan.
-                            PIC yang ditunjuk: <b>{picName}</b>.
+                            PIC Pengawasan untuk semua lingkup pada ULOK <b>{selectedGroup?.nomor_ulok}</b> berhasil disimpan secara utuh.
                         </p>
                         <Button
                             onClick={() => router.push('/dashboard')}
