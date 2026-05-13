@@ -838,7 +838,11 @@ function GanttBoard() {
                                         const targetTokoId = projectData?.id_toko ? projectData.id_toko : (urlIdToko ? parseInt(urlIdToko) : null);
                                         if (!targetTokoId) return '';
                                         
-                                        const ganttMatch = availableProjects.find(p => p.id === selectedGanttId || p.id_toko === targetTokoId);
+                                        const ganttMatch = availableProjects.find((p: any) => {
+                                            if (p.id_toko && targetTokoId) return p.id_toko === targetTokoId;
+                                            if (p.id === selectedGanttId) return true;
+                                            return false;
+                                        });
                                         return ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${targetTokoId}`;
                                     })()}
                                     onChange={(e) => {
@@ -866,7 +870,12 @@ function GanttBoard() {
                                     <option value="">-- Pilih Proyek / RAB Anda --</option>
                                     {allTokoList.map((toko) => {
                                         const tID = toko.id_toko || toko.id;
-                                        const ganttMatch = availableProjects.find(p => p.id_toko === tID || p.nomor_ulok === toko.nomor_ulok);
+                                        const ganttMatch = availableProjects.find((p: any) => {
+                                            if (p.id_toko && tID) return p.id_toko === tID;
+                                            const matchUlok = p.nomor_ulok === toko.nomor_ulok;
+                                            const matchLingkup = !p.lingkup_pekerjaan || !toko.lingkup_pekerjaan || (p.lingkup_pekerjaan?.toUpperCase() === toko.lingkup_pekerjaan?.toUpperCase());
+                                            return matchUlok && matchLingkup;
+                                        });
                                         const ulok = formatUlokWithDash(toko.nomor_ulok);
                                         const label = [ulok, toko.nama_toko, toko.cabang, toko.lingkup_pekerjaan]
                                             .filter(Boolean).join(' · ');
