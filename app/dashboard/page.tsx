@@ -176,24 +176,27 @@ export default function DashboardPage() {
 
         if (missingIds.length === 0) return;
 
+        const BATCH_SIZE = 5;
         const fetchAll = async () => {
             const newMap: Record<number, any[]> = {};
-            await Promise.all(missingIds.map(async (id) => {
-                try {
-                    const res = await fetchRABDetail(id);
-                    newMap[id] = res?.data?.items || [];
-                } catch (e) {
-                    newMap[id] = [];
-                }
-            }));
-            
+            for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
+                const batch = missingIds.slice(i, i + BATCH_SIZE);
+                await Promise.all(batch.map(async (id) => {
+                    try {
+                        const res = await fetchRABDetail(id);
+                        newMap[id] = res?.data?.items || [];
+                    } catch (e) {
+                        newMap[id] = [];
+                    }
+                }));
+            }
             setRabItemsMap(prev => ({ ...prev, ...newMap }));
         };
 
         fetchAll();
     }, [filteredProjects, rabItemsMap]);
 
-    // Fetch Opname Items asynchronously for Nilai Toko calculations
+    // Fetch Opname Items asynchronously for Nilai Toko calculations (batched)
     useEffect(() => {
         if (!filteredProjects || filteredProjects.length === 0) return;
         
@@ -207,22 +210,27 @@ export default function DashboardPage() {
 
         if (missingIds.length === 0) return;
 
+        const BATCH_SIZE = 5;
         const fetchAll = async () => {
             const newMap: Record<number, any[]> = {};
-            await Promise.all(missingIds.map(async (id_toko) => {
-                try {
-                    const res = await fetchOpnameList({ id_toko });
-                    newMap[id_toko] = res?.data || [];
-                } catch (e) {
-                    newMap[id_toko] = [];
-                }
-            }));
-            
-            setOpnameItemsMap(prev => ({ ...prev, ...newMap }));
+            for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
+                const batch = missingIds.slice(i, i + BATCH_SIZE);
+                await Promise.all(batch.map(async (id_toko) => {
+                    try {
+                        const res = await fetchOpnameList({ id_toko });
+                        newMap[id_toko] = res?.data || [];
+                    } catch (e) {
+                        newMap[id_toko] = [];
+                    }
+                }));
+                // Update map after each batch so stat-cards progressively populate
+                setOpnameItemsMap(prev => ({ ...prev, ...newMap }));
+            }
         };
 
         fetchAll();
     }, [filteredProjects, opnameItemsMap]);
+
 
     // Summary Stats
     const stats = useMemo(() => {
