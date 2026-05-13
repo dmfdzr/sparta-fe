@@ -139,7 +139,7 @@ export const ALL_MENUS = [
 
 export const ROLE_CONFIG: Record<string, string[]> = {
     "BRANCH MANAGER": [
-        "menu-approval", "menu-daftardokumen", "menu-projek-planning"
+        "menu-approval", "menu-daftardokumen"
     ],
 
     "BRANCH BUILDING & MAINTENANCE MANAGER": [
