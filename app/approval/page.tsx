@@ -1558,13 +1558,13 @@ export default function ApprovalPage() {
                                                 <thead className="bg-slate-100 text-slate-700 border-b">
                                                     <tr>
                                                         <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Kategori</th>
-                                                        <th className="p-3 border-r font-semibold min-w-50 text-center whitespace-nowrap">Jenis Pekerjaan</th>
+                                                        <th className="p-3 border-r font-semibold min-w-62.5 text-center whitespace-nowrap">Jenis Pekerjaan</th>
                                                         {selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' && (
                                                             <>
                                                                 {selectedDetail.tipe !== 'RAB' && (
                                                                     <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Dokumentasi</th>
                                                                 )}
-                                                                <th className="p-3 border-r font-semibold min-w-32 text-center">Catatan</th>
+                                                                <th className="p-3 border-r font-semibold min-w-48 text-center">Catatan</th>
                                                             </>
                                                         )}
                                                         <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Volume</th>
@@ -1578,7 +1578,7 @@ export default function ApprovalPage() {
                                                     {selectedDetail.items.map(row => (
                                                         <tr key={row.id} className="hover:bg-slate-50">
                                                             <td className="p-3 font-semibold text-slate-600 border-r text-xs whitespace-nowrap">{row.kategori}</td>
-                                                            <td className="p-3 text-slate-800 border-r whitespace-nowrap">{row.jenis_pekerjaan}</td>
+                                                            <td className="p-3 text-slate-700 border-r whitespace-normal min-w-62.5">{row.jenis_pekerjaan}</td>
                                                             {selectedDetail.tipe !== 'INSTRUKSI_LAPANGAN' && (
                                                                 <>
                                                                     {selectedDetail.tipe !== 'RAB' && (

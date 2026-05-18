@@ -311,7 +311,7 @@ export default function GanttViewer({ nomorUlok, idToko, spkStartDate, spkDurati
                 </div>
             </div>
             <div className="flex border-b overflow-hidden relative" style={{ maxHeight: "400px" }}>
-                <div className="w-1/3 min-w-50 border-r-[3px] border-slate-400 bg-white z-10 sticky left-0 shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] flex flex-col">
+                <div className="w-1/3 min-w-50 border-r-[3px] border-slate-400 bg-white z-40 sticky left-0 shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] flex flex-col">
                     <div className="h-10 bg-slate-50 border-b-2 border-slate-300 flex items-center px-4 font-bold text-slate-600">
                         Tahapan Pekerjaan
                     </div>
@@ -331,7 +331,7 @@ export default function GanttViewer({ nomorUlok, idToko, spkStartDate, spkDurati
                     const leftPane = document.getElementById('left-pane');
                     if (leftPane) leftPane.scrollTop = e.currentTarget.scrollTop;
                 }}>
-                    <div className="h-10 border-b-2 border-slate-300 flex sticky top-0 bg-white z-20" style={{ minWidth: totalChartWidth }}>
+                    <div className="h-10 border-b-2 border-slate-300 flex sticky top-0 bg-white z-30" style={{ minWidth: totalChartWidth }}>
                         {Array.from({ length: totalDaysToRender }).map((_, i) => {
                             let label: string = String(i + 1);
                             let isPengawasan = false;
