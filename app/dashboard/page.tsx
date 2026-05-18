@@ -85,10 +85,14 @@ export default function DashboardPage() {
         // Unique IDs
         let allowedIds = Array.from(new Set(combinedAllowedIds));
 
+        if (allowedIds.length === 0) {
+            allowedIds = isHO
+                ? [...(ROLE_CONFIG['BRANCH BUILDING & MAINTENANCE MANAGER'] ?? [])]
+                : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
+        }
+
         if (isHO) {
-            allowedIds = ALL_MENUS.map(m => m.id);
-        } else if (allowedIds.length === 0) {
-            allowedIds = [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
+            allowedIds.push("menu-users");
         }
 
         if (userCabang.toUpperCase() === 'MANADO' && roles.includes('BRANCH BUILDING & MAINTENANCE MANAGER')) {

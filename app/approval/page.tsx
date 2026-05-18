@@ -28,6 +28,7 @@ import {
     // Opname Final
     fetchOpnameFinalList, fetchOpnameFinalDetail, approveOpnameFinal, downloadOpnameFinalPdf,
     downloadOpnameFoto,
+    sendEmailNotification,
 } from '@/lib/api';
 import {
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail,
@@ -802,6 +803,16 @@ export default function ApprovalPage() {
                     approver_email: userInfo.email,
                     tindakan:       'APPROVE',
                 });
+
+                // Kirim notifikasi email ke semua user Kontraktor pada cabang terkait
+                try {
+                    await sendEmailNotification({
+                        cabang: item.cabang,
+                        flag: "notification-spk-has-approve"
+                    });
+                } catch (emailErr) {
+                    console.error("Gagal mengirim email notifikasi:", emailErr);
+                }
             } else if (item.tipe === 'PERTAMBAHAN_SPK') {
                 await processPertambahanSPKApproval(item.id as number, {
                     approver_email: userInfo.email,
