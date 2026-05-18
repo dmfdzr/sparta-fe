@@ -776,7 +776,7 @@ export default function ApprovalPage() {
                 
                 await processRABApproval(item.id as number, {
                     approver_email: userInfo.email,
-                    approver_name:  currentName,
+                    nama_lengkap:   currentName,
                     jabatan:        jabatan ?? 'KOORDINATOR',
                     tindakan:       'APPROVE',
                 });
@@ -841,7 +841,7 @@ export default function ApprovalPage() {
                 
                 await processRABApproval(item.id as number, {
                     approver_email:   userInfo.email,
-                    approver_name:    currentName,
+                    nama_lengkap:     currentName,
                     jabatan:          jabatan ?? 'KOORDINATOR',
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,

@@ -191,7 +191,7 @@ export type RABDetailResponse = {
 
 export type RABApprovalPayload = {
     approver_email:   string;
-    approver_name?:   string;
+    nama_lengkap?:    string;
     jabatan:          "KOORDINATOR" | "MANAGER" | "DIREKTUR" | string;
     tindakan:         "APPROVE" | "REJECT" | string;
     alasan_penolakan?: string | null;

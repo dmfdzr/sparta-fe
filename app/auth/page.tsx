@@ -20,6 +20,7 @@ import {
 
 // Import base URL dari constants
 import { API_URL } from '@/lib/constants';
+import { fetchUserCabangList } from '@/lib/api';
 
 // URL Google Apps Script tetap di sini karena spesifik hanya untuk file ini (logging)
 const APPS_SCRIPT_POST_URL = "https://script.google.com/macros/s/AKfycbzPubDTa7E2gT5HeVLv9edAcn1xaTiT3J4BtAVYqaqiFAvFtp1qovTXpqpm-VuNOxQJ/exec";
@@ -33,6 +34,11 @@ export default function LoginPage() {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+
+  // Modal untuk multi-role
+  const [roleSelectOpen, setRoleSelectOpen] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
+  const [pendingLoginData, setPendingLoginData] = useState<any>(null);
 
   // Fungsi untuk logging ke Google Apps Script
   const logLoginAttempt = async (username: string, cabang: string, status: string) => {
@@ -127,14 +133,50 @@ export default function LoginPage() {
             mappedRole = "DIREKTUR";
         }
 
+        // 3. Cek apakah ada multiple role di database untuk email ini
+        try {
+          const userList = await fetchUserCabangList({ email_sat: emailFromAPI });
+          if (userList?.data && userList.data.length > 1) {
+            // Ada lebih dari satu role untuk email ini
+            setAvailableRoles(userList.data);
+            setPendingLoginData({ emailFromAPI, cabangFromAPI, namaPtFromAPI, mappedRole, result });
+            setIsLoading(false);
+            setRoleSelectOpen(true);
+            return;
+          } else if (userList?.data && userList.data.length === 1) {
+            // Update nama_lengkap dari data user_cabang jika tersedia agar valid
+            const realName = userList.data[0].nama_lengkap;
+            const realJabatan = userList.data[0].jabatan;
+            sessionStorage.setItem("nama_lengkap", realName);
+            
+            // Re-map real jabatan from DB
+            let realMappedRole = realJabatan;
+            if (realJabatan.includes("BUILDING MAINTENANCE MANAGER") || realJabatan === "BBMM") realMappedRole = "BRANCH BUILDING & MAINTENANCE MANAGER";
+            else if (realJabatan.includes("BRANCH MANAGER") || realJabatan === "BM") realMappedRole = "BRANCH MANAGER";
+            else if (realJabatan.includes("DOKUMENTASI") || realJabatan === "BBSD") realMappedRole = "BRANCH BUILDING SUPPORT DOKUMENTASI";
+            else if (realJabatan.includes("COORDINATOR") || realJabatan === "BBC") realMappedRole = "BRANCH BUILDING COORDINATOR";
+            else if (realJabatan.includes("SUPPORT") || realJabatan === "BBS") realMappedRole = "BRANCH BUILDING SUPPORT";
+            else if (realJabatan.includes("KONTRAKTOR")) realMappedRole = "KONTRAKTOR";
+            else if (realJabatan.includes("DIREKTUR")) realMappedRole = "DIREKTUR";
+            
+            sessionStorage.setItem("userRole", realMappedRole);
+            mappedRole = realMappedRole; // Just in case it's used below
+          } else {
+             sessionStorage.setItem("nama_lengkap", namaLengkapFromAPI);
+             sessionStorage.setItem("userRole", mappedRole);
+          }
+        } catch (e) {
+          console.error("Gagal mengecek multi-role", e);
+          sessionStorage.setItem("nama_lengkap", namaLengkapFromAPI);
+          sessionStorage.setItem("userRole", mappedRole);
+        }
+
         setMessage({ text: "Login berhasil! Mengalihkan...", type: "success" });
 
-        // 3. Simpan data yang komplit ke sessionStorage
+        // 4. Simpan sisa data ke sessionStorage
         sessionStorage.setItem("authenticated", "true");
         sessionStorage.setItem("loggedInUserEmail", emailFromAPI);
         sessionStorage.setItem("loggedInUserCabang", cabangFromAPI); 
-        sessionStorage.setItem("userRole", mappedRole);
-        sessionStorage.setItem("nama_lengkap", namaLengkapFromAPI);
         sessionStorage.setItem("nama_pt", namaPtFromAPI);
         sessionStorage.setItem("alamat_cabang", result?.data?.alamat_cabang || "");
 
@@ -272,6 +314,68 @@ export default function LoginPage() {
             <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white px-8 rounded-lg w-full">
               Tutup
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* MODAL PILIH ROLE JIKA EMAIL SAMA */}
+      <AlertDialog open={roleSelectOpen} onOpenChange={setRoleSelectOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-slate-800">Pilih Akun Pengguna</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              Ditemukan beberapa akun dengan email ini. Silakan pilih Anda ingin login sebagai siapa:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 mt-4">
+            {availableRoles.map((role, idx) => (
+              <Button 
+                key={idx}
+                variant="outline"
+                className="w-full justify-start h-auto py-3 px-4 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                onClick={() => {
+                  let realMappedRole = role.jabatan;
+                  if (role.jabatan.includes("BUILDING MAINTENANCE MANAGER") || role.jabatan === "BBMM") realMappedRole = "BRANCH BUILDING & MAINTENANCE MANAGER";
+                  else if (role.jabatan.includes("BRANCH MANAGER") || role.jabatan === "BM") realMappedRole = "BRANCH MANAGER";
+                  else if (role.jabatan.includes("DOKUMENTASI") || role.jabatan === "BBSD") realMappedRole = "BRANCH BUILDING SUPPORT DOKUMENTASI";
+                  else if (role.jabatan.includes("COORDINATOR") || role.jabatan === "BBC") realMappedRole = "BRANCH BUILDING COORDINATOR";
+                  else if (role.jabatan.includes("SUPPORT") || role.jabatan === "BBS") realMappedRole = "BRANCH BUILDING SUPPORT";
+                  else if (role.jabatan.includes("KONTRAKTOR")) realMappedRole = "KONTRAKTOR";
+                  else if (role.jabatan.includes("DIREKTUR")) realMappedRole = "DIREKTUR";
+
+                  sessionStorage.setItem("authenticated", "true");
+                  sessionStorage.setItem("loggedInUserEmail", pendingLoginData.emailFromAPI);
+                  sessionStorage.setItem("loggedInUserCabang", pendingLoginData.cabangFromAPI); 
+                  sessionStorage.setItem("nama_pt", pendingLoginData.namaPtFromAPI);
+                  sessionStorage.setItem("alamat_cabang", pendingLoginData.result?.data?.alamat_cabang || "");
+                  
+                  // Set nama dan role yang dipilih
+                  sessionStorage.setItem("nama_lengkap", role.nama_lengkap);
+                  sessionStorage.setItem("userRole", realMappedRole);
+
+                  setRoleSelectOpen(false);
+                  setMessage({ text: "Login berhasil! Mengalihkan...", type: "success" });
+                  setTimeout(() => {
+                    router.push("/dashboard"); 
+                  }, 500);
+                }}
+              >
+                <div className="text-left flex-col items-start gap-1">
+                  <div className="font-bold text-slate-800">{role.nama_lengkap}</div>
+                  <div className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded inline-block mt-1">
+                    {role.jabatan}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+          <AlertDialogFooter className="mt-6">
+            <Button variant="ghost" onClick={() => {
+              setRoleSelectOpen(false);
+              setPendingLoginData(null);
+            }}>
+              Batal
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
