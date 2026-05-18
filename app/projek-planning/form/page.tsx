@@ -58,6 +58,13 @@ function FormProjekPlanningInner() {
   useEffect(() => {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";
     if (!email) { router.push("/auth"); return; }
+    
+    const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
+    if (cabang.toUpperCase() === "HEAD OFFICE") {
+      router.push("/projek-planning");
+      return;
+    }
+
     setUserEmail(email);
     const nama = sessionStorage.getItem("nama_lengkap") || "";
     set("nama_pengaju", nama);

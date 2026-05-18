@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,7 @@ const emptyForm: FormData = {
 
 export default function FTDokumenPage() {
     const { showAlert } = useGlobalAlert();
+    const router = useRouter();
     const [currentStep, setCurrentStep] = useState<'form' | 'floorplan'>('form');
     const [formData, setFormData] = useState<FormData>(emptyForm);
     const [photos, setPhotos] = useState<Record<number, PhotoData>>({});
@@ -61,6 +63,12 @@ export default function FTDokumenPage() {
     // Populate cabang from session + fetch ULOK data from SPK list
     useEffect(() => {
         if (!user) return;
+
+        if (user.cabang?.toUpperCase() === 'HEAD OFFICE') {
+            router.push('/svdokumen');
+            return;
+        }
+
         setFormData(prev => ({ ...prev, cabang: user.cabang }));
 
         const loadUlokData = async () => {

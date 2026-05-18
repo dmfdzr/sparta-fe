@@ -1447,7 +1447,7 @@ export default function DaftarDokumenPage() {
                                                         {getStatusLabel(selectedDetail.status)}
                                                     </Badge>
                                                 )}
-                                                {isHO && selectedDetail.tipe === 'RAB' && (
+                                                {false && selectedDetail?.tipe === 'RAB' && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"

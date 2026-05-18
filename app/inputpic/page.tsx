@@ -531,6 +531,7 @@ function SpkPicForm({
     onSuccess: (spkId: number, picName: string) => void;
 }) {
     const { showAlert } = useGlobalAlert();
+    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
     const [picName, setPicName] = useState('');
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [ganttDuration, setGanttDuration] = useState<number>(0);
@@ -719,7 +720,7 @@ function SpkPicForm({
                             <InteractiveGanttChart
                                 key={gid}
                                 ganttId={gid}
-                                readonlyDays={idx > 0}
+                                readonlyDays={isHO || idx > 0}
                                 selectedDays={selectedDays}
                                 onToggleDay={handleToggleDay}
                                 spkStartDate={spk.waktu_mulai}
@@ -766,6 +767,7 @@ function SpkPicForm({
                             <label className="text-sm font-bold text-slate-700">Nama PIC (Branch Building Support) *</label>
                             <select
                                 required
+                                disabled={isHO}
                                 className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold cursor-pointer"
                                 value={picName}
                                 onChange={(e) => setPicName(e.target.value)}
@@ -781,7 +783,7 @@ function SpkPicForm({
                     </div>
                 )}
 
-                {!isLocked && (
+                {!isLocked && !isHO && (
                     <div className="pt-2">
                         <Button
                             type="button"
@@ -848,8 +850,10 @@ export default function InputPICPage() {
         const { role, email, cabang } = user;
         const roleUpper = role.toUpperCase();
         const cabangUpper = cabang.toUpperCase();
+        const isHO = cabangUpper === 'HEAD OFFICE';
 
         const isAllowed = 
+            isHO ||
             roleUpper === 'BRANCH BUILDING COORDINATOR' ||
             (cabangUpper === 'MANADO' && roleUpper === 'BRANCH BUILDING & MAINTENANCE MANAGER');
 
@@ -884,14 +888,18 @@ export default function InputPICPage() {
             const res = await fetchSPKList({ status: 'SPK_APPROVED' });
             const allSpks = res.data || [];
             const upperCabang = cabang.toUpperCase();
+            const isHO = upperCabang === 'HEAD OFFICE';
             let userGroup: string[] | null = null;
-            for (const grp of Object.values(BRANCH_GROUPS)) {
-                if (grp.includes(upperCabang)) {
-                    userGroup = grp;
-                    break;
+            if (!isHO) {
+                for (const grp of Object.values(BRANCH_GROUPS)) {
+                    if (grp.includes(upperCabang)) {
+                        userGroup = grp;
+                        break;
+                    }
                 }
             }
             const filtered = allSpks.filter((s: SPKListItem) => {
+                if (isHO) return true;
                 const spkCabang = (s.toko?.cabang || '').toUpperCase();
                 if (userGroup) return userGroup.includes(spkCabang);
                 return spkCabang === upperCabang;
@@ -933,6 +941,10 @@ export default function InputPICPage() {
     const cabangOptions = useMemo(() => {
         const upper = userInfo.cabang?.toUpperCase();
         if (!upper) return [];
+        if (upper === 'HEAD OFFICE') {
+            const allBranches = Array.from(new Set(Object.values(BRANCH_GROUPS).flat())).sort();
+            return allBranches;
+        }
         let userGroup: string[] | null = null;
         for (const grp of Object.values(BRANCH_GROUPS)) {
             if (grp.includes(upper)) {
@@ -971,6 +983,9 @@ export default function InputPICPage() {
         if (!selected) return;
 
         setSelectedGroup(selected);
+        if (selected.toko?.cabang) {
+            loadPicList(selected.toko.cabang);
+        }
         setStatusMsg({ text: 'Memuat detail proyek...', type: 'info' });
 
         try {

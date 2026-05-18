@@ -114,6 +114,7 @@ export default function DetailProjekPlanning() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [userCabang, setUserCabang] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -176,8 +177,9 @@ export default function DetailProjekPlanning() {
   useEffect(() => {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";
     const role = sessionStorage.getItem("userRole") || "";
+    const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
     if (!email) { router.push("/auth"); return; }
-    setUserEmail(email); setUserRole(role.toUpperCase());
+    setUserEmail(email); setUserRole(role.toUpperCase()); setUserCabang(cabang);
     load();
   }, [id]);
 
@@ -267,8 +269,13 @@ export default function DetailProjekPlanning() {
   );
 
   const st = STATUS_MAP[data.status] || { label: data.status, color: "bg-slate-100" };
-  const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
-  const isBBMM = userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM");
+  const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
+  const { isCoor: isCoorRaw, isBM: isBMRaw, isPP: isPPRaw, isPPMgr: isPPMgrRaw } = getPpRoles(userRole, userEmail);
+  const isCoor = !isHO && isCoorRaw;
+  const isBM = !isHO && isBMRaw;
+  const isPP = !isHO && isPPRaw;
+  const isPPMgr = !isHO && isPPMgrRaw;
+  const isBBMM = !isHO && (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM"));
 
   const requiredLinks = [data.link_gambar_rab_sipil, data.link_gambar_rab_me, data.link_fpd, data.link_desain_3d, data.link_rab, data.link_gambar_kerja, data.link_fpd_approved].filter(Boolean) as string[];
   const allLinksOpened = requiredLinks.length === 0 || requiredLinks.every(url => openedLinks.has(url));

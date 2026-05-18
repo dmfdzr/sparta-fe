@@ -75,6 +75,7 @@ export default function RABPage() {
 
   // --- 1. INISIALISASI SESI & CEK STATUS REVISI ---
   const { user } = useSession();
+  const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
 
   useEffect(() => {
     if (!user) return;
@@ -82,8 +83,14 @@ export default function RABPage() {
     const userCabang = user.cabang.toUpperCase();
     const userEmail = user.email;
     const userAlamatCabang = user.alamatCabang || '';
+    const isHO = userCabang === 'HEAD OFFICE';
     
-    setAvailableCabang(BRANCH_GROUPS[userCabang] || [userCabang]);
+    if (isHO) {
+      setAvailableCabang(Array.from(new Set(Object.values(BRANCH_GROUPS).flat())).sort());
+    } else {
+      setAvailableCabang(BRANCH_GROUPS[userCabang] || [userCabang]);
+    }
+    
     let defaultLokasiCabang = userCabang === 'CIKOKOL' ? "KZ01" : (BRANCH_TO_ULOK[userCabang] || "KODE");
 
     setFormData(prev => ({ ...prev, cabang: userCabang, lokasiCabang: defaultLokasiCabang, alamatCabang: userAlamatCabang }));
@@ -570,7 +577,7 @@ export default function RABPage() {
                       </div>
                     )}
                   </div>
-                  {logoPreview && (
+                  {logoPreview && !isHO && (
                     <button 
                       type="button" 
                       onClick={removeLogo}
@@ -589,17 +596,19 @@ export default function RABPage() {
                     Format yang didukung: <b>PNG, JPG, JPEG</b>.
                   </p>
                   <div className="pt-2">
-                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 group">
-                      <Upload className="w-4 h-4 text-red-500 transition-transform group-hover:-translate-y-0.5" />
-                      {logoPreview ? 'Ganti Logo' : 'Pilih Logo'}
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleLogoChange} 
-                      />
-                    </label>
+                    {!isHO && (
+                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 group">
+                        <Upload className="w-4 h-4 text-red-500 transition-transform group-hover:-translate-y-0.5" />
+                        {logoPreview ? 'Ganti Logo' : 'Pilih Logo'}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={handleLogoChange} 
+                        />
+                      </label>
+                    )}
                     {(currentRabId || (formData.logo && formData.logo.startsWith('http'))) && (
                       <a 
                         href={currentRabId ? getRABLogoDownloadUrl(currentRabId) : formData.logo} 
@@ -618,18 +627,18 @@ export default function RABPage() {
 
               {/* --- GRID FORM IDENTITAS --- */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2"><Label>Nama Toko <span className="text-red-500">*</span></Label><Input name="namaToko" value={formData.namaToko} onChange={handleInputChange} placeholder="Masukkan nama toko" className="bg-white" required /></div>
+                <div className="space-y-2"><Label>Nama Toko <span className="text-red-500">*</span></Label><Input name="namaToko" readOnly={isHO} value={formData.namaToko} onChange={handleInputChange} placeholder="Masukkan nama toko" className="bg-white" required /></div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2 mb-2">
-                    <Checkbox id="isRenovasi" checked={formData.isRenovasi} onCheckedChange={(c) => setFormData(prev => ({...prev, isRenovasi: !!c, proyek: !!c ? '' : 'Reguler'}))}/>
+                    <Checkbox id="isRenovasi" disabled={isHO} checked={formData.isRenovasi} onCheckedChange={(c) => setFormData(prev => ({...prev, isRenovasi: !!c, proyek: !!c ? '' : 'Reguler'}))}/>
                     <Label htmlFor="isRenovasi" className="font-normal cursor-pointer">Proyek Renovasi (Format Baru)</Label>
                   </div>
                   <div className="flex gap-2 items-center">
                     <Input name="lokasiCabang" placeholder="Kode" className="w-[30%] bg-slate-100 text-slate-500 font-bold cursor-not-allowed border-slate-200" value={formData.lokasiCabang} readOnly tabIndex={-1} />
                     <span className="font-bold text-slate-400">-</span>
-                    <Input name="lokasiTanggal" placeholder="YYMM" className="w-[30%] bg-white" maxLength={4} value={formData.lokasiTanggal} onChange={handleInputChange} required />
+                    <Input name="lokasiTanggal" readOnly={isHO} placeholder="YYMM" className="w-[30%] bg-white" maxLength={4} value={formData.lokasiTanggal} onChange={handleInputChange} required />
                     <span className="font-bold text-slate-400">-</span>
-                    <Input name="lokasiManual" placeholder={formData.isRenovasi ? "C0B4" : "0001"} className="w-[40%] bg-white uppercase" maxLength={4} value={formData.lokasiManual} onChange={handleInputChange} required />
+                    <Input name="lokasiManual" readOnly={isHO} placeholder={formData.isRenovasi ? "C0B4" : "0001"} className="w-[40%] bg-white uppercase" maxLength={4} value={formData.lokasiManual} onChange={handleInputChange} required />
                     {formData.isRenovasi && (<><span className="font-bold text-slate-400">-</span><Input readOnly value="R" className="w-12 bg-slate-100 text-center font-bold text-slate-500 cursor-not-allowed border-slate-200" tabIndex={-1} /></>)}
                   </div>
                 </div>
@@ -637,6 +646,7 @@ export default function RABPage() {
                   <Label>Proyek <span className="text-red-500">*</span></Label>
                   {formData.isRenovasi ? (
                     <Select 
+                      disabled={isHO}
                       onValueChange={(val) => handleSelectChange('proyek', val)} 
                       value={formData.proyek} 
                       required
@@ -655,7 +665,7 @@ export default function RABPage() {
                     <Input value="Reguler" readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} />
                   )}
                 </div>
-                <div className="space-y-2 lg:col-span-3"><Label>Alamat Lengkap <span className="text-red-500">*</span></Label><Input name="alamat" value={formData.alamat} onChange={handleInputChange} placeholder="Masukkan alamat lengkap proyek" className="bg-white" required /></div>
+                <div className="space-y-2 lg:col-span-3"><Label>Alamat Lengkap <span className="text-red-500">*</span></Label><Input name="alamat" readOnly={isHO} value={formData.alamat} onChange={handleInputChange} placeholder="Masukkan alamat lengkap proyek" className="bg-white" required /></div>
                 <div className="space-y-2 lg:col-span-3"><Label>Alamat Cabang / Office <span className="text-xs text-slate-400 font-normal">(Otomatis dari data cabang)</span></Label><Input name="alamatCabang" value={formData.alamatCabang || ''} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} placeholder="-" /></div>
                 
                 <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -663,6 +673,7 @@ export default function RABPage() {
                     <Label>Cabang <span className="text-red-500">*</span></Label>
                     {availableCabang.length > 1 ? (
                       <Select 
+                        disabled={isHO}
                         value={formData.cabang} 
                         onValueChange={(val) => {
                           const newLokasiCabang = val === 'CIKOKOL' ? "KZ01" : (BRANCH_TO_ULOK[val] || "KODE");
@@ -698,9 +709,9 @@ export default function RABPage() {
                       <Input value={formData.cabang} readOnly className="bg-slate-100 text-slate-600 font-semibold cursor-not-allowed border-slate-200" tabIndex={-1} />
                     )}
                   </div>
-                  <div className="space-y-2"><Label>Lingkup Pekerjaan <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('lingkupPekerjaan', val)} value={formData.lingkupPekerjaan} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Lingkup Pekerjaan --" /></SelectTrigger><SelectContent><SelectItem value="Sipil">Sipil</SelectItem><SelectItem value="ME">ME</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label>Kategori Lokasi <span className="text-red-500">*</span></Label><Select onValueChange={(val) => handleSelectChange('kategoriLokasi', val)} value={formData.kategoriLokasi} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Kategori Lokasi --" /></SelectTrigger><SelectContent><SelectItem value="Ruko">Ruko</SelectItem><SelectItem value="Non Ruko">Non Ruko</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label>Durasi Pekerjaan (Hari) <span className="text-red-500">*</span></Label><Input type="number" min="1" step="1" name="durasiPekerjaan" value={formData.durasiPekerjaan} onChange={handleInputChange} placeholder="Masukkan jumlah hari" className="bg-white" required /></div>
+                  <div className="space-y-2"><Label>Lingkup Pekerjaan <span className="text-red-500">*</span></Label><Select disabled={isHO} onValueChange={(val) => handleSelectChange('lingkupPekerjaan', val)} value={formData.lingkupPekerjaan} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Lingkup Pekerjaan --" /></SelectTrigger><SelectContent><SelectItem value="Sipil">Sipil</SelectItem><SelectItem value="ME">ME</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Kategori Lokasi <span className="text-red-500">*</span></Label><Select disabled={isHO} onValueChange={(val) => handleSelectChange('kategoriLokasi', val)} value={formData.kategoriLokasi} required><SelectTrigger className="bg-white"><SelectValue placeholder="-- Pilih Kategori Lokasi --" /></SelectTrigger><SelectContent><SelectItem value="Ruko">Ruko</SelectItem><SelectItem value="Non Ruko">Non Ruko</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Durasi Pekerjaan (Hari) <span className="text-red-500">*</span></Label><Input type="number" min="1" step="1" name="durasiPekerjaan" readOnly={isHO} value={formData.durasiPekerjaan} onChange={handleInputChange} placeholder="Masukkan jumlah hari" className="bg-white" required /></div>
                 </div>
               </div>
             </CardContent>
@@ -713,14 +724,18 @@ export default function RABPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label>No. Polis <span className="text-red-500">*</span></Label>
-                  <Input name="noPolis" value={formData.noPolis} onChange={handleInputChange} placeholder="Masukkan nomor polis" className="bg-white" required />
+                  <Input name="noPolis" readOnly={isHO} value={formData.noPolis} onChange={handleInputChange} placeholder="Masukkan nomor polis" className="bg-white" required />
                 </div>
                 <div className="space-y-2">
                   <Label>Masa Berlaku <span className="text-red-500">*</span></Label>
-                  <DatePicker
-                    value={formData.berlakuPolis}
-                    onChange={val => setFormData(prev => ({ ...prev, berlakuPolis: val }))}
-                  />
+                  {isHO ? (
+                    <Input readOnly value={formData.berlakuPolis} className="bg-slate-100 text-slate-500 font-semibold cursor-not-allowed border-slate-200" />
+                  ) : (
+                    <DatePicker
+                      value={formData.berlakuPolis}
+                      onChange={val => setFormData(prev => ({ ...prev, berlakuPolis: val }))}
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Upload File Asuransi <span className="text-red-500">*</span></Label>
@@ -741,22 +756,28 @@ export default function RABPage() {
                           <Download className="w-3.5 h-3.5" />
                         </a>
                       )}
-                      <button type="button" onClick={removeAsuransiFile} className="p-1.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200 transition-colors shrink-0" title="Hapus file">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      {!isHO && (
+                        <button type="button" onClick={removeAsuransiFile} className="p-1.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200 transition-colors shrink-0" title="Hapus file">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-bold text-slate-700 cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 group">
-                      <Upload className="w-4 h-4 text-red-500 transition-transform group-hover:-translate-y-0.5" />
-                      Pilih File
-                      <input
-                        type="file"
-                        ref={asuransiFileRef}
-                        className="hidden"
-                        accept=".pdf"
-                        onChange={handleAsuransiFileChange}
-                      />
-                    </label>
+                    !isHO ? (
+                      <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-bold text-slate-700 cursor-pointer transition-all hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 group">
+                        <Upload className="w-4 h-4 text-red-500 transition-transform group-hover:-translate-y-0.5" />
+                        Pilih File
+                        <input
+                          type="file"
+                          ref={asuransiFileRef}
+                          className="hidden"
+                          accept=".pdf"
+                          onChange={handleAsuransiFileChange}
+                        />
+                      </label>
+                    ) : (
+                      <div className="p-2 bg-slate-100 text-slate-500 text-sm border rounded-lg">Belum diunggah</div>
+                    )
                   )}
                   <p className="text-[10px] text-slate-400">Format: PDF (Maks. 5MB)</p>
                 </div>
@@ -767,11 +788,11 @@ export default function RABPage() {
           <Card className="mb-8 shadow-sm">
             <CardHeader className="border-b bg-slate-50/50 pb-4"><CardTitle className="text-red-700">Dimensi & Ukuran Proyek</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-6">
-              <div className="space-y-2"><Label>Luas Bangunan (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasBangunan" value={formData.luasBangunan} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
-              <div className="space-y-2"><Label>Luas Area Terbuka (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaTerbuka" value={formData.luasAreaTerbuka} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
-              <div className="space-y-2"><Label>Luas Area Sales (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaSales" value={formData.luasAreaSales} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
-              <div className="space-y-2"><Label>Luas Gudang (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasGudang" value={formData.luasGudang} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
-              <div className="space-y-2"><Label>Luas Area Parkir (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaParkir" value={formData.luasAreaParkir} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
+              <div className="space-y-2"><Label>Luas Bangunan (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasBangunan" readOnly={isHO} value={formData.luasBangunan} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
+              <div className="space-y-2"><Label>Luas Area Terbuka (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaTerbuka" readOnly={isHO} value={formData.luasAreaTerbuka} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
+              <div className="space-y-2"><Label>Luas Area Sales (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaSales" readOnly={isHO} value={formData.luasAreaSales} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
+              <div className="space-y-2"><Label>Luas Gudang (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasGudang" readOnly={isHO} value={formData.luasGudang} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
+              <div className="space-y-2"><Label>Luas Area Parkir (m²) <span className="text-red-500">*</span></Label><Input type="number" step="any" name="luasAreaParkir" readOnly={isHO} value={formData.luasAreaParkir} onChange={handleInputChange} placeholder="0.00" className="bg-white" required /></div>
               <div className="space-y-2"><Label className="text-blue-700 font-bold">Luas Terbangun (m²) <span className="text-xs font-normal text-slate-400">(Auto)</span></Label><Input readOnly value={luasTerbangun > 0 ? luasTerbangun.toFixed(2) : ''} className="bg-blue-50 border-blue-200 font-bold text-blue-800 cursor-not-allowed" placeholder="0.00" tabIndex={-1} /></div>
             </CardContent>
           </Card>
@@ -814,7 +835,7 @@ export default function RABPage() {
                               <tr key={row.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
                                 <td className="p-2 border-r border-slate-100 text-center font-medium text-slate-500 whitespace-nowrap">{index + 1}</td>
                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
-                                  <select className="w-full p-2 border border-slate-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xs" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
+                                  <select disabled={isHO} className="w-full p-2 border border-slate-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xs" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
                                     <option value="">-- Pilih --</option>
                                     {prices[category]?.map((p: any) => {
                                         const jobName = p["Jenis Pekerjaan"];
@@ -824,29 +845,35 @@ export default function RABPage() {
                                   </select>
                                 </td>
                                 <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium whitespace-nowrap">{row.satuan}</td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs w-24 ${row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={row.satuan === 'Ls'} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs w-24 ${isHO || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isHO || row.satuan === 'Ls'} /></td>
                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className="h-9 px-2 text-right transition-colors text-xs bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 w-28" value={formatAngka(row.hargaMaterial)} readOnly tabIndex={-1} /></td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${!row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={!row.isKondisional} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isHO || !row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isHO || !row.isKondisional} /></td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaMaterial)}</td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaUpah)}</td>
                                 <td className="p-2 border-r border-slate-100 text-right font-bold text-slate-800 bg-slate-100 text-xs whitespace-nowrap">{toRupiah(row.volume * (row.hargaMaterial + row.hargaUpah))}</td>
-                                <td className="p-2 border-r border-slate-100 min-w-48"><Textarea placeholder="Catatan..." className="min-h-9 py-1 px-2 text-xs bg-white border-slate-300 focus-visible:ring-blue-500 resize-y" value={row.catatan || ''} onChange={(e) => updateRow(row.id, 'catatan', e.target.value)} /></td>
-                                <td className="p-2 text-center whitespace-nowrap"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeRow(row.id)}><Trash2 className="w-4 h-4" /></Button></td>
+                                <td className="p-2 border-r border-slate-100 min-w-48"><Textarea placeholder="Catatan..." disabled={isHO} className="min-h-9 py-1 px-2 text-xs bg-white border-slate-300 focus-visible:ring-blue-500 resize-y" value={row.catatan || ''} onChange={(e) => updateRow(row.id, 'catatan', e.target.value)} /></td>
+                                <td className="p-2 text-center whitespace-nowrap">
+                                  {!isHO && (
+                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeRow(row.id)}><Trash2 className="w-4 h-4" /></Button>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
                           <tfoot className="bg-slate-50 border-t-2 border-slate-200">
-                            <tr>
-                              <td colSpan={11} className="p-3 text-center bg-white border-b border-slate-200">
-                                <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 w-full max-w-sm" onClick={() => addRow(category)}><Plus className="w-4 h-4 mr-1" /> Tambah Item Pekerjaan</Button>
-                              </td>
-                            </tr>
+                             {!isHO && (
+                               <tr>
+                                 <td colSpan={11} className="p-3 text-center bg-white border-b border-slate-200">
+                                   <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 w-full max-w-sm" onClick={() => addRow(category)}><Plus className="w-4 h-4 mr-1" /> Tambah Item Pekerjaan</Button>
+                                 </td>
+                               </tr>
+                             )}
                             <tr><td colSpan={8} className="p-3 text-right font-bold text-slate-600">Sub Total {category}:</td><td className="p-3 text-right font-bold text-red-700 whitespace-nowrap">{toRupiah(subTotal)}</td><td colSpan={2}></td></tr>
                           </tfoot>
                         </table>
                       </div>
                     )}
-                    {itemsInCategory.length === 0 && (
+                    {itemsInCategory.length === 0 && !isHO && (
                         <div className="p-6 text-center">
                             <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400" onClick={() => addRow(category)}><Plus className="w-4 h-4 mr-1" /> Tambah Item Pekerjaan</Button>
                         </div>
@@ -874,14 +901,16 @@ export default function RABPage() {
               )}
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 sticky bottom-4 z-10 p-4 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200">
-            <Button type="submit" disabled={isLoading || !isFormComplete || !isFormModified} title={!isFormModified ? "Silakan buat perubahan pada form terlebih dahulu" : ""} className="w-full md:flex-1 h-14 text-lg font-bold bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 shadow-md transition-all">
-              {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Sedang Mengirim Data...</> : <><Save className="w-5 h-5 mr-2" /> Simpan & Lanjut ke Gantt Chart</>}
-            </Button>
-            <Button type="button" variant="outline" className="w-full md:w-1/3 h-14 text-lg font-semibold bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-red-600" onClick={() => setResetDialogOpen(true)}>
-              Reset Ulang Form
-            </Button>
-          </div>
+          {!isHO && (
+            <div className="flex flex-col md:flex-row gap-4 sticky bottom-4 z-10 p-4 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200">
+              <Button type="submit" disabled={isLoading || !isFormComplete || !isFormModified} title={!isFormModified ? "Silakan buat perubahan pada form terlebih dahulu" : ""} className="w-full md:flex-1 h-14 text-lg font-bold bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 shadow-md transition-all">
+                {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Sedang Mengirim Data...</> : <><Save className="w-5 h-5 mr-2" /> Simpan & Lanjut ke Gantt Chart</>}
+              </Button>
+              <Button type="button" variant="outline" className="w-full md:w-1/3 h-14 text-lg font-semibold bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-red-600" onClick={() => setResetDialogOpen(true)}>
+                Reset Ulang Form
+              </Button>
+            </div>
+          )}
         </form>
       </main>
 

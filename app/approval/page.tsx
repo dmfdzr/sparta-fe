@@ -403,15 +403,24 @@ export default function ApprovalPage() {
         // Handle Multi-Role
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         
+        const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
         // Find all accessible types across all roles
         const allAccessibleTypes = new Set<ApprovalType>();
-        roles.forEach(r => {
-            (Object.keys(ROLE_ACCESS) as ApprovalType[]).forEach(type => {
-                if (ROLE_ACCESS[type].some(allowedRole => allowedRole.toUpperCase() === r)) {
-                    allAccessibleTypes.add(type);
-                }
+        if (isHO) {
+            allAccessibleTypes.add('RAB');
+            allAccessibleTypes.add('SPK');
+            allAccessibleTypes.add('PERTAMBAHAN_SPK');
+            allAccessibleTypes.add('OPNAME_FINAL');
+            allAccessibleTypes.add('INSTRUKSI_LAPANGAN');
+        } else {
+            roles.forEach(r => {
+                (Object.keys(ROLE_ACCESS) as ApprovalType[]).forEach(type => {
+                    if (ROLE_ACCESS[type].some(allowedRole => allowedRole.toUpperCase() === r)) {
+                        allAccessibleTypes.add(type);
+                    }
+                });
             });
-        });
+        }
 
         const typesArr = Array.from(allAccessibleTypes);
 
@@ -498,10 +507,18 @@ export default function ApprovalPage() {
             // Filter Berdasarkan Role & Jabatan & Cabang
             normalized = normalized.filter(item => {
                 const upper = (item.status ?? '').toUpperCase();
+                const upperUserCabang = userInfo.cabang?.toUpperCase();
+
+                if (upperUserCabang === 'HEAD OFFICE') {
+                    // Only show pending items for RAB & IL
+                    if (type === 'RAB' || type === 'INSTRUKSI_LAPANGAN') {
+                        return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
+                    }
+                    return true;
+                }
 
                 // 1. FILTER CABANG (Wajib sesuai cabang user)
                 // Jika item.cabang adalah '-' atau empty, kita loloskan agar tidak tersembunyi karena data kurang
-                const upperUserCabang = userInfo.cabang?.toUpperCase();
                 if (jabatan !== 'DIREKTUR' && type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {
                     if (upperUserCabang !== 'HEAD OFFICE') {
                         let userGroup: string[] | null = null;
@@ -959,6 +976,7 @@ export default function ApprovalPage() {
      *   - "Ditolak"  / "Rejected"
      */
     const isActionableByRole = (status: string, tipe: ApprovalType): boolean => {
+        if (userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') return false;
         const upper = (status ?? '').toUpperCase();
         
         // Cek Tolak/Setuju secara universal termasuk SPK

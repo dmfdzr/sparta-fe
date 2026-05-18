@@ -225,10 +225,12 @@ export default function UsersPage() {
                             <p className="text-sm text-slate-500">Kelola data PIC dan akses aplikasi setiap cabang</p>
                         </div>
                     </div>
-                    <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm h-10 px-5 font-semibold shrink-0">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Tambah User
-                    </Button>
+                    {!(userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') && (
+                        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm h-10 px-5 font-semibold shrink-0">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Tambah User
+                        </Button>
+                    )}
                 </div>
 
                 {/* Toolbar */}
@@ -327,14 +329,16 @@ export default function UsersPage() {
                                             </Badge>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => openEditForm(u)} className="h-8 w-8 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50">
-                                                    <Edit2 className="w-4 h-4" />
-                                                </Button>
-                                                <Button variant="outline" size="sm" onClick={() => setDeleteModal({ id: u.id, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
+                                            {!(userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') && (
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => openEditForm(u)} className="h-8 w-8 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50">
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => setDeleteModal({ id: u.id, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

@@ -77,7 +77,7 @@ export default function ProjekPlanningPage() {
       let data = res.data || [];
       
       data = data.filter((d: any) => {
-        if (isHO && !isCoor && !isBM && !isPP && !isPPMgr) return true; // Admin/Direktur
+        if (isHO) return true; // HEAD OFFICE sees all
         
         let visible = false;
         if (isCoor && d.email_pembuat === userEmail) visible = true;

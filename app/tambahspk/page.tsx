@@ -144,17 +144,19 @@ export default function TambahSPKPage() {
     // ════════════════════════════════════════════════════════════════════
 
     const { user } = useSession();
+    const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
 
     useEffect(() => {
         if (!user) return;
 
         const { role, email, cabang } = user;
+        const isHOUser = cabang.toUpperCase() === 'HEAD OFFICE';
 
         const allowedRoles = [
             'BRANCH BUILDING & MAINTENANCE MANAGER',
             'BRANCH BUILDING SUPPORT DOKUMENTASI',
         ];
-        if (!allowedRoles.includes(role.toUpperCase())) {
+        if (!isHOUser && !allowedRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Anda tidak memiliki akses ke halaman ini.", type: "error", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -353,7 +355,7 @@ export default function TambahSPKPage() {
     const hasPendingPerpanjangan = existingPerpanjangan.some(
         p => p.status_persetujuan === 'Menunggu Persetujuan'
     );
-    const isFormDisabled = hasPendingPerpanjangan;
+    const isFormDisabled = hasPendingPerpanjangan || isHO;
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12 relative">
@@ -728,29 +730,31 @@ export default function TambahSPKPage() {
                             {/* ═══════════════════════════════════════════════════
                                 TOMBOL SUBMIT
                             ═══════════════════════════════════════════════════ */}
-                            <div className="pt-4 pb-4">
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        isSubmitting ||
-                                        !selectedSpk ||
-                                        !pertambahanHari ||
-                                        !alasanPerpanjangan.trim() ||
-                                        isFormDisabled ||
-                                        isRevisiUnchanged
-                                    }
-                                    className={`w-full h-14 text-lg font-bold shadow-lg transition-all ${
-                                        isRevisiUnchanged
-                                            ? 'bg-slate-400 cursor-not-allowed'
-                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                    }`}
-                                >
-                                    {isSubmitting
-                                        ? <><Loader2 className="w-6 h-6 mr-2 animate-spin" /> Menyimpan Data...</>
-                                        : <><Save className="w-6 h-6 mr-2" /> Kirim Pengajuan Perpanjangan SPK</>
-                                    }
-                                </Button>
-                            </div>
+                            {!isHO && (
+                                <div className="pt-4 pb-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            isSubmitting ||
+                                            !selectedSpk ||
+                                            !pertambahanHari ||
+                                            !alasanPerpanjangan.trim() ||
+                                            isFormDisabled ||
+                                            isRevisiUnchanged
+                                        }
+                                        className={`w-full h-14 text-lg font-bold shadow-lg transition-all ${
+                                            isRevisiUnchanged
+                                                ? 'bg-slate-400 cursor-not-allowed'
+                                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                        }`}
+                                    >
+                                        {isSubmitting
+                                            ? <><Loader2 className="w-6 h-6 mr-2 animate-spin" /> Menyimpan Data...</>
+                                            : <><Save className="w-6 h-6 mr-2" /> Kirim Pengajuan Perpanjangan SPK</>
+                                        }
+                                    </Button>
+                                </div>
+                            )}
                         </form>
                     </CardContent>
                 </Card>

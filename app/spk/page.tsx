@@ -100,14 +100,16 @@ export default function SPKPage() {
     });
 
     const { user } = useSession();
+    const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
 
     useEffect(() => {
         if (!user) return;
 
         const { role, email, cabang } = user;
+        const isHO = cabang.toUpperCase() === 'HEAD OFFICE';
 
         const picRoles = ['BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT'];
-        if (!picRoles.includes(role.toUpperCase())) {
+        if (!isHO && !picRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Hanya PIC yang dapat membuat SPK.", type: "warning", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -126,6 +128,7 @@ export default function SPKPage() {
             const listRab = res.data || [];
             
             const upperCabang = cabang.toUpperCase();
+            const isHO = upperCabang === 'HEAD OFFICE';
             let userGroup: string[] | null = null;
             for (const grp of Object.values(BRANCH_GROUPS)) {
                 if (grp.includes(upperCabang)) {
@@ -134,7 +137,7 @@ export default function SPKPage() {
                 }
             }
             
-            const filteredRabs = listRab.filter((r: any) => {
+            const filteredRabs = isHO ? listRab : listRab.filter((r: any) => {
                 if (userGroup) {
                     return userGroup.includes(r.cabang?.toUpperCase());
                 }
@@ -548,22 +551,24 @@ export default function SPKPage() {
                             </div>
 
                             {/* TOMBOL SUBMIT */}
-                            <div className="pt-4 pb-4">
-                                <Button
-                                    type="submit"
-                                    disabled={isSubmitting || !form.nomor_ulok || isLocked || isRevisiUnchanged}
-                                    className={`w-full h-14 text-lg font-bold shadow-lg transition-all ${
-                                        isRevisiUnchanged
-                                            ? 'bg-slate-400 cursor-not-allowed'
-                                            : 'bg-red-600 hover:bg-red-700'
-                                    }`}
-                                >
-                                    {isSubmitting
-                                        ? <><Loader2 className="w-6 h-6 mr-2 animate-spin"/> Menyimpan Data...</>
-                                        : <><Save className="w-6 h-6 mr-2"/> {revisiData.isRevisi ? 'Kirim Revisi SPK' : 'Kirim SPK Baru'}</>
-                                    }
-                                </Button>
-                            </div>
+                            {!isHO && (
+                                <div className="pt-4 pb-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={isSubmitting || !form.nomor_ulok || isLocked || isRevisiUnchanged}
+                                        className={`w-full h-14 text-lg font-bold shadow-lg transition-all ${
+                                            isRevisiUnchanged
+                                                ? 'bg-slate-400 cursor-not-allowed'
+                                                : 'bg-red-600 hover:bg-red-700'
+                                        }`}
+                                    >
+                                        {isSubmitting
+                                            ? <><Loader2 className="w-6 h-6 mr-2 animate-spin"/> Menyimpan Data...</>
+                                            : <><Save className="w-6 h-6 mr-2"/> {revisiData.isRevisi ? 'Kirim Revisi SPK' : 'Kirim SPK Baru'}</>
+                                        }
+                                    </Button>
+                                </div>
+                            )}
                         </form>
                     </CardContent>
                 </Card>
