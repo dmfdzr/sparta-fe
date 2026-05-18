@@ -100,16 +100,19 @@ export default function SPKPage() {
     });
 
     const { user } = useSession();
-    const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHO = user?.isHO ?? false;
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHO && !isSuperHuman;
 
     useEffect(() => {
         if (!user) return;
 
         const { role, email, cabang } = user;
-        const isHO = cabang.toUpperCase() === 'HEAD OFFICE';
+        const isHOUser = cabang.toUpperCase() === 'HEAD OFFICE';
+        const isSHUser = user.isSuperHuman ?? false;
 
         const picRoles = ['BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT'];
-        if (!isHO && !picRoles.includes(role.toUpperCase())) {
+        if (!isHOUser && !isSHUser && !picRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Hanya PIC yang dapat membuat SPK.", type: "warning", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -118,17 +121,17 @@ export default function SPKPage() {
         setUserInfo({ name, role, cabang, email });
         setForm(prev => ({ ...prev, kode_cabang: getCabangCode(cabang) }));
 
-        loadApprovedRabs(cabang);
+        loadApprovedRabs(cabang, isSHUser);
     }, [user, router]);
 
-    const loadApprovedRabs = async (cabang: string) => {
+    const loadApprovedRabs = async (cabang: string, isSuperHumanUser = false) => {
         setIsLoading(true);
         try {
             const res = await fetchRABList({ status: "Disetujui" });
             const listRab = res.data || [];
             
             const upperCabang = cabang.toUpperCase();
-            const isHO = upperCabang === 'HEAD OFFICE';
+            const isHOUser = upperCabang === 'HEAD OFFICE';
             let userGroup: string[] | null = null;
             for (const grp of Object.values(BRANCH_GROUPS)) {
                 if (grp.includes(upperCabang)) {
@@ -137,7 +140,8 @@ export default function SPKPage() {
                 }
             }
             
-            const filteredRabs = isHO ? listRab : listRab.filter((r: any) => {
+            // HO dan Super Human melihat semua RAB
+            const filteredRabs = (isHOUser || isSuperHumanUser) ? listRab : listRab.filter((r: any) => {
                 if (userGroup) {
                     return userGroup.includes(r.cabang?.toUpperCase());
                 }
@@ -551,7 +555,7 @@ export default function SPKPage() {
                             </div>
 
                             {/* TOMBOL SUBMIT */}
-                            {!isHO && (
+                            {!isReadOnly && (
                                 <div className="pt-4 pb-4">
                                     <Button
                                         type="submit"

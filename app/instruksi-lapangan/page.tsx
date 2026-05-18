@@ -41,7 +41,9 @@ export default function InstruksiLapanganPage() {
     const [alertMessage, setAlertMessage] = useState<{title: string, desc: string, type: 'info' | 'error' | 'success' | 'warning'}>({ title: "", desc: "", type: "info" });
 
     const { user } = useSession();
-    const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHOUser = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHOUser && !isSuperHuman;
 
     useEffect(() => {
         if (!user) return;
@@ -49,9 +51,10 @@ export default function InstruksiLapanganPage() {
         const userCabang = user.cabang.toUpperCase();
         setCabang(userCabang);
         const isHO = userCabang === 'HEAD OFFICE';
+        const isSH = user.isSuperHuman ?? false;
 
         fetchSPKList({ status: "SPK_APPROVED" }).then(res => {
-            const filtered = isHO ? res.data : res.data.filter(spk => (spk.toko?.cabang || (spk as any).cabang || "").toUpperCase() === userCabang);
+            const filtered = (isHO || isSH) ? res.data : res.data.filter(spk => (spk.toko?.cabang || (spk as any).cabang || "").toUpperCase() === userCabang);
             setSpkList(filtered);
         }).catch(err => {
             console.error(err);
@@ -263,7 +266,7 @@ export default function InstruksiLapanganPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label>Pilih Ulok/Toko <span className="text-red-500">*</span></Label>
-                                    <Select disabled={isHO} onValueChange={handleSpkChange} required>
+                                    <Select disabled={isReadOnly} onValueChange={handleSpkChange} required>
                                         <SelectTrigger className="bg-white">
                                             <SelectValue placeholder="-- Pilih Toko Berdasarkan SPK Approved --" />
                                         </SelectTrigger>
@@ -281,14 +284,14 @@ export default function InstruksiLapanganPage() {
                                     {lampiranFileName ? (
                                         <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
                                             <p className="text-sm font-semibold text-green-700 truncate flex-1">{lampiranFileName}</p>
-                                            {!isHO && (
+                                            {!isReadOnly && (
                                                 <button type="button" onClick={removeLampiran} className="p-1.5 bg-red-100 text-red-500 rounded-full hover:bg-red-200 transition-colors" title="Hapus file">
                                                     <X className="w-3.5 h-3.5" />
                                                 </button>
                                             )}
                                         </div>
                                     ) : (
-                                        !isHO ? (
+                                        !isReadOnly ? (
                                             <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-50 transition-all">
                                                 <Upload className="w-4 h-4 text-red-500" />
                                                 Pilih File
@@ -307,7 +310,7 @@ export default function InstruksiLapanganPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tanggal Mulai <span className="text-red-500">*</span></Label>
-                                    {isHO ? (
+                                    {isReadOnly ? (
                                         <Input readOnly value={tanggalMulai} className="bg-slate-100 text-slate-500 font-semibold cursor-not-allowed border-slate-200" />
                                     ) : (
                                         <DatePicker
@@ -320,7 +323,7 @@ export default function InstruksiLapanganPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tanggal Selesai <span className="text-red-500">*</span></Label>
-                                    {isHO ? (
+                                    {isReadOnly ? (
                                         <Input readOnly value={tanggalSelesai} className="bg-slate-100 text-slate-500 font-semibold cursor-not-allowed border-slate-200" />
                                     ) : (
                                         <DatePicker
@@ -375,7 +378,7 @@ export default function InstruksiLapanganPage() {
                                                             <tr key={row.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
                                                                 <td className="p-2 border-r border-slate-100 text-center font-medium text-slate-500 whitespace-nowrap">{index + 1}</td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
-                                                                    <select disabled={isHO} className="w-full p-2 border border-slate-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xs" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
+                                                                    <select disabled={isReadOnly} className="w-full p-2 border border-slate-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xs" value={row.jenisPekerjaan} onChange={(e) => updateRow(row.id, 'jenisPekerjaan', e.target.value)}>
                                                                         <option value="">-- Pilih --</option>
                                                                         {prices[category]?.map((p: any) => {
                                                                             const jobName = p["Jenis Pekerjaan"];
@@ -386,22 +389,22 @@ export default function InstruksiLapanganPage() {
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium whitespace-nowrap">{row.satuan}</td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
-                                                                    <Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs ${isHO || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isHO || row.satuan === 'Ls'} />
+                                                                    <Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs ${isReadOnly || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isReadOnly || row.satuan === 'Ls'} />
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
                                                                     <Input type="text" className="h-9 px-2 text-right transition-colors text-xs bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 w-28" value={formatAngka(row.hargaMaterial)} readOnly tabIndex={-1} />
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
-                                                                    <Input type="text" className={`h-9 px-2 text-right transition-colors text-xs ${isHO || !row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isHO || !row.isKondisional} />
+                                                                    <Input type="text" className={`h-9 px-2 text-right transition-colors text-xs ${isReadOnly || !row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !row.isKondisional} />
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaMaterial)}</td>
                                                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaUpah)}</td>
                                                                 <td className="p-2 border-r border-slate-100 text-right font-bold text-slate-800 bg-slate-100 text-xs whitespace-nowrap">{toRupiah(row.volume * (row.hargaMaterial + row.hargaUpah))}</td>
                                                                 <td className="p-2 border-r border-slate-100">
-                                                                    <Input type="text" readOnly={isHO} placeholder="Catatan..." className="h-9 px-2 text-xs bg-white border-slate-300 focus-visible:ring-blue-500" value={row.catatan || ''} onChange={(e) => updateRow(row.id, 'catatan', e.target.value)} />
+                                                                    <Input type="text" readOnly={isReadOnly} placeholder="Catatan..." className="h-9 px-2 text-xs bg-white border-slate-300 focus-visible:ring-blue-500" value={row.catatan || ''} onChange={(e) => updateRow(row.id, 'catatan', e.target.value)} />
                                                                 </td>
                                                                 <td className="p-2 text-center whitespace-nowrap">
-                                                                    {!isHO && (
+                                                                    {!isReadOnly && (
                                                                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeRow(row.id)}>
                                                                             <Trash2 className="w-4 h-4" />
                                                                         </Button>
@@ -411,7 +414,7 @@ export default function InstruksiLapanganPage() {
                                                         ))}
                                                     </tbody>
                                                     <tfoot className="bg-slate-50 border-t-2 border-slate-200">
-                                                        {!isHO && (
+                                                        {!isReadOnly && (
                                                             <tr>
                                                                 <td colSpan={11} className="p-3 text-center bg-white border-b border-slate-200">
                                                                     <Button type="button" size="sm" variant="outline" className="h-8 bg-white border-dashed border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 w-full max-w-sm" onClick={() => addRow(category)}>
@@ -471,7 +474,7 @@ export default function InstruksiLapanganPage() {
                         <Button type="button" variant="outline" onClick={() => router.push('/dashboard')} className="min-w-30">
                             Batal
                         </Button>
-                        {!isHO && (
+                        {!isReadOnly && (
                             <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-white min-w-35">
                                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : <><Save className="mr-2 h-4 w-4" /> Simpan</>}
                             </Button>

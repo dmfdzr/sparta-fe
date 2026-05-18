@@ -530,8 +530,11 @@ function SpkPicForm({
     userInfo: { name: string; role: string; cabang: string; email: string };
     onSuccess: (spkId: number, picName: string) => void;
 }) {
+    const { user } = useSession();
     const { showAlert } = useGlobalAlert();
-    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHOUser = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHOUser && !isSuperHuman;
     const [picName, setPicName] = useState('');
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [ganttDuration, setGanttDuration] = useState<number>(0);
@@ -720,7 +723,7 @@ function SpkPicForm({
                             <InteractiveGanttChart
                                 key={gid}
                                 ganttId={gid}
-                                readonlyDays={isHO || idx > 0}
+                                readonlyDays={isReadOnly || idx > 0}
                                 selectedDays={selectedDays}
                                 onToggleDay={handleToggleDay}
                                 spkStartDate={spk.waktu_mulai}
@@ -767,7 +770,7 @@ function SpkPicForm({
                             <label className="text-sm font-bold text-slate-700">Nama PIC (Branch Building Support) *</label>
                             <select
                                 required
-                                disabled={isHO}
+                                disabled={isReadOnly}
                                 className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold cursor-pointer"
                                 value={picName}
                                 onChange={(e) => setPicName(e.target.value)}
@@ -783,7 +786,7 @@ function SpkPicForm({
                     </div>
                 )}
 
-                {!isLocked && !isHO && (
+                {!isLocked && !isReadOnly && (
                     <div className="pt-2">
                         <Button
                             type="button"

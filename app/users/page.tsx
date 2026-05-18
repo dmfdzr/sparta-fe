@@ -18,6 +18,7 @@ import { BRANCH_TO_ULOK } from '@/lib/constants';
 // Role yang tersedia sesuai instruksi
 const JABATAN_OPTIONS = [
     'BRANCH BUILDING & MAINTENANCE MANAGER',
+    'BUILDING & MAINTENANCE SUPER HUMAN',
     'BRANCH BUILDING COORDINATOR',
     'BRANCH BUILDING SUPPORT',
     'BRANCH MANAGER',
@@ -73,11 +74,11 @@ export default function UsersPage() {
     useEffect(() => {
         if (!user) return;
 
-        const { role, email, cabang, namaLengkap } = user;
+        const { role, email, cabang, namaLengkap, isHO, isSuperHuman } = user;
 
-        // Hanya HEAD OFFICE yang boleh akses
-        if (cabang.toUpperCase() !== 'HEAD OFFICE') {
-            alert("Hanya pengguna Head Office yang dapat mengakses halaman ini.");
+        // HEAD OFFICE dan SUPER HUMAN yang boleh akses
+        if (!isHO && !isSuperHuman) {
+            alert("Hanya pengguna Head Office atau Super Human yang dapat mengakses halaman ini.");
             router.push('/dashboard');
             return;
         }
@@ -225,11 +226,17 @@ export default function UsersPage() {
                             <p className="text-sm text-slate-500">Kelola data PIC dan akses aplikasi setiap cabang</p>
                         </div>
                     </div>
-                    {!(userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') && (
+                    {/* Tambah User hanya untuk Super Human */}
+                    {user?.isSuperHuman && (
                         <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm h-10 px-5 font-semibold shrink-0">
                             <Plus className="w-4 h-4 mr-2" />
                             Tambah User
                         </Button>
+                    )}
+                    {user?.isHO && !user?.isSuperHuman && (
+                        <span className="text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full">
+                            👁 View Only
+                        </span>
                     )}
                 </div>
 
@@ -329,16 +336,21 @@ export default function UsersPage() {
                                             </Badge>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            {!(userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') && (
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" size="sm" onClick={() => openEditForm(u)} className="h-8 w-8 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50">
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" onClick={() => setDeleteModal({ id: u.id, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            <div className="flex justify-end gap-2">
+                                                {user?.isSuperHuman && (
+                                                    <>
+                                                        <Button variant="outline" size="sm" onClick={() => openEditForm(u)} className="h-8 w-8 p-0 rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button variant="outline" size="sm" onClick={() => setDeleteModal({ id: u.id, nama: u.nama_lengkap || u.email_sat })} className="h-8 w-8 p-0 rounded-lg text-red-600 border-red-200 hover:bg-red-50">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                {!user?.isSuperHuman && (
+                                                    <span className="text-xs text-slate-400 italic">—</span>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

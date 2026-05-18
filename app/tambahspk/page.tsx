@@ -144,19 +144,22 @@ export default function TambahSPKPage() {
     // ════════════════════════════════════════════════════════════════════
 
     const { user } = useSession();
-    const isHO = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isHOUser = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHOUser && !isSuperHuman;
 
     useEffect(() => {
         if (!user) return;
 
         const { role, email, cabang } = user;
         const isHOUser = cabang.toUpperCase() === 'HEAD OFFICE';
+        const isSHUser = user.isSuperHuman ?? false;
 
         const allowedRoles = [
             'BRANCH BUILDING & MAINTENANCE MANAGER',
             'BRANCH BUILDING SUPPORT DOKUMENTASI',
         ];
-        if (!isHOUser && !allowedRoles.includes(role.toUpperCase())) {
+        if (!isHOUser && !isSHUser && !allowedRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Anda tidak memiliki akses ke halaman ini.", type: "error", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -355,7 +358,7 @@ export default function TambahSPKPage() {
     const hasPendingPerpanjangan = existingPerpanjangan.some(
         p => p.status_persetujuan === 'Menunggu Persetujuan'
     );
-    const isFormDisabled = hasPendingPerpanjangan || isHO;
+    const isFormDisabled = hasPendingPerpanjangan || isReadOnly;
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12 relative">
@@ -730,7 +733,7 @@ export default function TambahSPKPage() {
                             {/* ═══════════════════════════════════════════════════
                                 TOMBOL SUBMIT
                             ═══════════════════════════════════════════════════ */}
-                            {!isHO && (
+                            {!isReadOnly && (
                                 <div className="pt-4 pb-4">
                                     <Button
                                         type="submit"

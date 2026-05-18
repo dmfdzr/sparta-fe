@@ -70,7 +70,7 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!user) return;
 
-        const { role, cabang: userCabang, namaLengkap, roles, isHO } = user;
+        const { role, cabang: userCabang, namaLengkap, roles, isHO, isSuperHuman } = user;
 
         // Handle Multi-Role (DIREKTUR, KONTRAKTOR)
         const contractorFlag = roles.some(r => r.includes('KONTRAKTOR'));
@@ -86,12 +86,19 @@ export default function DashboardPage() {
         let allowedIds = Array.from(new Set(combinedAllowedIds));
 
         if (allowedIds.length === 0) {
-            allowedIds = isHO
-                ? [...(ROLE_CONFIG['BRANCH BUILDING & MAINTENANCE MANAGER'] ?? [])]
+            // HO and Super Human get all menus; others fall back to Building Support
+            allowedIds = (isHO || isSuperHuman)
+                ? ALL_MENUS.map(m => m.id)
                 : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
         }
 
+        // HO always gets all menus (view-only enforced per-page)
         if (isHO) {
+            allowedIds = ALL_MENUS.map(m => m.id);
+        }
+
+        // Super Human gets menu-users explicitly (already in ROLE_CONFIG but ensure it)
+        if (isSuperHuman) {
             allowedIds.push("menu-users");
         }
 
@@ -106,7 +113,7 @@ export default function DashboardPage() {
         if (window.innerWidth <= 768) setSidebarOpen(false);
         
         // Initial Data Fetch
-        fetchDashboardData(userCabang.toUpperCase());
+        fetchDashboardData(userCabang.toUpperCase(), isSuperHuman);
         setIsLoading(false);
     }, [user]);
 
@@ -117,7 +124,7 @@ export default function DashboardPage() {
         }
     }, [detailModal.open, detailModal.context, detailModal.subContext]);
 
-    const fetchDashboardData = async (userCabang: string) => {
+    const fetchDashboardData = async (userCabang: string, isSuperHuman = false) => {
         setIsDataLoading(true);
         try {
             // Fetch dari API real
@@ -125,8 +132,9 @@ export default function DashboardPage() {
             let data = json.data || [];
             
             // Tentukan allowedBranches berdasarkan branch group
+            // HEAD OFFICE dan SUPER HUMAN melihat semua cabang
             let allowedBranches: string[] = [];
-            if (userCabang !== 'HEAD OFFICE') {
+            if (userCabang !== 'HEAD OFFICE' && !isSuperHuman) {
                 const group = Object.values(BRANCH_GROUPS).find(g => g.includes(userCabang));
                 if (group) {
                     allowedBranches = group;

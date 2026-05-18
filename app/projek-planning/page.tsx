@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/context/SessionContext";
 import AppNavbar from "@/components/AppNavbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function ProjekPlanningPage() {
   const router = useRouter();
+  const { user } = useSession();
   const [items, setItems] = useState<ProjekPlanningItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -57,6 +59,7 @@ export default function ProjekPlanningPage() {
       if (statusFilter) filters.status = statusFilter;
       
       const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
+      const isSuperHuman = user?.isSuperHuman ?? false;
       const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
 
       const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
@@ -67,7 +70,7 @@ export default function ProjekPlanningPage() {
       } else if (search.trim()) {
         // Manual search override
         filters.cabang = search.trim();
-      } else if (!isHO && !isCoor && userCabang) {
+      } else if (!isHO && !isSuperHuman && !isCoor && userCabang) {
         // BM, PP, Manager: filter by their own cabang
         filters.cabang = userCabang;
       }
@@ -77,7 +80,7 @@ export default function ProjekPlanningPage() {
       let data = res.data || [];
       
       data = data.filter((d: any) => {
-        if (isHO) return true; // HEAD OFFICE sees all
+        if (isHO || isSuperHuman) return true; // HEAD OFFICE & SH melihat semua
         
         let visible = false;
         if (isCoor && d.email_pembuat === userEmail) visible = true;
@@ -92,7 +95,7 @@ export default function ProjekPlanningPage() {
       localStorage.setItem("last_checked_fpd", new Date().toISOString());
     } catch (e: any) { console.error(e); }
     setLoading(false);
-  }, [statusFilter, search, userRole, userEmail, userCabang]);
+  }, [statusFilter, search, userRole, userEmail, userCabang, user?.isSuperHuman]);
 
   useEffect(() => {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useSession } from "@/context/SessionContext";
 import AppNavbar from "@/components/AppNavbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,7 @@ export default function DetailProjekPlanning() {
   const [data, setData] = useState<ProjekPlanningItem | null>(null);
   const [logs, setLogs] = useState<ProjekPlanningLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useSession();
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userCabang, setUserCabang] = useState("");
@@ -175,13 +177,12 @@ export default function DetailProjekPlanning() {
   };
 
   useEffect(() => {
-    const email = sessionStorage.getItem("loggedInUserEmail") || "";
-    const role = sessionStorage.getItem("userRole") || "";
-    const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
-    if (!email) { router.push("/auth"); return; }
-    setUserEmail(email); setUserRole(role.toUpperCase()); setUserCabang(cabang);
+    if (!user) return;
+    setUserEmail(user.email); 
+    setUserRole(user.role.toUpperCase()); 
+    setUserCabang(user.cabang);
     load();
-  }, [id]);
+  }, [id, user]);
 
   const showAlert = (title: string, desc: string) => { setAlertMsg({ title, desc }); setAlertOpen(true); };
 
@@ -270,12 +271,15 @@ export default function DetailProjekPlanning() {
 
   const st = STATUS_MAP[data.status] || { label: data.status, color: "bg-slate-100" };
   const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
+  const isSuperHuman = user?.isSuperHuman ?? false;
+  const isReadOnly = isHO && !isSuperHuman;
+  
   const { isCoor: isCoorRaw, isBM: isBMRaw, isPP: isPPRaw, isPPMgr: isPPMgrRaw } = getPpRoles(userRole, userEmail);
-  const isCoor = !isHO && isCoorRaw;
-  const isBM = !isHO && isBMRaw;
-  const isPP = !isHO && isPPRaw;
-  const isPPMgr = !isHO && isPPMgrRaw;
-  const isBBMM = !isHO && (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM"));
+  const isCoor = (!isReadOnly && isCoorRaw) || isSuperHuman;
+  const isBM = (!isReadOnly && isBMRaw) || isSuperHuman;
+  const isPP = (!isReadOnly && isPPRaw) || isSuperHuman;
+  const isPPMgr = (!isReadOnly && isPPMgrRaw) || isSuperHuman;
+  const isBBMM = (!isReadOnly && (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM"))) || isSuperHuman;
 
   const requiredLinks = [data.link_gambar_rab_sipil, data.link_gambar_rab_me, data.link_fpd, data.link_desain_3d, data.link_rab, data.link_gambar_kerja, data.link_fpd_approved].filter(Boolean) as string[];
   const allLinksOpened = requiredLinks.length === 0 || requiredLinks.every(url => openedLinks.has(url));

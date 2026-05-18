@@ -15,6 +15,8 @@ export interface UserSession {
   roles: string[];
   /** true jika cabang === "HEAD OFFICE" */
   isHO: boolean;
+  /** true jika jabatan === "BUILDING & MAINTENANCE SUPER HUMAN" — akses penuh ke semua cabang & aksi */
+  isSuperHuman: boolean;
 }
 
 interface SessionContextValue {
@@ -101,6 +103,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       .map((r: string) => r.trim().toUpperCase())
       .filter(Boolean);
 
+    const isSuperHuman = roles.some(
+      (r: string) => r === 'BUILDING & MAINTENANCE SUPER HUMAN'
+    );
+
     const sessionUser: UserSession = {
       email,
       cabang,
@@ -110,12 +116,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       alamatCabang,
       roles,
       isHO,
+      isSuperHuman,
     };
 
     setUser(sessionUser);
 
-    // Time restriction: HEAD OFFICE is always allowed
-    if (!isHO && !isWithinOperatingHours()) {
+    // Time restriction: HEAD OFFICE & SUPER HUMAN always allowed
+    if (!isHO && !isSuperHuman && !isWithinOperatingHours()) {
       setIsTimeBlocked(true);
     } else {
       setIsTimeBlocked(false);

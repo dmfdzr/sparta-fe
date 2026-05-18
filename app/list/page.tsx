@@ -633,7 +633,7 @@ export default function DaftarDokumenPage() {
 
             // Filter by cabang for non-HO users (branch group aware)
             const upperUserCabang = (sessionStorage.getItem('loggedInUserCabang') || '').toUpperCase();
-            if (upperUserCabang && upperUserCabang !== 'HEAD OFFICE') {
+            if (upperUserCabang && upperUserCabang !== 'HEAD OFFICE' && !user?.isSuperHuman) {
                 let userGroup: string[] | null = null;
                 for (const grp of Object.values(BRANCH_GROUPS)) {
                     if (grp.includes(upperUserCabang)) {
@@ -1005,7 +1005,8 @@ export default function DaftarDokumenPage() {
     const cabangOptions = useMemo(() => {
         const upper = userInfo.cabang?.toUpperCase();
         if (!upper) return [];
-        if (upper === 'HEAD OFFICE') {
+        const isSH = user?.isSuperHuman ?? false;
+        if (upper === 'HEAD OFFICE' || isSH) {
             return Object.keys(BRANCH_TO_ULOK).sort();
         }
         let userGroup: string[] | null = null;
@@ -1016,15 +1017,17 @@ export default function DaftarDokumenPage() {
             }
         }
         return userGroup ? [...userGroup].sort() : [];
-    }, [userInfo.cabang]);
+    }, [userInfo.cabang, user?.isSuperHuman]);
 
     const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHO && !isSuperHuman;
     const isHeadGroup = useMemo(() => {
         if (!userInfo.cabang) return false;
         const upper = userInfo.cabang.toUpperCase();
         return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
     }, [userInfo.cabang]);
-    const showCabangFilter = isHO || isHeadGroup || isContractor || isDirektur;
+    const showCabangFilter = isHO || isSuperHuman || isHeadGroup || isContractor || isDirektur;
 
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
@@ -1447,7 +1450,7 @@ export default function DaftarDokumenPage() {
                                                         {getStatusLabel(selectedDetail.status)}
                                                     </Badge>
                                                 )}
-                                                {isHO && selectedDetail.tipe === 'RAB' && (
+                                                {isSuperHuman && selectedDetail.tipe === 'RAB' && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"

@@ -88,13 +88,7 @@ export const ALL_MENUS = [
         icon: AlertTriangle,
         isAlert: true,
     },
-    {
-        id: "menu-monitoring",
-        title: "Monitoring Dashboard",
-        desc: "Pantau grafik progres dan status proyek real-time.",
-        href: "/monitoring",
-        icon: PieChart,
-    },
+
     {
         id: "menu-approval",
         title: "Approval Dokumen",
@@ -179,6 +173,14 @@ export const ROLE_CONFIG: Record<string, string[]> = {
 
     "PROJECT PLANNING & DEVELOPMENT MANAGER": [
         "menu-projek-planning"
+    ],
+
+    // ─── Super Human: akses penuh ke semua menu ───────────────────────────────
+    "BUILDING & MAINTENANCE SUPER HUMAN": [
+        "menu-rab", "menu-spk", "menu-inputpic", "menu-opname",
+        "menu-dokumentasi", "menu-tambahspk", "menu-svdokumen",
+        "menu-gantt", "menu-sp", "menu-approval", "menu-daftardokumen",
+        "menu-il", "menu-users", "menu-projek-planning",
     ],
 };
 

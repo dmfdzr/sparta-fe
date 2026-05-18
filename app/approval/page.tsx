@@ -405,9 +405,12 @@ export default function ApprovalPage() {
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         
         const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
+        const isSuperHuman = user.isSuperHuman ?? false;
+
         // Find all accessible types across all roles
         const allAccessibleTypes = new Set<ApprovalType>();
-        if (isHO) {
+        // HO dan Super Human melihat semua tipe approval
+        if (isHO || isSuperHuman) {
             allAccessibleTypes.add('RAB');
             allAccessibleTypes.add('SPK');
             allAccessibleTypes.add('PERTAMBAHAN_SPK');
@@ -432,8 +435,11 @@ export default function ApprovalPage() {
         }
 
         // Prioritas Jabatan: DIREKTUR > MANAGER > KOORDINATOR, KONTRAKTOR for IL
+        // Super Human mendapat jabatan MANAGER untuk bisa approve semua level
         let currentJabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR' | null = null;
-        if (roles.includes('DIREKTUR')) {
+        if (isSuperHuman) {
+            currentJabatan = 'MANAGER';
+        } else if (roles.includes('DIREKTUR')) {
             currentJabatan = 'DIREKTUR';
         } else if (roles.includes('KONTRAKTOR')) {
             currentJabatan = 'KONTRAKTOR';
@@ -509,12 +515,19 @@ export default function ApprovalPage() {
             normalized = normalized.filter(item => {
                 const upper = (item.status ?? '').toUpperCase();
                 const upperUserCabang = userInfo.cabang?.toUpperCase();
+                const isHOUser = upperUserCabang === 'HEAD OFFICE';
+                const isSuperHumanUser = user?.isSuperHuman ?? false;
 
-                if (upperUserCabang === 'HEAD OFFICE') {
-                    // Only show pending items for RAB & IL
-                    if (type === 'RAB' || type === 'INSTRUKSI_LAPANGAN') {
-                        return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
+                // Super Human dan HO melihat semua cabang
+                if (isHOUser || isSuperHumanUser) {
+                    // HO murni (bukan SH): hanya tampilkan pending untuk RAB & IL
+                    if (isHOUser && !isSuperHumanUser) {
+                        if (type === 'RAB' || type === 'INSTRUKSI_LAPANGAN') {
+                            return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
+                        }
+                        return true;
                     }
+                    // Super Human: lihat semua status
                     return true;
                 }
 
@@ -987,7 +1000,10 @@ export default function ApprovalPage() {
      *   - "Ditolak"  / "Rejected"
      */
     const isActionableByRole = (status: string, tipe: ApprovalType): boolean => {
-        if (userInfo.cabang?.toUpperCase() === 'HEAD OFFICE') return false;
+        // Pure HO (bukan Super Human) tidak bisa aksi
+        const isHOUser = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+        const isSuperHumanUser = user?.isSuperHuman ?? false;
+        if (isHOUser && !isSuperHumanUser) return false;
         const upper = (status ?? '').toUpperCase();
         
         // Cek Tolak/Setuju secara universal termasuk SPK
@@ -1023,6 +1039,8 @@ export default function ApprovalPage() {
     };
 
     const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isHO && !isSuperHuman;
     const isHeadGroup = useMemo(() => {
         if (!userInfo.cabang) return false;
         const upper = userInfo.cabang.toUpperCase();

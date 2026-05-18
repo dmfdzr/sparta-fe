@@ -106,10 +106,12 @@ function InfoItem({ icon, label, value, highlight }: {
 // PIC/SAT VIEW — Submit Volume Akhir
 // =============================================================================
 
-function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; cabang: string; email: string } }) {
+function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; cabang: string; email: string; isSuperHuman?: boolean } }) {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
     const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
+    const isSuperHuman = userInfo.isSuperHuman ?? false;
+    const isReadOnly = isHO && !isSuperHuman;
 
     // Data
     const [rabList, setRabList] = useState<RABListItem[]>([]);
@@ -148,9 +150,9 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
         fetchRABList()
             .then(res => {
                 const data = res.data || [];
-                // Filter berdasarkan cabang user & status disetujui
                 const filtered = data.filter(item => {
-                    const matchCabang = isHO || !userInfo.cabang
+                    // HO dan SH melihat semua cabang
+                    const matchCabang = (isHO || isSuperHuman) || !userInfo.cabang
                         ? true
                         : item.cabang?.toUpperCase() === userInfo.cabang.toUpperCase();
                     const isApproved = item.status?.toUpperCase().includes('DISETUJUI') ||
@@ -161,7 +163,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             })
             .catch(err => console.error("Gagal memuat RAB list:", err))
             .finally(() => setIsLoading(false));
-    }, [userInfo.cabang, isHO]);
+    }, [userInfo.cabang, isHO, isSuperHuman]);
 
     // Filter RAB List by search
     const filteredRabList = useMemo(() => {
@@ -669,7 +671,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                         </div>
                         {selectedRab && (
                             <div className="flex gap-2">
-                                {!isHO && (
+                                {!isReadOnly && (
                                     <button
                                         onClick={() => setShowInstruksiModal(true)}
                                         className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-bold border border-indigo-200 transition-colors"
@@ -770,7 +772,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                 </div>
 
                                 {/* Opname Final Button */}
-                                {!isHO && (
+                                {!isReadOnly && (
                                     <div className={`p-4 rounded-xl border shadow-sm flex items-center justify-between mb-6 ${allApproved ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
                                         <div>
                                             <h4 className={`font-bold text-sm ${allApproved ? 'text-emerald-800' : 'text-slate-500'}`}>
@@ -813,7 +815,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                 <ClipboardList className="w-4 h-4 text-emerald-600" />
                                                 2. Input Volume Akhir & Verifikasi Pekerjaan
                                             </h3>
-                                            {groupedItems.length > 0 && !isHO && (
+                                            {groupedItems.length > 0 && !isReadOnly && (
                                                 <Button
                                                     size="sm"
                                                     onClick={handleSubmitAll}
@@ -910,7 +912,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                                     type="number"
                                                                                                     step="any"
                                                                                                     className="w-full p-2 border border-slate-300 rounded text-sm bg-emerald-50 focus:bg-white focus:border-emerald-500 focus:outline-none font-bold pr-12"
-                                                                                                    disabled={isHO}
+                                                                                                    disabled={isReadOnly}
                                                                                                     value={input.volume_akhir}
                                                                                                     onChange={(e) => handleSetInput(item.id, 'volume_akhir', e.target.value)}
                                                                                                 />
@@ -952,7 +954,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                         <div>
                                                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Desain *</label>
                                                                                             <select className="w-full p-2 border border-slate-300 rounded mt-1 text-xs focus:border-emerald-500 focus:outline-none bg-slate-50"
-                                                                                                disabled={isHO}
+                                                                                                disabled={isReadOnly}
                                                                                                 value={input.desain || ''}
                                                                                                 onChange={(e) => handleSetInput(item.id, 'desain', e.target.value)}>
                                                                                                 <option value="">-- Pilih --</option>
@@ -963,7 +965,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                         <div>
                                                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Kualitas *</label>
                                                                                             <select className="w-full p-2 border border-slate-300 rounded mt-1 text-xs focus:border-emerald-500 focus:outline-none bg-slate-50"
-                                                                                                disabled={isHO}
+                                                                                                disabled={isReadOnly}
                                                                                                 value={input.kualitas || ''}
                                                                                                 onChange={(e) => handleSetInput(item.id, 'kualitas', e.target.value)}>
                                                                                                 <option value="">-- Pilih --</option>
@@ -974,7 +976,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                         <div>
                                                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Spesifikasi *</label>
                                                                                             <select className="w-full p-2 border border-slate-300 rounded mt-1 text-xs focus:border-emerald-500 focus:outline-none bg-slate-50"
-                                                                                                disabled={isHO}
+                                                                                                disabled={isReadOnly}
                                                                                                 value={input.spesifikasi || ''}
                                                                                                 onChange={(e) => handleSetInput(item.id, 'spesifikasi', e.target.value)}>
                                                                                                 <option value="">-- Pilih --</option>
@@ -991,7 +993,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                             <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Catatan</label>
                                                                                             <textarea
                                                                                                 className="w-full p-2 border border-slate-300 rounded mt-1 text-xs focus:border-emerald-500 focus:outline-none placeholder:text-slate-400 bg-slate-50 flex-1 resize-none min-h-15"
-                                                                                                disabled={isHO}
+                                                                                                disabled={isReadOnly}
                                                                                                 placeholder="Keterangan tambahan..."
                                                                                                 value={input.catatan || ''}
                                                                                                 onChange={(e) => handleSetInput(item.id, 'catatan', e.target.value)}
@@ -1002,7 +1004,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                             <input
                                                                                                 type="file"
                                                                                                 accept="image/*"
-                                                                                                disabled={isHO}
+                                                                                                disabled={isReadOnly}
                                                                                                 className="block w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 mt-1 cursor-pointer border border-slate-200 rounded p-1"
                                                                                                 onChange={(e) => handleSetInput(item.id, 'file', e.target.files?.[0] || null)}
                                                                                             />
@@ -1022,7 +1024,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                                                                 </div>
  
                                                                                 {/* Per-item Submit Button */}
-                                                                                {!isHO && (
+                                                                                {!isReadOnly && (
                                                                                     <div className="flex justify-end pt-3 mt-3 border-t border-slate-200">
                                                                                         <Button
                                                                                             size="sm"
@@ -1759,7 +1761,7 @@ export default function OpnamePage() {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
     const [appMode, setAppMode] = useState<'pic' | 'kontraktor' | null>(null);
-    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '' });
+    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '', isSuperHuman: false });
 
     const { user } = useSession();
 
@@ -1776,14 +1778,15 @@ export default function OpnamePage() {
         ];
 
         const name = (user.namaLengkap || email.split('@')[0]).toUpperCase();
-        setUserInfo({ name, role, cabang, email });
+        setUserInfo({ name, role, cabang, email, isSuperHuman: user.isSuperHuman ?? false });
 
         const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
-        if (isHO) {
+        const isSH = user.isSuperHuman ?? false;
+        if (isHO || isSH) {
             setAppMode('pic');
         } else if (roles.includes('KONTRAKTOR')) {
             setAppMode('kontraktor');
-        } else if (roles.some(r => picRoles.includes(r))) {
+        } else if (isSH || roles.some(r => picRoles.includes(r))) {
             setAppMode('pic');
         } else {
             showAlert({ message: "Anda tidak memiliki akses ke halaman ini.", type: "error", onConfirm: () => router.push('/dashboard') });
