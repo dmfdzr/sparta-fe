@@ -33,6 +33,7 @@ type FormData = {
 type UlokOption = {
     nomorUlok: string; kontraktorSipil: string; kontraktorMe: string;
     spkAwal: string; spkAkhir: string; kodeToko: string; namaToko: string;
+    cabang: string;
 };
 
 const emptyForm: FormData = {
@@ -64,11 +65,6 @@ export default function FTDokumenPage() {
     useEffect(() => {
         if (!user) return;
 
-        if (user.cabang?.toUpperCase() === 'HEAD OFFICE') {
-            router.push('/svdokumen');
-            return;
-        }
-
         setFormData(prev => ({ ...prev, cabang: user.cabang }));
 
         const loadUlokData = async () => {
@@ -88,8 +84,8 @@ export default function FTDokumenPage() {
                     if (!ulok) continue;
 
                     // Filter based on user branch
+                    const spkCabang = (spk as any).cabang || spk.toko?.cabang || '';
                     if (user.cabang !== 'HEAD OFFICE') {
-                        const spkCabang = (spk as any).cabang || spk.toko?.cabang || '';
                         if (spkCabang.toUpperCase() !== user.cabang.toUpperCase()) {
                             continue;
                         }
@@ -107,6 +103,7 @@ export default function FTDokumenPage() {
                             spkAkhir: selesai,
                             kodeToko: spk.kode_toko || spk.toko?.kode_toko || '',
                             namaToko: spk.toko?.nama_toko || '',
+                            cabang: spkCabang,
                         };
                     }
 
@@ -283,6 +280,7 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                 spkAkhir: selected.spkAkhir,
                 kodeToko: selected.kodeToko,
                 namaToko: selected.namaToko,
+                cabang: selected.cabang || prev.cabang,
             }));
         } else {
             onChange('nomorUlok', val);
