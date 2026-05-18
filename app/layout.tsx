@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Figtree } from "next/font/google";
+import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
-const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
+const outfit = Outfit({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +40,7 @@ import { GlobalAlertProvider } from "@/context/GlobalAlertContext";
 import { GlobalAlert } from "@/components/GlobalAlert";
 import ErrorReporter from "@/components/ErrorReporter";
 import { SessionProvider } from "@/context/SessionContext";
+import { cn } from "@/lib/utils";
 
 export default function RootLayout({
   children,
@@ -47,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable}>
+    <html lang="en" className={cn("font-sans", outfit.variable)}>
       <head>
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>

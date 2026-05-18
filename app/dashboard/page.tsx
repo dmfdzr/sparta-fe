@@ -616,7 +616,7 @@ export default function DashboardPage() {
                         transition-all duration-300 ease-in-out overflow-hidden
                         absolute md:relative top-0 left-0 h-full
                         ${sidebarOpen
-                            ? 'w-62.5 translate-x-0 shadow-xl md:shadow-none'
+                            ? 'w-75 translate-x-0 shadow-xl md:shadow-none'
                             : 'w-0 -translate-x-full md:translate-x-0 md:w-0'}
                     `}
                 >
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-2 custom-scrollbar">
                             
                             {/* 1.1 SUMMARY CARDS - GRID BARU */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-3 auto-rows-min">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 auto-rows-min">
                                 <StatCard 
                                     title="Total Proyek" 
                                     value={stats.total} 
@@ -775,6 +775,33 @@ export default function DashboardPage() {
                                                     <span className={`text-[12px] font-black mt-1 leading-none ${val > 0 ? 'text-red-600' : 'text-slate-400'}`}>{val}</span>
                                                 </div>
                                             ))}
+                                        </div>
+                                    }
+                                />
+                                <StatCard 
+                                    title="Rata-rata Cost/m²" 
+                                    value="" 
+                                    icon={<Layers />} 
+                                    bgColor="#faf5ff"
+                                    textColor="#805ad5"
+                                    subLabel="Rata-rata Biaya Per Meter Persegi"
+                                    className="xl:col-span-2"
+                                    isLoading={isDataLoading}
+                                    onClick={() => setDetailModal({ open: true, title: 'Rata-rata Cost/m²', context: 'COST_M2', subContext: '' })}
+                                    renderExtra={
+                                        <div className="grid grid-cols-3 gap-10 w-full mt-2 md:mt-0 md:w-auto">
+                                            <div className="bg-purple-50/60 border border-purple-100/80 rounded-lg px-2.5 py-1.5 flex flex-col items-center justify-center min-w-20 hover:bg-purple-100/40 transition-colors">
+                                                <span className="text-[8px] font-bold text-purple-500 uppercase tracking-wider leading-none text-center">Terbangun</span>
+                                                <span className="text-[10px] sm:text-[11px] font-black text-purple-700 mt-1.5 leading-none">{formatRupiah(stats.avgCostTerbangun)}</span>
+                                            </div>
+                                            <div className="bg-blue-50/60 border border-blue-100/80 rounded-lg px-2.5 py-1.5 flex flex-col items-center justify-center min-w-20 hover:bg-blue-100/40 transition-colors">
+                                                <span className="text-[8px] font-bold text-blue-500 uppercase tracking-wider leading-none text-center">Bangunan</span>
+                                                <span className="text-[10px] sm:text-[11px] font-black text-blue-700 mt-1.5 leading-none">{formatRupiah(stats.avgCostBangunan)}</span>
+                                            </div>
+                                            <div className="bg-emerald-50/60 border border-emerald-100/80 rounded-lg px-2.5 py-1.5 flex flex-col items-center justify-center min-w-20 hover:bg-emerald-100/40 transition-colors">
+                                                <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-wider leading-none text-center">Terbuka</span>
+                                                <span className="text-[10px] sm:text-[11px] font-black text-emerald-700 mt-1.5 leading-none">{formatRupiah(stats.avgCostTerbuka)}</span>
+                                            </div>
                                         </div>
                                     }
                                 />
@@ -829,24 +856,14 @@ export default function DashboardPage() {
                                     onClick={() => setDetailModal({ open: true, title: 'Rincian Denda', context: 'DENDA', subContext: '' })}
                                 />
                                 <StatCard 
-                                    title="Rata-rata Cost/m²" 
-                                    value={formatRupiah(stats.avgCostTerbangun)} 
-                                    icon={<Layers />} 
-                                    bgColor="#faf5ff"
-                                    textColor="#805ad5"
-                                    subLabel="Nilai Area Terbangun (Detail klik sini)"
+                                    title="Rata-rata Nilai Beanspot" 
+                                    value={formatRupiah(stats.avgBeanspot)} 
+                                    icon={<Coffee />} 
+                                    bgColor="#fdf2f8"
+                                    textColor="#db2777"
+                                    subLabel="Rata-rata Nominal Beanspot/Toko"
                                     isLoading={isDataLoading}
-                                    onClick={() => setDetailModal({ open: true, title: 'Rata-rata Cost/m²', context: 'COST_M2', subContext: '' })}
-                                />
-                                <StatCard 
-                                    title="Rata-rata Nilai Toko" 
-                                    value={stats.avgNilaiToko} 
-                                    icon={<Tag />} 
-                                    bgColor="#fef3c7"
-                                    textColor="#d97706"
-                                    subLabel="Nilai Toko"
-                                    isLoading={isDataLoading}
-                                    onClick={() => setDetailModal({ open: true, title: 'Rata-rata Nilai Toko', context: 'NILAI_TOKO', subContext: '' })}
+                                    onClick={() => setDetailModal({ open: true, title: 'Rincian Nilai Beanspot', context: 'BEANSPOT', subContext: '' })}
                                 />
                                 <StatCard 
                                     title="Rata-rata Nilai Kontraktor" 
@@ -859,14 +876,14 @@ export default function DashboardPage() {
                                     onClick={() => setDetailModal({ open: true, title: 'Rata-rata Nilai Kontraktor', context: 'NILAI_KONTRAKTOR', subContext: '' })}
                                 />
                                 <StatCard 
-                                    title="Rata-rata Nilai Beanspot" 
-                                    value={formatRupiah(stats.avgBeanspot)} 
-                                    icon={<Coffee />} 
-                                    bgColor="#fdf2f8"
-                                    textColor="#db2777"
-                                    subLabel="Rata-rata Nominal Beanspot/Toko"
+                                    title="Rata-rata Nilai Toko" 
+                                    value={stats.avgNilaiToko} 
+                                    icon={<Tag />} 
+                                    bgColor="#fef3c7"
+                                    textColor="#d97706"
+                                    subLabel="Nilai Toko"
                                     isLoading={isDataLoading}
-                                    onClick={() => setDetailModal({ open: true, title: 'Rincian Nilai Beanspot', context: 'BEANSPOT', subContext: '' })}
+                                    onClick={() => setDetailModal({ open: true, title: 'Rata-rata Nilai Toko', context: 'NILAI_TOKO', subContext: '' })}
                                 />
                                 </div>
 
@@ -1599,9 +1616,11 @@ function StatCard({
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">{title}</p>
-                        <h3 className="text-lg font-black text-slate-800 truncate" style={{ color: valueColor }}>
-                            <AnimatedNumber value={value} isLoading={isLoading} />
-                        </h3>
+                        {value !== undefined && value !== null && value !== '' && (
+                            <h3 className="text-lg font-black text-slate-800 truncate" style={{ color: valueColor }}>
+                                <AnimatedNumber value={value} isLoading={isLoading} />
+                            </h3>
+                        )}
                         {subLabel && <p className="text-[9px] font-medium text-slate-500 leading-tight mt-0.5 line-clamp-1">{subLabel}</p>}
                     </div>
                 </div>

@@ -45,6 +45,7 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --font-heading: var(--font-sans);
 }
 
 :root {
@@ -122,5 +123,26 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    font-size: 14px; /* Further scaled up from 16px to 18px (+12.5% increase) for maximum legibility for elderly users */
+  }
+
+  /* Support scaling for legacy absolute pixel classes commonly used in this app */
+  .text-\[8px\] {
+    font-size: 0.6875rem !important; /* Scaled up from 8px to legibility standard */
+  }
+  .text-\[9px\] {
+    font-size: 0.75rem !important; /* Scaled up from 9px to legibility standard */
+  }
+  .text-\[10px\] {
+    font-size: 0.8125rem !important; /* Scaled up from 10px to legibility standard */
+  }
+  .text-\[11px\] {
+    font-size: 0.875rem !important; /* Scaled up from 11px to legibility standard */
+  }
+  .text-\[12px\] {
+    font-size: 0.9375rem !important; /* Scaled up from 12px to legibility standard */
   }
 }
