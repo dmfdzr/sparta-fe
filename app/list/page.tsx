@@ -302,7 +302,7 @@ const KATEGORI_CONFIG: Record<DokumenKategori, {
         description: 'Daftar dokumen FPD project planning.',
     },
     DOKUMENTASI_BANGUNAN: {
-        label: 'Dok. Bangunan',
+        label: 'Dokumentasi Bangunan Toko Baru',
         fullLabel: 'Dokumentasi Bangunan Toko Baru',
         icon: <Building2 className="w-10 h-10" />,
         color: 'text-amber-600',
