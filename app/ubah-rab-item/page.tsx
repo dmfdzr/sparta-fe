@@ -41,6 +41,9 @@ type RowItem = {
   volume: number;
   hargaMaterial: number;
   hargaUpah: number;
+  totalMaterial?: number;
+  totalUpah?: number;
+  totalHarga?: number;
   isKondisional: boolean;
   catatan: string;
 };
@@ -209,6 +212,9 @@ export default function UbahRabItemPage() {
             volume: Number(item.volume) || 0,
             hargaMaterial: Number(item.harga_material) || 0,
             hargaUpah: Number(item.harga_upah) || 0,
+            totalMaterial: Number(item.total_material) || 0,
+            totalUpah: Number(item.total_upah) || 0,
+            totalHarga: Number(item.total_harga) || 0,
             isKondisional: isMatCond || isUpahCond,
             catatan: item.catatan || ""
           };
@@ -238,11 +244,20 @@ export default function UbahRabItemPage() {
       if (row.tempId !== tempId) return row;
       let updatedRow = { ...row, [field]: value } as RowItem;
 
+      if (field === "volume" || field === "hargaMaterial" || field === "hargaUpah") {
+        updatedRow.totalMaterial = undefined;
+        updatedRow.totalUpah = undefined;
+        updatedRow.totalHarga = undefined;
+      }
+
       if (field === "category") {
         updatedRow.jenisPekerjaan = "";
         updatedRow.satuan = "";
         updatedRow.hargaMaterial = 0;
         updatedRow.hargaUpah = 0;
+        updatedRow.totalMaterial = undefined;
+        updatedRow.totalUpah = undefined;
+        updatedRow.totalHarga = undefined;
         updatedRow.isKondisional = false;
       }
 
@@ -256,6 +271,9 @@ export default function UbahRabItemPage() {
           updatedRow.hargaMaterial = isMatCond ? 0 : Number(itemData["Harga Material"]) || 0;
           updatedRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : Number(itemData["Harga Upah"]) || 0;
           if (updatedRow.satuan === "Ls") updatedRow.volume = 1;
+          updatedRow.totalMaterial = undefined;
+          updatedRow.totalUpah = undefined;
+          updatedRow.totalHarga = undefined;
         }
       }
 
@@ -288,8 +306,19 @@ export default function UbahRabItemPage() {
   };
 
   const downloadTemplate = () => {
-    const header = ["kategori_pekerjaan", "jenis_pekerjaan", "satuan", "volume", "harga_material", "harga_upah", "catatan"];
-    const sample = ["PEKERJAAN PERSIAPAN", "Contoh Item", "Ls", "1", "0", "0", ""];
+    const header = [
+      "kategori_pekerjaan",
+      "jenis_pekerjaan",
+      "satuan",
+      "volume",
+      "harga_material",
+      "harga_upah",
+      "total_material",
+      "total_upah",
+      "total_harga",
+      "catatan"
+    ];
+    const sample = ["PEKERJAAN PERSIAPAN", "Contoh Item", "Ls", "1", "0", "0", "0", "0", "0", ""];
     const csv = `${header.join(",")}\n${sample.join(",")}\n`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -339,6 +368,9 @@ export default function UbahRabItemPage() {
         volume: Number(row.volume || 0),
         hargaMaterial: Number(row.harga_material || 0),
         hargaUpah: Number(row.harga_upah || 0),
+        totalMaterial: row.total_material ? Number(row.total_material) : undefined,
+        totalUpah: row.total_upah ? Number(row.total_upah) : undefined,
+        totalHarga: row.total_harga ? Number(row.total_harga) : undefined,
         isKondisional: false,
         catatan: row.catatan || ""
       };
@@ -383,6 +415,9 @@ export default function UbahRabItemPage() {
         volume: Number(row.volume),
         harga_material: Number(row.hargaMaterial),
         harga_upah: Number(row.hargaUpah),
+        total_material: row.totalMaterial ?? (Number(row.volume) * Number(row.hargaMaterial)),
+        total_upah: row.totalUpah ?? (Number(row.volume) * Number(row.hargaUpah)),
+        total_harga: row.totalHarga ?? (Number(row.volume) * (Number(row.hargaMaterial) + Number(row.hargaUpah))),
         catatan: row.catatan || ""
       }));
 
@@ -418,6 +453,9 @@ export default function UbahRabItemPage() {
         volume: Number(item.volume) || 0,
         hargaMaterial: Number(item.harga_material) || 0,
         hargaUpah: Number(item.harga_upah) || 0,
+        totalMaterial: Number(item.total_material) || 0,
+        totalUpah: Number(item.total_upah) || 0,
+        totalHarga: Number(item.total_harga) || 0,
         isKondisional: false,
         catatan: item.catatan || ""
       })));

@@ -399,6 +399,9 @@ export const updateRabItemsBulk = async (
         volume: number;
         harga_material: number;
         harga_upah: number;
+        total_material?: number;
+        total_upah?: number;
+        total_harga?: number;
         catatan?: string;
     }>
 ): Promise<any> => {
@@ -425,6 +428,9 @@ export const replaceRabItems = async (
         volume: number;
         harga_material: number;
         harga_upah: number;
+        total_material?: number;
+        total_upah?: number;
+        total_harga?: number;
         catatan?: string;
     }>
 ): Promise<any> => {
