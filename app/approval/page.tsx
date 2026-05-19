@@ -41,7 +41,7 @@ import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
 // =============================================
 // TYPES INTERNAL
 // =============================================
-type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL' | 'INSTRUKSI_LAPANGAN';
+type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME_FINAL' | 'INSTRUKSI_LAPANGAN' | 'PROJECT_PLANNING';
 type ActiveView = 'menu' | 'list' | 'detail';
 
 
@@ -139,6 +139,7 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
     PERTAMBAHAN_SPK: ['BRANCH MANAGER', 'MANAGER'],
     OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
     INSTRUKSI_LAPANGAN: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'KONTRAKTOR', 'COORDINATOR', 'MANAGER'],
+    PROJECT_PLANNING: ['PROJECT PLANNING & DEVELOPMENT SPECIALIST', 'PROJECT PLANNING & DEVELOPMENT MANAGER'],
 };
 
 const ROLE_TO_JABATAN: Record<string, 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR'> = {
@@ -202,6 +203,15 @@ const APPROVAL_CONFIG: Record<ApprovalType, {
         badgeColor: 'bg-amber-100 text-amber-700 border-amber-200',
         description: 'Instruksi Lapangan yang menunggu persetujuan.',
         emptyMsg: 'Tidak ada pengajuan Instruksi Lapangan yang menunggu persetujuan.',
+    },
+    PROJECT_PLANNING: {
+        label: 'Approval Project Planning',
+        icon: <ClipboardList className="w-10 h-10" />,
+        color: 'text-red-700',
+        hoverBorder: 'hover:border-red-500',
+        badgeColor: 'bg-red-100 text-red-700 border-red-200',
+        description: 'FPD Project Planning yang memerlukan review atau persetujuan.',
+        emptyMsg: 'Tidak ada project planning yang menunggu persetujuan.',
     },
 };
 
@@ -406,11 +416,19 @@ export default function ApprovalPage() {
         
         const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
         const isSuperHuman = user.isSuperHuman ?? false;
+        const isProjectPlanningApprovalRole = roles.some(r =>
+            r.includes('PROJECT PLANNING & DEVELOPMENT SPECIALIST') ||
+            r.includes('PROJECT PLANNING & DEVELOPMENT MANAGER') ||
+            r.includes('PP SPECIALIST') ||
+            r.includes('PP MANAGER')
+        );
 
         // Find all accessible types across all roles
         const allAccessibleTypes = new Set<ApprovalType>();
-        // HO dan Super Human melihat semua tipe approval
-        if (isHO || isSuperHuman) {
+        if (isProjectPlanningApprovalRole && !isSuperHuman) {
+            allAccessibleTypes.add('PROJECT_PLANNING');
+        } else if (isHO || isSuperHuman) {
+            // HO dan Super Human melihat semua tipe approval
             allAccessibleTypes.add('RAB');
             allAccessibleTypes.add('SPK');
             allAccessibleTypes.add('PERTAMBAHAN_SPK');
@@ -968,6 +986,10 @@ export default function ApprovalPage() {
     // NAVIGATION
     // ==========================================
     const handleSelectType = (type: ApprovalType) => {
+        if (type === 'PROJECT_PLANNING') {
+            router.push('/projek-planning');
+            return;
+        }
         setSelectedType(type);
         setSelectedDetail(null);
         setActiveView('list');
