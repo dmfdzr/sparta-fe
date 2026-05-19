@@ -586,7 +586,7 @@ export default function ApprovalPage() {
                     );
 
                     const statusMatchesRole =
-                        (isBmManager && upper === 'WAITING_BM_APPROVAL') ||
+                        (isBmManager && !['DRAFT', 'COMPLETED', 'REJECTED'].includes(upper)) ||
                         (isPpSpecialist && ['WAITING_PP_APPROVAL_1', 'PP_DESIGN_3D_REQUIRED', 'WAITING_PP_APPROVAL_2'].includes(upper)) ||
                         (isPpManager && upper === 'WAITING_PP_MANAGER_APPROVAL');
 

@@ -297,7 +297,13 @@ export const getPpRoles = (userRole: string | string[], email: string) => {
     const upperRoles = roles.map(r => r.toUpperCase());
     
     const isCoor = upperRoles.some(r => r.includes("COORDINATOR") || r.includes("KOORDINATOR"));
-    const isBM = upperRoles.some(r => r.includes("BRANCH MANAGER") || r.includes("BM "));
+    const isBM = upperRoles.some(r =>
+        r.includes("BRANCH BUILDING & MAINTENANCE MANAGER") ||
+        r.includes("MAINTENANCE MANAGER") ||
+        r.includes("BRANCH MANAGER") ||
+        r.includes("BBMM") ||
+        r.includes("BM ")
+    );
     const isPPMgr = upperRoles.some(r => r.includes("PROJECT PLANNING & DEVELOPMENT MANAGER") || r.includes("PROJECT PLANNING MANAGER") || r.includes("PP MANAGER")) || email === "wildan.pp.manager@gmail.com";
     const isPP = upperRoles.some(r => (r.includes("PROJECT PLANNING & DEVELOPMENT SPECIALIST") || r.includes("PP SPECIALIST") || (r.includes("PROJECT PLANNING") && !r.includes("MANAGER")))) || email === "wildan.pp@gmail.com";
     

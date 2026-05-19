@@ -85,9 +85,9 @@ export default function ProjekPlanningPage() {
         const sameBranch = (d.cabang || "").toUpperCase() === userCabang.toUpperCase();
         let visible = false;
         if (isCoor && (d.email_pembuat || "").toLowerCase() === userEmail.toLowerCase()) visible = true;
-        if (isBM && d.status !== "DRAFT" && (isHO || sameBranch)) visible = true;
-        if (isPP && !["DRAFT", "WAITING_BM_APPROVAL"].includes(d.status)) visible = true;
-        if (isPPMgr && ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(d.status)) visible = true;
+        if (!isCoor && isBM && d.status === "COMPLETED" && (isHO || sameBranch)) visible = true;
+        if (!isCoor && isPP && d.status === "COMPLETED") visible = true;
+        if (!isCoor && isPPMgr && d.status === "COMPLETED") visible = true;
         
         return visible;
       });

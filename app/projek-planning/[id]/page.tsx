@@ -281,11 +281,12 @@ export default function DetailProjekPlanning() {
   const isPPMgr = isPPMgrRaw || isSuperHuman;
   const isBBMM = (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM")) || isSuperHuman;
   const sameBranch = (data.cabang || "").toUpperCase() === userCabang.toUpperCase();
+  const isBmParticipant = isBMRaw || isBBMM;
   const canView =
     isSuperHuman ||
     (isCoorRaw && (data.email_pembuat || "").toLowerCase() === userEmail.toLowerCase()) ||
-    (isBMRaw && data.status !== "DRAFT" && (isHO || sameBranch)) ||
-    (isPPRaw && !["DRAFT", "WAITING_BM_APPROVAL"].includes(data.status)) ||
+    (isBmParticipant && !["DRAFT", "REJECTED"].includes(data.status) && (isHO || sameBranch)) ||
+    (isPPRaw && ["WAITING_PP_APPROVAL_1", "PP_DESIGN_3D_REQUIRED", "WAITING_PP_APPROVAL_2", "COMPLETED"].includes(data.status)) ||
     (isPPMgrRaw && ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(data.status));
 
   if (!canView) return (
