@@ -85,22 +85,14 @@ export default function DashboardPage() {
         // Unique IDs
         let allowedIds = Array.from(new Set(combinedAllowedIds));
 
-        if (allowedIds.length === 0) {
-            // HO and Super Human get all menus; others fall back to Building Support
-            allowedIds = (isHO || isSuperHuman)
-                ? ALL_MENUS.map(m => m.id)
-                : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
-        }
-
-        // HO always gets all menus (view-only enforced per-page)
-        if (isHO) {
+        if (isSuperHuman) {
             allowedIds = ALL_MENUS.map(m => m.id);
+        } else if (allowedIds.length === 0) {
+            allowedIds = isHO ? [] : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
         }
-
-        const isOnlyPPRoles = roles.every(r => r.includes("PROJECT PLANNING") || r.includes("PP SPECIALIST") || r.includes("PP MANAGER"));
 
         // Super Human gets menu-users explicitly (already in ROLE_CONFIG but ensure it)
-        if (isSuperHuman || (isHO && !isOnlyPPRoles)) {
+        if (isSuperHuman) {
             allowedIds.push("menu-users");
         }
 

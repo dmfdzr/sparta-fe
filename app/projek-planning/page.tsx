@@ -70,8 +70,8 @@ export default function ProjekPlanningPage() {
       } else if (search.trim()) {
         // Manual search override
         filters.cabang = search.trim();
-      } else if (!isHO && !isSuperHuman && !isCoor && userCabang) {
-        // BM, PP, Manager: filter by their own cabang
+      } else if (!isHO && !isSuperHuman && isBM && userCabang) {
+        // Branch BM only sees their own branch. HO approval roles are filtered below by role/status.
         filters.cabang = userCabang;
       }
 
@@ -80,11 +80,12 @@ export default function ProjekPlanningPage() {
       let data = res.data || [];
       
       data = data.filter((d: any) => {
-        if (isHO || isSuperHuman) return true; // HEAD OFFICE & SH melihat semua
+        if (isSuperHuman) return true;
         
+        const sameBranch = (d.cabang || "").toUpperCase() === userCabang.toUpperCase();
         let visible = false;
-        if (isCoor && d.email_pembuat === userEmail) visible = true;
-        if (isBM && d.status !== "DRAFT") visible = true;
+        if (isCoor && (d.email_pembuat || "").toLowerCase() === userEmail.toLowerCase()) visible = true;
+        if (isBM && d.status !== "DRAFT" && (isHO || sameBranch)) visible = true;
         if (isPP && !["DRAFT", "WAITING_BM_APPROVAL"].includes(d.status)) visible = true;
         if (isPPMgr && ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(d.status)) visible = true;
         

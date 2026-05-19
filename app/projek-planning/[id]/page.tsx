@@ -273,14 +273,35 @@ export default function DetailProjekPlanning() {
   const st = STATUS_MAP[data.status] || { label: data.status, color: "bg-slate-100" };
   const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
   const isSuperHuman = user?.isSuperHuman ?? false;
-  const isReadOnly = isHO && !isSuperHuman;
   
   const { isCoor: isCoorRaw, isBM: isBMRaw, isPP: isPPRaw, isPPMgr: isPPMgrRaw } = getPpRoles(userRole, userEmail);
-  const isCoor = (!isReadOnly && isCoorRaw) || isSuperHuman;
-  const isBM = (!isReadOnly && isBMRaw) || isSuperHuman;
-  const isPP = (!isReadOnly && isPPRaw) || isSuperHuman;
-  const isPPMgr = (!isReadOnly && isPPMgrRaw) || isSuperHuman;
-  const isBBMM = (!isReadOnly && (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM"))) || isSuperHuman;
+  const isCoor = isCoorRaw || isSuperHuman;
+  const isBM = isBMRaw || isSuperHuman;
+  const isPP = isPPRaw || isSuperHuman;
+  const isPPMgr = isPPMgrRaw || isSuperHuman;
+  const isBBMM = (userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM")) || isSuperHuman;
+  const sameBranch = (data.cabang || "").toUpperCase() === userCabang.toUpperCase();
+  const canView =
+    isSuperHuman ||
+    (isCoorRaw && (data.email_pembuat || "").toLowerCase() === userEmail.toLowerCase()) ||
+    (isBMRaw && data.status !== "DRAFT" && (isHO || sameBranch)) ||
+    (isPPRaw && !["DRAFT", "WAITING_BM_APPROVAL"].includes(data.status)) ||
+    (isPPMgrRaw && ["WAITING_PP_MANAGER_APPROVAL", "COMPLETED"].includes(data.status));
+
+  if (!canView) return (
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <AppNavbar title="Detail FPD" showBackButton backHref="/projek-planning" />
+      <div className="max-w-xl mx-auto p-6">
+        <Card>
+          <CardContent className="py-12 text-center text-slate-500">
+            <ClipboardList className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-semibold text-slate-700">Akses project planning terbatas</p>
+            <p className="text-sm mt-1">Data ini hanya dapat dilihat oleh user yang terlibat pada alur FPD.</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 
   const requiredLinks = [data.link_gambar_rab_sipil, data.link_gambar_rab_me, data.link_fpd, data.link_desain_3d, data.link_rab, data.link_gambar_kerja, data.link_fpd_approved].filter(Boolean) as string[];
   const allLinksOpened = requiredLinks.length === 0 || requiredLinks.every(url => openedLinks.has(url));
