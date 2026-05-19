@@ -123,6 +123,9 @@ export default function UbahRabItemPage() {
   const [tableRows, setTableRows] = useState<RowItem[]>([]);
   const [replaceMode, setReplaceMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [grandTotal, setGrandTotal] = useState<number | null>(null);
+  const [grandTotalNonSbo, setGrandTotalNonSbo] = useState<number | null>(null);
+  const [grandTotalFinal, setGrandTotalFinal] = useState<number | null>(null);
 
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ title: string; desc: string; type: "info" | "error" | "success" | "warning" }>({
@@ -183,6 +186,9 @@ export default function UbahRabItemPage() {
         setPrices({});
         setReplaceMode(false);
         setSearchUlok("");
+        setGrandTotal(null);
+        setGrandTotalNonSbo(null);
+        setGrandTotalFinal(null);
       } catch (err: any) {
         showAlert("Error", err.message || "Gagal memuat daftar RAB.", "error");
       } finally {
@@ -201,6 +207,9 @@ export default function UbahRabItemPage() {
       try {
         const detailRes = await fetchRABDetail(selectedRabId);
         setRabDetail(detailRes.data);
+        setGrandTotal(Number(detailRes.data?.rab?.grand_total ?? 0));
+        setGrandTotalNonSbo(Number(detailRes.data?.rab?.grand_total_non_sbo ?? 0));
+        setGrandTotalFinal(Number(detailRes.data?.rab?.grand_total_final ?? 0));
 
         const rawScope = detailRes.data?.toko?.lingkup_pekerjaan || "";
         const scope = rawScope.toUpperCase() === "SIPIL" ? "Sipil" : (rawScope.toUpperCase() === "ME" ? "ME" : rawScope);
@@ -420,10 +429,32 @@ export default function UbahRabItemPage() {
       return;
     }
 
+    const manualTotalsProvided =
+      grandTotal !== null || grandTotalNonSbo !== null || grandTotalFinal !== null;
+
+    if (manualTotalsProvided) {
+      if (grandTotal === null || grandTotalNonSbo === null || grandTotalFinal === null) {
+        showAlert("Peringatan", "Semua grand total harus diisi lengkap.", "warning");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      const totalsPayload = manualTotalsProvided
+        ? {
+            grand_total: Number(grandTotal),
+            grand_total_non_sbo: Number(grandTotalNonSbo),
+            grand_total_final: Number(grandTotalFinal)
+          }
+        : undefined;
+
       if (replaceMode) {
-        await replaceRabItems(selectedRabId, itemsPayload.map(({ id, ...rest }) => rest));
+        await replaceRabItems(
+          selectedRabId,
+          itemsPayload.map(({ id, ...rest }) => rest),
+          totalsPayload
+        );
       } else {
         const missingId = itemsPayload.some(item => !item.id);
         if (missingId) {
@@ -431,13 +462,16 @@ export default function UbahRabItemPage() {
           setLoading(false);
           return;
         }
-        await updateRabItemsBulk(selectedRabId, itemsPayload as any);
+        await updateRabItemsBulk(selectedRabId, itemsPayload as any, totalsPayload);
       }
 
       showAlert("Berhasil", "Item RAB berhasil disimpan.", "success");
 
       const detailRes = await fetchRABDetail(selectedRabId);
       setRabDetail(detailRes.data);
+      setGrandTotal(Number(detailRes.data?.rab?.grand_total ?? 0));
+      setGrandTotalNonSbo(Number(detailRes.data?.rab?.grand_total_non_sbo ?? 0));
+      setGrandTotalFinal(Number(detailRes.data?.rab?.grand_total_final ?? 0));
       setTableRows((detailRes.data.items || []).map((item) => ({
         tempId: `id-${item.id}`,
         id: item.id,
@@ -709,16 +743,57 @@ export default function UbahRabItemPage() {
             </div>
 
             {/* ACTION FOOTER */}
-            <div className="flex justify-end mt-6 border-t border-slate-100 pt-5 mx-4 sm:mx-0">
-              <Button 
-                size="lg"
-                className="gap-2 bg-red-600 hover:bg-red-700 text-white shadow-md font-medium px-8 transition-all active:scale-95" 
-                onClick={handleSave} 
-                disabled={!selectedRabId || loading || tableRows.length === 0}
-              >
-                <Save className="w-4 h-4" /> 
-                {loading ? "Menyimpan Data..." : "Simpan Perubahan"}
-              </Button>
+            <div className="mt-6 border-t border-slate-100 pt-5 mx-4 sm:mx-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">Grand Total</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={grandTotal ?? ""}
+                    onChange={(e) => setGrandTotal(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                    className="h-10 focus-visible:ring-red-500"
+                    placeholder="Isi grand total"
+                    disabled={!selectedRabId}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">Grand Total Non SBO</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={grandTotalNonSbo ?? ""}
+                    onChange={(e) => setGrandTotalNonSbo(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                    className="h-10 focus-visible:ring-red-500"
+                    placeholder="Isi grand total non SBO"
+                    disabled={!selectedRabId}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">Grand Total Final</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={grandTotalFinal ?? ""}
+                    onChange={(e) => setGrandTotalFinal(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
+                    className="h-10 focus-visible:ring-red-500"
+                    placeholder="Isi grand total final"
+                    disabled={!selectedRabId}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button 
+                  size="lg"
+                  className="gap-2 bg-red-600 hover:bg-red-700 text-white shadow-md font-medium px-8 transition-all active:scale-95" 
+                  onClick={handleSave} 
+                  disabled={!selectedRabId || loading || tableRows.length === 0}
+                >
+                  <Save className="w-4 h-4" /> 
+                  {loading ? "Menyimpan Data..." : "Simpan Perubahan"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -403,13 +403,18 @@ export const updateRabItemsBulk = async (
         total_upah?: number;
         total_harga?: number;
         catatan?: string;
-    }>
+    }>,
+    totals?: {
+        grand_total?: number;
+        grand_total_non_sbo?: number;
+        grand_total_final?: number;
+    }
 ): Promise<any> => {
     const url = `${API_URL.replace(/\/$/, "")}/api/rab/${id}/items`;
     const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items })
+        body: JSON.stringify({ items, ...totals })
     });
     if (!res.ok) {
         const text = await res.text();
@@ -432,13 +437,18 @@ export const replaceRabItems = async (
         total_upah?: number;
         total_harga?: number;
         catatan?: string;
-    }>
+    }>,
+    totals?: {
+        grand_total?: number;
+        grand_total_non_sbo?: number;
+        grand_total_final?: number;
+    }
 ): Promise<any> => {
     const url = `${API_URL.replace(/\/$/, "")}/api/rab/${id}/items/replace`;
     const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items })
+        body: JSON.stringify({ items, ...totals })
     });
     if (!res.ok) {
         const text = await res.text();
