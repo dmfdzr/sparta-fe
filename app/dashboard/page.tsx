@@ -251,6 +251,7 @@ export default function DashboardPage() {
         let totalBeanspot = 0;
         let attentionCount = 0;
         let jhkProjectCount = 0;
+        let delayProjectCount = 0;
 
         let miniStats = { 'Approval RAB': 0, 'Proses PJU': 0, 'Approval SPK': 0, 'Ongoing': 0, 'Kerja Tambah Kurang': 0, 'Done': 0 };
         let miniPerhatian = { 'Approval RAB': 0, 'Proses PJU': 0, 'Approval SPK': 0, 'Ongoing': 0, 'Kerja Tambah Kurang': 0 };
@@ -415,6 +416,7 @@ export default function DashboardPage() {
                     
                     let projectDenda = 0;
                     if (keterlambatan > 0) {
+                        delayProjectCount++;
                         const hariPertama = Math.min(keterlambatan, 5);
                         const hariBerikutnya = Math.max(0, Math.min(keterlambatan - 5, 10));
                         projectDenda = (hariPertama * 1000000) + (hariBerikutnya * 500000);
@@ -554,7 +556,7 @@ export default function DashboardPage() {
             penawaran: totalPenawaran,
             spk: totalSPK,
             avgJHK: Math.round(totalJHK / (jhkProjectCount || 1)),
-            avgDelay: Math.round(totalDelay / (jhkProjectCount || 1)),
+            avgDelay: Math.round(totalDelay / (delayProjectCount || 1)),
             totalDenda: totalDenda,
             avgCostTerbuka: countTerbuka > 0 ? Math.round(sumRatioTerbuka / countTerbuka) : 0,
             avgCostBangunan: countBangunan > 0 ? Math.round(sumRatioBangunan / countBangunan) : 0,
