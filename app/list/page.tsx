@@ -400,15 +400,26 @@ type ProjectPlanningAttachment = {
 
 const hasLink = (url?: string | null) => !!url && url.trim() !== '';
 
+const isUploadedDriveFileLink = (url: string) => {
+    const lower = url.toLowerCase();
+    return (
+        lower.includes('drive.google.com/file/d/') ||
+        lower.includes('drive.google.com/open?id=') ||
+        lower.includes('drive.google.com/uc?id=') ||
+        lower.includes('drive.google.com/thumbnail?id=')
+    );
+};
+
 const isExternalOnlyLink = (url: string) => {
     const lower = url.toLowerCase();
     return (
         lower.includes('google.com/maps') ||
-        lower.includes('maps.app.goo.gl')
+        lower.includes('maps.app.goo.gl') ||
+        !isUploadedDriveFileLink(url)
     );
 };
 
-const isDownloadableAttachment = (url: string) => !isExternalOnlyLink(url);
+const isDownloadableAttachment = (url: string) => isUploadedDriveFileLink(url);
 
 // =============================================================================
 // NORMALIZE HELPERS
