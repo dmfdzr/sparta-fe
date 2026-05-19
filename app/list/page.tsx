@@ -12,7 +12,7 @@ import {
     Eye, FileDown, Building2, CalendarDays, User, XCircle,
     CheckCircle, Hash, Clock, ChevronRight, Filter,
     RefreshCw, AlertTriangle, Download, FilePlus, CheckSquare,
-    ClipboardList,
+    ClipboardList, ExternalLink, MapPin,
 } from 'lucide-react';
 
 import {
@@ -27,7 +27,7 @@ import {
     fetchGanttList, fetchGanttDetail,
     updateRABStatus, fetchBerkasSerahTerimaList,
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
-    fetchProjekPlanningList, fetchProjekPlanningDetail, downloadProjekPlanningPdf,
+    fetchProjekPlanningList, fetchProjekPlanningDetail, downloadProjekPlanningPdf, proxyProjekPlanningFile,
     type ProjekPlanningItem,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
@@ -169,6 +169,14 @@ interface NormalizedDetail {
     link_fpd_approved_pp?: string | null;
     link_gambar_rab_sipil_pp?: string | null;
     link_gambar_rab_me_pp?: string | null;
+    link_gambar_kompetitor_pp?: string | null;
+    link_google_maps_pp?: string | null;
+    link_rab_sipil_pp?: string | null;
+    link_rab_me_pp?: string | null;
+    link_gambar_kerja_final_pp?: string | null;
+    link_gambar_kerja_final_sipil_pp?: string | null;
+    link_gambar_kerja_final_me_pp?: string | null;
+    foto_items_pp?: { id?: number; item_index: number; link_foto: string }[];
     butuh_desain_3d_pp?: boolean;
     bm_approval_pp?: { pemberi: string | null; waktu: string | null };
     pp1_approval?: { pemberi: string | null; waktu: string | null };
@@ -381,6 +389,30 @@ const getStatusLabel = (status: string) => {
 
     return status;
 };
+
+type ProjectPlanningAttachment = {
+    label: string;
+    url: string | null | undefined;
+    field?: string;
+    itemIndex?: number;
+    icon?: React.ReactNode;
+};
+
+const hasLink = (url?: string | null) => !!url && url.trim() !== '';
+
+const isExternalOnlyLink = (url: string) => {
+    const lower = url.toLowerCase();
+    return (
+        lower.includes('docs.google.com/spreadsheets') ||
+        lower.includes('docs.google.com/document') ||
+        lower.includes('docs.google.com/presentation') ||
+        lower.includes('docs.google.com/forms') ||
+        lower.includes('google.com/maps') ||
+        lower.includes('maps.app.goo.gl')
+    );
+};
+
+const isDownloadableAttachment = (url: string) => !isExternalOnlyLink(url);
 
 // =============================================================================
 // NORMALIZE HELPERS
@@ -932,6 +964,14 @@ export default function DaftarDokumenPage() {
                     link_fpd_approved_pp:    d.link_fpd_approved,
                     link_gambar_rab_sipil_pp: d.link_gambar_rab_sipil,
                     link_gambar_rab_me_pp:   d.link_gambar_rab_me,
+                    link_gambar_kompetitor_pp: d.link_gambar_kompetitor,
+                    link_google_maps_pp:     d.link_google_maps,
+                    link_rab_sipil_pp:       d.link_rab_sipil,
+                    link_rab_me_pp:          d.link_rab_me,
+                    link_gambar_kerja_final_pp: d.link_gambar_kerja_final,
+                    link_gambar_kerja_final_sipil_pp: d.link_gambar_kerja_final_sipil,
+                    link_gambar_kerja_final_me_pp: d.link_gambar_kerja_final_me,
+                    foto_items_pp:           d.foto_items ?? [],
                     butuh_desain_3d_pp:      d.butuh_desain_3d,
                     bm_approval_pp:    { pemberi: d.bm_approver_email, waktu: d.bm_waktu_persetujuan },
                     pp1_approval:      { pemberi: d.pp1_approver_email, waktu: d.pp1_waktu_persetujuan },
@@ -973,6 +1013,18 @@ export default function DaftarDokumenPage() {
             setDownloadingId(null);
         }
     }, [showToast]);
+
+    const handleDownloadProjectPlanningAttachment = useCallback(async (field: string, itemIndex?: number) => {
+        if (!selectedDetail || selectedDetail.tipe !== 'PROJECT_PLANNING') return;
+        setDownloadingId(selectedDetail.id);
+        try {
+            await proxyProjekPlanningFile(selectedDetail.id, field, 'download', itemIndex);
+        } catch (err: any) {
+            showToast(err.message || 'Gagal mengunduh dokumen.', 'error');
+        } finally {
+            setDownloadingId(null);
+        }
+    }, [selectedDetail, showToast]);
 
     // =========================================================================
     // NAVIGATION
@@ -1746,60 +1798,59 @@ export default function DaftarDokumenPage() {
                                             <div className="w-1.5 h-5 bg-cyan-500 rounded-full" />
                                             Dokumen Lampiran
                                         </h4>
-                                        <div className="flex flex-wrap gap-3">
-                                            {selectedDetail.link_fpd_pp && (
-                                                <a href={selectedDetail.link_fpd_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> Lihat FPD
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_fpd_approved_pp && (
-                                                <a href={selectedDetail.link_fpd_approved_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> FPD Approved
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_desain_3d_pp && (
-                                                <a href={selectedDetail.link_desain_3d_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> Desain 3D
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_rab_pp && (
-                                                <a href={selectedDetail.link_rab_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> RAB
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_gambar_kerja_pp && (
-                                                <a href={selectedDetail.link_gambar_kerja_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> Gambar Kerja
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_gambar_rab_sipil_pp && (
-                                                <a href={selectedDetail.link_gambar_rab_sipil_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> RAB Sipil
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {selectedDetail.link_gambar_rab_me_pp && (
-                                                <a href={selectedDetail.link_gambar_rab_me_pp} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
-                                                        <Eye className="w-4 h-4 mr-2" /> RAB ME
-                                                    </Button>
-                                                </a>
-                                            )}
-                                            {!selectedDetail.link_fpd_pp && !selectedDetail.link_desain_3d_pp && !selectedDetail.link_rab_pp && !selectedDetail.link_gambar_kerja_pp && (
+                                        {(() => {
+                                            const koordinatorDocs: ProjectPlanningAttachment[] = [
+                                                { label: 'Google Maps', url: selectedDetail.link_google_maps_pp, icon: <MapPin className="w-4 h-4" /> },
+                                                { label: 'Gambar Kerja Sipil / FPD', url: selectedDetail.link_fpd_pp, field: 'fpd' },
+                                                { label: 'Gambar Kerja ME', url: selectedDetail.link_gambar_kerja_pp, field: 'gambar_kerja_awal' },
+                                                { label: 'RAB Sipil Awal', url: selectedDetail.link_gambar_rab_sipil_pp, field: 'rab_sipil_awal' },
+                                                { label: 'RAB ME Awal', url: selectedDetail.link_gambar_rab_me_pp, field: 'rab_me_awal' },
+                                                { label: 'Gambar Kompetitor', url: selectedDetail.link_gambar_kompetitor_pp, field: 'gambar_kompetitor' },
+                                                ...(selectedDetail.foto_items_pp ?? []).map(foto => ({
+                                                    label: `Foto Lokasi ${foto.item_index}`,
+                                                    url: foto.link_foto,
+                                                    field: 'foto_item',
+                                                    itemIndex: foto.item_index,
+                                                })),
+                                            ];
+                                            const ppDocs: ProjectPlanningAttachment[] = [
+                                                { label: 'Desain 3D', url: selectedDetail.link_desain_3d_pp, field: 'desain_3d' },
+                                                { label: 'Gambar Kerja Disetujui', url: selectedDetail.link_fpd_approved_pp, field: 'fpd_approved' },
+                                            ];
+                                            const finalDocs: ProjectPlanningAttachment[] = [
+                                                { label: 'RAB Sipil Final', url: selectedDetail.link_rab_sipil_pp, field: 'rab_sipil_final' },
+                                                { label: 'RAB ME Final', url: selectedDetail.link_rab_me_pp, field: 'rab_me_final' },
+                                                { label: 'RAB Final', url: selectedDetail.link_rab_pp, field: 'rab' },
+                                                { label: 'Gambar Kerja Final Sipil', url: selectedDetail.link_gambar_kerja_final_sipil_pp || selectedDetail.link_gambar_kerja_final_pp, field: 'gambar_kerja_final_sipil' },
+                                                { label: 'Gambar Kerja Final ME', url: selectedDetail.link_gambar_kerja_final_me_pp, field: 'gambar_kerja_final_me' },
+                                            ];
+                                            const hasAnyDocs = [...koordinatorDocs, ...ppDocs, ...finalDocs].some(doc => hasLink(doc.url));
+
+                                            return hasAnyDocs ? (
+                                                <div className="space-y-5">
+                                                    <ProjectPlanningAttachmentGroup
+                                                        title="Diunggah Koordinator"
+                                                        items={koordinatorDocs}
+                                                        onDownload={handleDownloadProjectPlanningAttachment}
+                                                        isDownloading={downloadingId === selectedDetail.id}
+                                                    />
+                                                    <ProjectPlanningAttachmentGroup
+                                                        title="Diunggah PP Specialist"
+                                                        items={ppDocs}
+                                                        onDownload={handleDownloadProjectPlanningAttachment}
+                                                        isDownloading={downloadingId === selectedDetail.id}
+                                                    />
+                                                    <ProjectPlanningAttachmentGroup
+                                                        title="Diunggah Koordinator Final"
+                                                        items={finalDocs}
+                                                        onDownload={handleDownloadProjectPlanningAttachment}
+                                                        isDownloading={downloadingId === selectedDetail.id}
+                                                    />
+                                                </div>
+                                            ) : (
                                                 <p className="text-sm text-slate-400 italic">Belum ada dokumen lampiran.</p>
-                                            )}
-                                        </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
 
@@ -2021,6 +2072,59 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
             <div className="min-w-0">
                 <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">{label}</p>
                 <p className="text-sm text-slate-800 font-semibold truncate">{value}</p>
+            </div>
+        </div>
+    );
+}
+
+function ProjectPlanningAttachmentGroup({
+    title,
+    items,
+    onDownload,
+    isDownloading,
+}: {
+    title: string;
+    items: ProjectPlanningAttachment[];
+    onDownload: (field: string, itemIndex?: number) => void;
+    isDownloading: boolean;
+}) {
+    const availableItems = items.filter(item => hasLink(item.url));
+    if (availableItems.length === 0) return null;
+
+    return (
+        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">{title}</p>
+            <div className="flex flex-wrap gap-3">
+                {availableItems.map(item => {
+                    const url = item.url!.trim();
+                    const canDownload = !!item.field && isDownloadableAttachment(url);
+                    return (
+                        <div key={`${title}-${item.label}-${item.itemIndex ?? 'main'}`} className="flex items-center gap-2">
+                            <a href={url} target="_blank" rel="noopener noreferrer">
+                                <Button variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
+                                    {item.icon ?? <Eye className="w-4 h-4" />}
+                                    <span className="ml-2">{item.label}</span>
+                                    {isExternalOnlyLink(url) && <ExternalLink className="w-3.5 h-3.5 ml-2" />}
+                                </Button>
+                            </a>
+                            {canDownload && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="border-slate-200 text-slate-600 hover:bg-white"
+                                    disabled={isDownloading}
+                                    onClick={() => onDownload(item.field!, item.itemIndex)}
+                                >
+                                    {isDownloading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Download className="w-4 h-4" />
+                                    )}
+                                </Button>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
