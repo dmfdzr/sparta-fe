@@ -330,7 +330,7 @@ export default function DetailProjekPlanning() {
 
       const rejectMsg = (pendingAction === "pp_mgr" || pendingAction === "pp2")
         ? "Pengajuan dikembalikan ke Cabang untuk Upload Ulang RAB & Gambar Kerja."
-        : "Pengajuan telah ditolak dan dikembalikan ke Coordinator dari awal.";
+        : "Pengajuan telah ditolak dan dikembalikan ke pengaju dari awal.";
 
       showAlert("Ditolak", rejectMsg);
       await load();
@@ -443,6 +443,8 @@ export default function DetailProjekPlanning() {
   const backHref = searchParams.get("from") === "approval" ? "/approval" : "/projek-planning";
   const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
   const isBBMM = userRole.includes("MAINTENANCE MANAGER") || userRole.includes("BBMM");
+  const isBogorBm = (isBM || isBBMM) && (data.cabang || "").toUpperCase() === "BOGOR";
+  const canActAsSubmitter = isCoor || isBogorBm;
 
   const requiredFields = [
     data.link_gambar_rab_sipil ? "rab_sipil_awal" : null,
@@ -475,7 +477,7 @@ export default function DetailProjekPlanning() {
     .find(log =>
       log.aksi === "SUBMIT" &&
       log.status_sebelum === "DRAFT" &&
-      log.status_sesudah === "WAITING_BM_APPROVAL" &&
+      ["WAITING_BM_APPROVAL", "WAITING_PP_APPROVAL_1"].includes(log.status_sesudah || "") &&
       log.keterangan?.includes("Perubahan revisi:")
     )
     ?.keterangan
@@ -584,9 +586,9 @@ export default function DetailProjekPlanning() {
           </CardHeader>
           <CardContent className="space-y-4 pt-1">
             
-            {/* Kategori 1: Dokumen Pengajuan Awal (Coordinator) */}
+            {/* Kategori 1: Dokumen Pengajuan Awal */}
             <div className="space-y-1">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 border-b pb-1">Dokumen Pengajuan (Koordinator)</h3>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 border-b pb-1">Dokumen Pengajuan ({(data.cabang || "").toUpperCase() === "BOGOR" ? "B&M Manager" : "Koordinator"})</h3>
               <FileProxyRow label="Gambar Kerja Sipil (FPD)" hasFile={!!data.link_fpd} projektId={id} field="fpd" onViewed={markFieldViewed} onUnviewed={markFieldUnviewed} fileUrl={data.link_fpd} />
               <FileProxyRow label="Gambar Kerja ME" hasFile={!!data.link_gambar_kerja} projektId={id} field="gambar_kerja_awal" onViewed={markFieldViewed} onUnviewed={markFieldUnviewed} fileUrl={data.link_gambar_kerja} />
               <FileProxyRow label="RAB Sipil Awal" hasFile={!!data.link_gambar_rab_sipil} projektId={id} field="rab_sipil_awal" onViewed={markFieldViewed} onUnviewed={markFieldUnviewed} fileUrl={data.link_gambar_rab_sipil} />
@@ -625,7 +627,7 @@ export default function DetailProjekPlanning() {
         {/* ACTION PANELS */}
         
         {/* DRAFT (Ditolak) -> Revisi Form */}
-        {data.status === "DRAFT" && isCoor && (data.bm_alasan_penolakan || data.pp1_alasan_penolakan) && (
+        {data.status === "DRAFT" && canActAsSubmitter && (data.bm_alasan_penolakan || data.pp1_alasan_penolakan) && (
           <Card className="border-red-300 bg-red-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Pengajuan Ditolak</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -743,7 +745,7 @@ export default function DetailProjekPlanning() {
         )}
 
         {/* Upload RAB */}
-        {data.status === "WAITING_RAB_UPLOAD" && isCoor && (
+        {data.status === "WAITING_RAB_UPLOAD" && canActAsSubmitter && (
           <Card className="border-orange-200 bg-orange-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-orange-800">Upload RAB & Gambar Kerja Final</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-4">

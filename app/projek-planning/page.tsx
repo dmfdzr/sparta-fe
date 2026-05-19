@@ -112,7 +112,9 @@ export default function ProjekPlanningPage() {
     catch { return d; }
   };
 
-  const isCoor = userRole.includes("COORDINATOR");
+  const { isCoor, isBM } = getPpRoles(userRole, userEmail);
+  const isBogorBm = isBM && userCabang.toUpperCase() === "BOGOR";
+  const canCreateFpd = isCoor || isBogorBm;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -127,7 +129,7 @@ export default function ProjekPlanningPage() {
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">Form Permintaan Desain (FPD) — Permintaan Desain Toko</p>
           </div>
-          {isCoor && (
+          {canCreateFpd && (
             <Link href="/projek-planning/form">
               <Button className="bg-red-600 hover:bg-red-700 text-white gap-1.5 text-sm">
                 <Plus className="w-4 h-4" /> Buat Pengajuan Baru

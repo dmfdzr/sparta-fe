@@ -406,7 +406,14 @@ function FormProjekPlanningInner() {
       } else {
         res = await submitProjekPlanning(payload, fileFpd, fileGambarKerjaMe, fileRabSipil, fileRabMe, fileGambarKompetitor, validFotoFiles);
       }
-      setAlertMsg({ title: "Berhasil!", desc: "Pengajuan FPD berhasil disimpan. Menunggu approval B&M Manager.", type: "success" });
+      const skipBmApproval = ["BOGOR", "BATAM"].includes(finalCabang.toUpperCase());
+      setAlertMsg({
+        title: "Berhasil!",
+        desc: skipBmApproval
+          ? "FPD berhasil disimpan. Menunggu approval PP Specialist tahap 1."
+          : "FPD berhasil disimpan. Menunggu approval B&M Manager.",
+        type: "success"
+      });
       setAlertOpen(true);
     } catch (err: any) {
       setAlertMsg({ title: "Gagal", desc: err.message || "Terjadi kesalahan", type: "error" });
