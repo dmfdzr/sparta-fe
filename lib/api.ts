@@ -388,6 +388,59 @@ export const fetchRABDetail = async (
     return res.json();
 };
 
+/** Update RAB items secara bulk (harus pakai id item). */
+export const updateRabItemsBulk = async (
+    id: number,
+    items: Array<{
+        id: number;
+        kategori_pekerjaan: string;
+        jenis_pekerjaan: string;
+        satuan: string;
+        volume: number;
+        harga_material: number;
+        harga_upah: number;
+        catatan?: string;
+    }>
+): Promise<any> => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/rab/${id}/items`;
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal update item RAB (${res.status}): ${text.substring(0, 120)}`);
+    }
+    return res.json();
+};
+
+/** Replace seluruh RAB items (tanpa id). */
+export const replaceRabItems = async (
+    id: number,
+    items: Array<{
+        kategori_pekerjaan: string;
+        jenis_pekerjaan: string;
+        satuan: string;
+        volume: number;
+        harga_material: number;
+        harga_upah: number;
+        catatan?: string;
+    }>
+): Promise<any> => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/rab/${id}/items/replace`;
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Gagal replace item RAB (${res.status}): ${text.substring(0, 120)}`);
+    }
+    return res.json();
+};
+
 /** Ambil detail Toko berdasarkan ID untuk menarik kolom alamat yang kosong pada revisi. */
 export const fetchTokoDetail = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/toko/detail?id=${id}`);
