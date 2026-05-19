@@ -29,6 +29,8 @@ import {
     fetchOpnameFinalList, fetchOpnameFinalDetail, approveOpnameFinal, downloadOpnameFinalPdf,
     downloadOpnameFoto,
     sendEmailNotification,
+    fetchProjekPlanningList,
+    type ProjekPlanningItem,
 } from '@/lib/api';
 import {
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail,
@@ -139,7 +141,7 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
     PERTAMBAHAN_SPK: ['BRANCH MANAGER', 'MANAGER'],
     OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
     INSTRUKSI_LAPANGAN: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'KONTRAKTOR', 'COORDINATOR', 'MANAGER'],
-    PROJECT_PLANNING: ['PROJECT PLANNING & DEVELOPMENT SPECIALIST', 'PROJECT PLANNING & DEVELOPMENT MANAGER'],
+    PROJECT_PLANNING: ['BRANCH BUILDING & MAINTENANCE MANAGER', 'PROJECT PLANNING & DEVELOPMENT SPECIALIST', 'PROJECT PLANNING & DEVELOPMENT MANAGER'],
 };
 
 const ROLE_TO_JABATAN: Record<string, 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR'> = {
@@ -262,6 +264,13 @@ const STATUS_LABEL: Record<string, string> = {
     // Instruksi Lapangan
     'MENUNGGU PERSETUJUAN KONTRAKTOR':  'PENDING (KONTR.)',
     'DITOLAK OLEH KONTRAKTOR':          'REJECTED (KONTR.)',
+    // Project Planning
+    WAITING_BM_APPROVAL:                'PENDING B&M',
+    WAITING_PP_APPROVAL_1:              'PENDING PP 1',
+    PP_DESIGN_3D_REQUIRED:              'DESAIN 3D',
+    WAITING_RAB_UPLOAD:                 'UPLOAD RAB',
+    WAITING_PP_APPROVAL_2:              'PENDING PP 2',
+    WAITING_PP_MANAGER_APPROVAL:        'PENDING PP MGR',
 };
 
 // =============================================
@@ -343,6 +352,20 @@ const normalizeInstruksiLapanganList = (items: any[]): NormalizedListItem[] =>
         email_pembuat: i.email_pembuat,
         created_at:    i.created_at,
         _raw: i,
+    }));
+
+const normalizeProjekPlanningList = (items: ProjekPlanningItem[]): NormalizedListItem[] =>
+    items.map(p => ({
+        id: p.id,
+        tipe: 'PROJECT_PLANNING' as ApprovalType,
+        nomor_ulok:    p.nomor_ulok ?? '-',
+        nama_toko:     p.nama_lokasi || p.nama_toko || '-',
+        cabang:        p.cabang || '-',
+        status:        p.status,
+        total_nilai:   parseCurrency(p.estimasi_biaya ?? '0'),
+        email_pembuat: p.email_pembuat,
+        created_at:    p.created_at,
+        _raw: p,
     }));
 
 // =============================================
@@ -527,6 +550,9 @@ export default function ApprovalPage() {
             } else if (type === 'INSTRUKSI_LAPANGAN') {
                 const res = await fetchInstruksiLapanganList();
                 normalized = normalizeInstruksiLapanganList(res.data ?? []);
+            } else if (type === 'PROJECT_PLANNING') {
+                const res = await fetchProjekPlanningList();
+                normalized = normalizeProjekPlanningList(res.data ?? []);
             }
 
             // Filter Berdasarkan Role & Jabatan & Cabang
@@ -535,6 +561,50 @@ export default function ApprovalPage() {
                 const upperUserCabang = userInfo.cabang?.toUpperCase();
                 const isHOUser = upperUserCabang === 'HEAD OFFICE';
                 const isSuperHumanUser = user?.isSuperHuman ?? false;
+                const userRoles = userInfo.role
+                    .split(',')
+                    .map(r => r.trim().toUpperCase())
+                    .filter(Boolean);
+
+                if (type === 'PROJECT_PLANNING') {
+                    if (isSuperHumanUser) {
+                        return !['DRAFT', 'COMPLETED', 'REJECTED'].includes(upper);
+                    }
+
+                    const isBmManager = userRoles.some(r =>
+                        r.includes('BRANCH BUILDING & MAINTENANCE MANAGER') ||
+                        r.includes('MAINTENANCE MANAGER') ||
+                        r.includes('BBMM')
+                    );
+                    const isPpSpecialist = userRoles.some(r =>
+                        r.includes('PROJECT PLANNING & DEVELOPMENT SPECIALIST') ||
+                        r.includes('PP SPECIALIST')
+                    );
+                    const isPpManager = userRoles.some(r =>
+                        r.includes('PROJECT PLANNING & DEVELOPMENT MANAGER') ||
+                        r.includes('PP MANAGER')
+                    );
+
+                    const statusMatchesRole =
+                        (isBmManager && upper === 'WAITING_BM_APPROVAL') ||
+                        (isPpSpecialist && ['WAITING_PP_APPROVAL_1', 'PP_DESIGN_3D_REQUIRED', 'WAITING_PP_APPROVAL_2'].includes(upper)) ||
+                        (isPpManager && upper === 'WAITING_PP_MANAGER_APPROVAL');
+
+                    if (!statusMatchesRole) return false;
+                    if (isHOUser) return true;
+                    if (!upperUserCabang || !item.cabang || item.cabang === '-') return true;
+
+                    let userGroup: string[] | null = null;
+                    for (const grp of Object.values(BRANCH_GROUPS)) {
+                        if (grp.includes(upperUserCabang)) {
+                            userGroup = grp;
+                            break;
+                        }
+                    }
+
+                    const itemCabangUpper = item.cabang.toUpperCase();
+                    return userGroup ? userGroup.includes(itemCabangUpper) : itemCabangUpper === upperUserCabang;
+                }
 
                 // Super Human dan HO melihat semua cabang
                 if (isHOUser || isSuperHumanUser) {
@@ -603,6 +673,11 @@ export default function ApprovalPage() {
     // LOAD DETAIL
     // ==========================================
     const loadDetail = async (item: NormalizedListItem) => {
+        if (item.tipe === 'PROJECT_PLANNING') {
+            router.push(`/projek-planning/${item.id}`);
+            return;
+        }
+
         setIsDetailLoading(true);
         setActiveView('detail');
         try {
@@ -986,10 +1061,6 @@ export default function ApprovalPage() {
     // NAVIGATION
     // ==========================================
     const handleSelectType = (type: ApprovalType) => {
-        if (type === 'PROJECT_PLANNING') {
-            router.push('/projek-planning');
-            return;
-        }
         setSelectedType(type);
         setSelectedDetail(null);
         setActiveView('list');
@@ -1031,6 +1102,9 @@ export default function ApprovalPage() {
         // Cek Tolak/Setuju secara universal termasuk SPK
         if (upper.includes('TOLAK') || upper === 'REJECTED' || upper === 'SPK_REJECTED') return false;
         if (upper.includes('DISETUJUI') || upper === 'APPROVED' || upper === 'SPK_APPROVED') return false;
+
+        // Project Planning diproses di halaman detail FPD, bukan tombol approve umum di sini.
+        if (tipe === 'PROJECT_PLANNING') return false;
 
         // Validasi tombol Action khusus SPK (hanya untuk Branch Manager)
         if (tipe === 'SPK') {
