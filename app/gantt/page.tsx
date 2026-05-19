@@ -8,7 +8,9 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText } from 'lucide-react'; 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText, Search } from 'lucide-react'; 
 import { 
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
@@ -70,6 +72,18 @@ function GanttBoard() {
     const [availableProjects, setAvailableProjects] = useState<GanttListItem[]>([]);
     const [allTokoList, setAllTokoList] = useState<any[]>([]);
     const [isDirectAccess, setIsDirectAccess] = useState(false);
+    const [searchUlokInput, setSearchUlokInput] = useState("");
+
+    const filteredTokoList = useMemo(() => {
+        if (!searchUlokInput) return allTokoList;
+        const lowerSearch = searchUlokInput.toLowerCase();
+        return allTokoList.filter((toko: any) => {
+            const ulok = formatUlokWithDash(toko.nomor_ulok).toLowerCase();
+            const nama = (toko.nama_toko || "").toLowerCase();
+            const cabang = (toko.cabang || "").toLowerCase();
+            return ulok.includes(lowerSearch) || nama.includes(lowerSearch) || cabang.includes(lowerSearch);
+        });
+    }, [allTokoList, searchUlokInput]);
 
     const [tasks, setTasks] = useState<any[]>([]);
     const [isApplying, setIsApplying] = useState(false);
@@ -832,8 +846,7 @@ function GanttBoard() {
                                     <span>{selectedUlok || projectData?.ulokClean || "Memuat..."}</span><Lock className="w-5 h-5 text-slate-400" />
                                 </div>
                             ) : (
-                                <select 
-                                    className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+                                <Select
                                     value={(() => {
                                         const targetTokoId = projectData?.id_toko ? projectData.id_toko : (urlIdToko ? parseInt(urlIdToko) : null);
                                         if (!targetTokoId) return '';
@@ -845,8 +858,7 @@ function GanttBoard() {
                                         });
                                         return ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${targetTokoId}`;
                                     })()}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
+                                    onValueChange={(val) => {
                                         if (!val) return;
 
                                         if (val.startsWith('gantt-')) {
@@ -867,29 +879,51 @@ function GanttBoard() {
                                         }
                                     }}
                                 >
-                                    <option value="">-- Pilih Proyek / RAB Anda --</option>
-                                    {allTokoList.map((toko) => {
-                                        const tID = toko.id_toko || toko.id;
-                                        const ganttMatch = availableProjects.find((p: any) => {
-                                            if (p.id_toko && tID) return p.id_toko === tID;
-                                            const matchUlok = p.nomor_ulok === toko.nomor_ulok;
-                                            const matchLingkup = !p.lingkup_pekerjaan || !toko.lingkup_pekerjaan || (p.lingkup_pekerjaan?.toUpperCase() === toko.lingkup_pekerjaan?.toUpperCase());
-                                            return matchUlok && matchLingkup;
-                                        });
-                                        const ulok = formatUlokWithDash(toko.nomor_ulok);
-                                        const label = [ulok, toko.nama_toko, toko.cabang, toko.lingkup_pekerjaan]
-                                            .filter(Boolean).join(' · ');
-                                        const statusBadge = ganttMatch?.status === 'terkunci' ? ' (Terkunci)' : (ganttMatch?.status === 'active' ? ' (Aktif)' : '');
-                                        
-                                        const val = ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${tID}`;
-                                        
-                                        return (
-                                            <option key={toko.id} value={val}>
-                                                {label || ulok}{statusBadge}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
+                                    <SelectTrigger className="h-12 w-full text-base focus:ring-blue-500 font-medium text-slate-700 bg-white">
+                                        <SelectValue placeholder="-- Pilih Proyek / RAB Anda --" />
+                                    </SelectTrigger>
+                                    <SelectContent position="popper">
+                                        <div className="px-2 pb-2 pt-2 sticky top-0 bg-white z-10 border-b border-slate-100 mb-1">
+                                            <div className="relative">
+                                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                                                <Input
+                                                    placeholder="Cari Nomor / Toko / Cabang..."
+                                                    className="pl-8 h-9 text-sm focus-visible:ring-blue-500"
+                                                    value={searchUlokInput}
+                                                    onChange={(e) => setSearchUlokInput(e.target.value)}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                />
+                                            </div>
+                                        </div>
+                                        {filteredTokoList.length > 0 ? (
+                                            filteredTokoList.map((toko) => {
+                                                const tID = toko.id_toko || toko.id;
+                                                const ganttMatch = availableProjects.find((p: any) => {
+                                                    if (p.id_toko && tID) return p.id_toko === tID;
+                                                    const matchUlok = p.nomor_ulok === toko.nomor_ulok;
+                                                    const matchLingkup = !p.lingkup_pekerjaan || !toko.lingkup_pekerjaan || (p.lingkup_pekerjaan?.toUpperCase() === toko.lingkup_pekerjaan?.toUpperCase());
+                                                    return matchUlok && matchLingkup;
+                                                });
+                                                const ulok = formatUlokWithDash(toko.nomor_ulok);
+                                                const label = [ulok, toko.nama_toko, toko.cabang, toko.lingkup_pekerjaan]
+                                                    .filter(Boolean).join(' · ');
+                                                const statusBadge = ganttMatch?.status === 'terkunci' ? ' (Terkunci)' : (ganttMatch?.status === 'active' ? ' (Aktif)' : '');
+                                                
+                                                const val = ganttMatch ? `gantt-${ganttMatch.id}` : `toko-${tID}`;
+                                                
+                                                return (
+                                                    <SelectItem key={val} value={val}>
+                                                        {label || ulok}{statusBadge}
+                                                    </SelectItem>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="px-2 py-4 text-center text-sm text-slate-500">
+                                                Pencarian tidak ditemukan
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
                             )}
                         </div>
                     </CardContent>

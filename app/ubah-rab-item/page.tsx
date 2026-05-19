@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, Plus, Save, Trash2, Upload, Info, FileSpreadsheet } from "lucide-react";
+import { Download, Plus, Save, Trash2, Upload, Info, FileSpreadsheet, Search } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import { BRANCH_GROUPS, ME_CATEGORIES, SIPIL_CATEGORIES } from "@/lib/constants";
 import {
@@ -107,6 +107,16 @@ export default function UbahRabItemPage() {
   const [selectedCabang, setSelectedCabang] = useState<string>("");
   const [rabOptions, setRabOptions] = useState<RabOption[]>([]);
   const [selectedRabId, setSelectedRabId] = useState<number | null>(null);
+  const [searchUlok, setSearchUlok] = useState("");
+
+  const filteredRabOptions = useMemo(() => {
+    if (!searchUlok) return rabOptions;
+    const lowerSearch = searchUlok.toLowerCase();
+    return rabOptions.filter(item => 
+      item.nomor_ulok.toLowerCase().includes(lowerSearch) || 
+      (item.nama_toko && item.nama_toko.toLowerCase().includes(lowerSearch))
+    );
+  }, [rabOptions, searchUlok]);
   const [rabDetail, setRabDetail] = useState<RABDetailResponse | null>(null);
 
   const [prices, setPrices] = useState<Record<string, any[]>>({});
@@ -172,6 +182,7 @@ export default function UbahRabItemPage() {
         setTableRows([]);
         setPrices({});
         setReplaceMode(false);
+        setSearchUlok("");
       } catch (err: any) {
         showAlert("Error", err.message || "Gagal memuat daftar RAB.", "error");
       } finally {
@@ -490,13 +501,31 @@ export default function UbahRabItemPage() {
                   <SelectTrigger className="h-10 focus:ring-red-500">
                     <SelectValue placeholder="Pilih Nomor ULOK" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {rabOptions.map(item => (
-                      <SelectItem key={item.id} value={String(item.id)}>
-                        <span className="font-medium">{item.nomor_ulok}</span>
-                        {item.nama_toko && <span className="text-slate-500 ml-1">- {item.nama_toko}</span>}
-                      </SelectItem>
-                    ))}
+                  <SelectContent position="popper">
+                    <div className="px-2 pb-2 pt-2 sticky top-0 bg-white z-10 border-b border-slate-100 mb-1">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-500" />
+                        <Input
+                          placeholder="Cari Nomor / Toko..."
+                          className="pl-8 h-8 text-sm focus-visible:ring-red-500"
+                          value={searchUlok}
+                          onChange={(e) => setSearchUlok(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    {filteredRabOptions.length > 0 ? (
+                      filteredRabOptions.map(item => (
+                        <SelectItem key={item.id} value={String(item.id)}>
+                          <span className="font-medium">{item.nomor_ulok}</span>
+                          {item.nama_toko && <span className="text-slate-500 ml-1">- {item.nama_toko}</span>}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-4 text-center text-sm text-slate-500">
+                        Pencarian tidak ditemukan
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
