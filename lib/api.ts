@@ -1319,6 +1319,13 @@ export type SPKApprovalPayload = {
     alasan_penolakan?: string | null;
 };
 
+export type SPKInterventionPayload = {
+    actor_email: string;
+    actor_role: string;
+    target_status: "WAITING_FOR_BM_APPROVAL" | "SPK_APPROVED" | "SPK_REJECTED";
+    alasan_intervensi: string;
+};
+
 // --- Fungsi ---
 
 /** Submit SPK baru. (Backend akan otomatis handle revisi jika ada status REJECTED sebelumnya) */
@@ -1413,6 +1420,25 @@ export const processSPKApproval = async (
     if (res.status === 409) throw new Error(result.message || "Status tidak valid untuk tindakan ini.");
     if (res.status === 422) throw new Error(result.message || "Validasi gagal. Isi alasan penolakan.");
     if (!res.ok) throw new Error(result.message || `Gagal approval SPK (${res.status}).`);
+    return result;
+};
+
+/** Intervensi status SPK oleh Super Human. */
+export const interveneSPKStatus = async (
+    id: number,
+    payload: SPKInterventionPayload
+): Promise<{ status: string; message: string; data: { id: number; old_status: string; new_status: string } }> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/spk/${id}/intervention`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 403) throw new Error(result.message || "Akses intervensi hanya untuk Super Human.");
+    if (res.status === 404) throw new Error("Data SPK tidak ditemukan.");
+    if (res.status === 409) throw new Error(result.message || "Status SPK sudah sama.");
+    if (res.status === 422) throw new Error(result.message || "Alasan intervensi wajib diisi.");
+    if (!res.ok) throw new Error(result.message || `Gagal melakukan intervensi SPK (${res.status}).`);
     return result;
 };
 
