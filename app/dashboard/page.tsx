@@ -100,16 +100,27 @@ export default function DashboardPage() {
             allowedIds.push("menu-inputpic");
         }
 
-        setAllowedMenus(ALL_MENUS.filter(m => allowedIds.includes(m.id)));
+        const menuList = ALL_MENUS.filter(m => allowedIds.includes(m.id));
+        setAllowedMenus(menuList);
         setUserInfo({ name: namaLengkap.toUpperCase(), roles: roles, cabang: userCabang.toUpperCase() });
         setIsContractor(contractorFlag);
         
         if (window.innerWidth <= 768) setSidebarOpen(false);
-        
-        // Initial Data Fetch
+
+        const canViewMonitoringDashboard = isHO || isSuperHuman;
+        if (!canViewMonitoringDashboard) {
+            const firstMenu = menuList.find(m => !m.isAlert && !("external" in m) && m.href && m.href !== "#");
+            if (firstMenu) {
+                router.replace(firstMenu.href);
+            }
+            setIsLoading(false);
+            return;
+        }
+
+        // Initial Data Fetch - dashboard monitoring hanya untuk Head Office/Super Human
         fetchDashboardData(userCabang.toUpperCase(), isSuperHuman);
         setIsLoading(false);
-    }, [user]);
+    }, [user, router]);
 
     useEffect(() => {
         if (detailModal.open) {
@@ -196,6 +207,7 @@ export default function DashboardPage() {
 
     // Fetch semua Opname Items sekaligus (1 request) untuk Nilai Toko, Kontraktor
     useEffect(() => {
+        if (!user?.isHO && !user?.isSuperHuman) return;
         if (opnameFetched.current) return;
         opnameFetched.current = true;
 
@@ -218,7 +230,7 @@ export default function DashboardPage() {
         };
 
         fetchAll();
-    }, []);
+    }, [user?.isHO, user?.isSuperHuman]);
 
 
     // Summary Stats
