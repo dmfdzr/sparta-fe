@@ -403,10 +403,6 @@ const hasLink = (url?: string | null) => !!url && url.trim() !== '';
 const isExternalOnlyLink = (url: string) => {
     const lower = url.toLowerCase();
     return (
-        lower.includes('docs.google.com/spreadsheets') ||
-        lower.includes('docs.google.com/document') ||
-        lower.includes('docs.google.com/presentation') ||
-        lower.includes('docs.google.com/forms') ||
         lower.includes('google.com/maps') ||
         lower.includes('maps.app.goo.gl')
     );
@@ -2112,7 +2108,7 @@ function ProjectPlanningAttachmentGroup({
                 {availableItems.map(item => {
                     const url = item.url!.trim();
                     const canDownload = !!item.field && isDownloadableAttachment(url);
-                    const canProxyView = canDownload;
+                    const canProxyView = !!item.field && !isExternalOnlyLink(url);
                     return (
                         <div key={`${title}-${item.label}-${item.itemIndex ?? 'main'}`} className="flex items-center gap-2">
                             {canProxyView ? (
