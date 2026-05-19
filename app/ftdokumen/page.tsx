@@ -166,6 +166,15 @@ export default function FTDokumenPage() {
 
         setIsSubmitting(true);
         try {
+            const sudutItems = Object.keys(photos).map(idStr => {
+                const id = parseInt(idStr);
+                const pt = ALL_POINTS.find(p => p.id === id);
+                return {
+                    item_index: id,
+                    sudut_foto: pt ? pt.label : `Foto ${id}`
+                };
+            });
+
             const payloadFields: Record<string, string> = {
                 cabang: formData.cabang,
                 nomor_ulok: formData.nomorUlok,
@@ -180,7 +189,8 @@ export default function FTDokumenPage() {
                 tanggal_ambil_foto: formData.tanggalAmbilFoto,
                 email_pengirim: user?.email || '',
                 status_validasi: 'submitted',
-                pic_dokumentasi: user?.namaLengkap || user?.email?.split('@')[0] || 'PIC'
+                pic_dokumentasi: user?.namaLengkap || user?.email?.split('@')[0] || 'PIC',
+                sudut_foto_items: JSON.stringify(sudutItems)
             };
 
             await submitDokumentasiBangunan(payloadFields, photos);
