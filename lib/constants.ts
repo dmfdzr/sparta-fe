@@ -127,7 +127,7 @@ export const ALL_MENUS = [
     {
         id: "menu-projek-planning",
         title: "Project Planning",
-        desc: "Form Pengajuan Data (FPD) dan approval project planning.",
+        desc: "Form Permintaan Desain (FPD) dan approval project planning.",
         href: "/projek-planning",
         icon: ClipboardList,
     },
