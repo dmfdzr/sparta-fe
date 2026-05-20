@@ -696,7 +696,7 @@ export default function DaftarDokumenPage() {
         setIsDirektur(direkturFlag);
         setIsSuperHuman(superHumanFlag);
         const ppRoles = getPpRoles(role, email);
-        const ppOnlyFlag = (ppRoles.isPP || ppRoles.isPPMgr) && !ppRoles.isCoor && !ppRoles.isBM && !contractorFlag && !direkturFlag;
+        const ppOnlyFlag = ppRoles.isPP && !ppRoles.isPPMgr && !ppRoles.isCoor && !ppRoles.isBM && !contractorFlag && !direkturFlag;
         setIsPPOnly(ppOnlyFlag);
         setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email, nama_pt });
     }, [router]);

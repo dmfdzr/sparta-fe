@@ -100,6 +100,7 @@ function FormProjekPlanningInner() {
     if (!isDarkStoreDesign) return;
     setIsHeadToHead(false);
     setIsSeatingArea(false);
+    setIsDarkStore(false);
   }, [isDarkStoreDesign]);
 
   // Foto State
@@ -408,7 +409,7 @@ function FormProjekPlanningInner() {
         // New fields
         is_head_to_head: isDarkStoreDesign ? false : isHeadToHead,
         is_seating_area: isDarkStoreDesign ? false : isSeatingArea,
-        is_dark_store: isDarkStore,
+        is_dark_store: isDarkStoreDesign ? false : isDarkStore,
         beanspot_tipe: jenisSelected.includes("BEAN SPOT") ? beanspotTipe : "",
         ketentuan: JSON.stringify(ketentuan.filter(k => k.trim() !== "")),
         catatan_design: JSON.stringify(catatanDesign.filter(c => c.trim() !== "")),
@@ -703,23 +704,25 @@ function FormProjekPlanningInner() {
                   </div>
                 </div>
 
-                {/* Kategori Toko */}
-                <div className="pt-2 border-t border-slate-100">
-                  <Label className="text-sm font-bold text-slate-700 mb-2 block">Kategori Toko</Label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_dark_store" checked={!isDarkStore} onChange={() => setIsDarkStore(false)} className="w-4 h-4 text-red-600" />
-                      <span className="text-sm">Reguler</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_dark_store" checked={isDarkStore} onChange={() => setIsDarkStore(true)} className="w-4 h-4 text-red-600" />
-                      <span className="text-sm font-medium text-slate-700">B2B</span>
-                    </label>
+                {!isDarkStoreDesign && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <Label className="text-sm font-bold text-slate-700 mb-2 block">Kategori Toko</Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="is_dark_store" checked={!isDarkStore} onChange={() => setIsDarkStore(false)} className="w-4 h-4 text-red-600" />
+                        <span className="text-sm">Reguler</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="is_dark_store" checked={isDarkStore} onChange={() => setIsDarkStore(true)} className="w-4 h-4 text-red-600" />
+                        <span className="text-sm font-medium text-slate-700">B2B</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* === SECTION: Head to Head & Seating Area === */}
+              {!isDarkStoreDesign && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                 {/* Head to Head */}
                 <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-3">
@@ -760,6 +763,7 @@ function FormProjekPlanningInner() {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* === SECTION: Fasilitas === */}
               <SectionTitle icon={<Droplets className="w-4 h-4" />} title="Fasilitas Yang Disediakan" />

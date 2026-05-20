@@ -555,7 +555,7 @@ export default function DetailProjekPlanning() {
             <InfoRow label="Cabang" value={data.cabang} />
             <InfoRow label="Proyek" value={data.proyek || data.jenis_proyek} />
             <InfoRow label="Tipe Bangunan" value={`${data.is_ruko ? 'Ruko' : 'Non-Ruko'}${data.jumlah_lantai ? ` — ${data.jumlah_lantai} Lantai` : ''}`} />
-            <InfoRow label="Kategori Toko" value={(data as any).is_dark_store ? 'B2B' : 'Reguler'} />
+            <InfoRow label="Kategori Toko" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? '-' : ((data as any).is_dark_store ? 'B2B' : 'Reguler')} />
             <InfoRow label="Lingkup Pekerjaan" value={data.lingkup_pekerjaan} />
             <InfoRow label="Pengaju" value={data.nama_pengaju} />
             <InfoRow label="Email Pembuat" value={data.email_pembuat} />
@@ -569,8 +569,8 @@ export default function DetailProjekPlanning() {
               })()}
             />
             {(data as any).beanspot_tipe && <InfoRow label="Tipe Bean Spot" value={(data as any).beanspot_tipe === "Basic" ? "RTD ONLY" : (data as any).beanspot_tipe} />}
-            <InfoRow label="Head to Head" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? 'Tidak' : ((data as any).is_head_to_head ? '✓ Ya' : 'Tidak')} />
-            <InfoRow label="Seating Area" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? 'Tidak' : ((data as any).is_seating_area ? '✓ Ya' : 'Tidak')} />
+            <InfoRow label="Head to Head" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? '-' : ((data as any).is_head_to_head ? '✓ Ya' : 'Tidak')} />
+            <InfoRow label="Seating Area" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? '-' : ((data as any).is_seating_area ? '✓ Ya' : 'Tidak')} />
             <InfoRow label="Estimasi Biaya" value={data.estimasi_biaya ? `Rp ${Number(data.estimasi_biaya).toLocaleString('id-ID')}` : null} />
           </CardContent>
         </Card>
