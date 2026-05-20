@@ -17,7 +17,7 @@ import GanttViewer from '@/components/GanttViewer';
 import {
     // RAB
     fetchRABList, fetchRABDetail, processRABApproval, downloadRABPdf,
-    type RABListItem, type RABDetailItem,
+    type RABListItem, type RABDetailItem, type RABListFilters,
     fetchUserCabangList,
     // SPK
     fetchSPKList, fetchSPKDetail, processSPKApproval, downloadSPKPdf,
@@ -131,6 +131,8 @@ const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
     } catch { return dateStr; }
 };
+
+const normalizeBranch = (branch?: string | null) => (branch ?? '').trim().toUpperCase();
 
 // =============================================
 // ROLE CONFIG
@@ -539,11 +541,15 @@ export default function ApprovalPage() {
         try {
             let normalized: NormalizedListItem[] = [];
             if (type === 'RAB') {
-                let filters: any = undefined;
+                let filters: RABListFilters | undefined = undefined;
                 if (jabatan === 'DIREKTUR') {
+                    const userCabang = normalizeBranch(userInfo.cabang);
                     filters = { 
                         nama_pt: userInfo.nama_pt 
                     };
+                    if (userCabang && userCabang !== 'HEAD OFFICE') {
+                        filters.cabang = userInfo.cabang;
+                    }
                 }
                 const res = await fetchRABList(filters);
                 normalized = normalizeRABList(res.data ?? []);
@@ -572,7 +578,7 @@ export default function ApprovalPage() {
             // Filter Berdasarkan Role & Jabatan & Cabang
             normalized = normalized.filter(item => {
                 const upper = (item.status ?? '').toUpperCase();
-                const upperUserCabang = userInfo.cabang?.toUpperCase();
+                const upperUserCabang = normalizeBranch(userInfo.cabang);
                 const isHOUser = upperUserCabang === 'HEAD OFFICE';
                 const isSuperHumanUser = user?.isSuperHuman ?? false;
                 const userRoles = userInfo.role
@@ -668,6 +674,12 @@ export default function ApprovalPage() {
                 // Pertambahan SPK — hanya yang Menunggu Persetujuan
                 if (type === 'PERTAMBAHAN_SPK') {
                     return upper === 'MENUNGGU PERSETUJUAN';
+                }
+
+                if (type === 'RAB' && jabatan === 'DIREKTUR' && upperUserCabang && !isHOUser) {
+                    return normalizeBranch(item.cabang) === upperUserCabang
+                        && (upper.includes('MENUNGGU') || upper.startsWith('PENDING'))
+                        && upper.includes('DIREKTUR');
                 }
 
                 // Untuk RAB & IL (Multi-level)
