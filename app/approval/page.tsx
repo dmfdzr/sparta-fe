@@ -947,6 +947,15 @@ export default function ApprovalPage() {
             && status.includes('DIREKTUR');
     };
 
+    const shouldFinalizeRABAfterCoordinatorApproval = (item: NormalizedListItem | NormalizedDetail) => {
+        const status = (item.status ?? '').toUpperCase();
+        return item.tipe === 'RAB'
+            && normalizeBranch(item.cabang) === 'BATAM'
+            && jabatan === 'KOORDINATOR'
+            && status.includes('MENUNGGU')
+            && status.includes('KOORDINATOR');
+    };
+
     // ==========================================
     // APPROVE
     // ==========================================
@@ -965,6 +974,7 @@ export default function ApprovalPage() {
                     nama_lengkap:   currentName,
                     jabatan:        jabatan ?? 'KOORDINATOR',
                     ...(shouldSkipRABCoordinatorApproval(item) ? { next_jabatan: 'MANAGER' } : {}),
+                    ...(shouldFinalizeRABAfterCoordinatorApproval(item) ? { next_status: 'DISETUJUI' } : {}),
                     tindakan:       'APPROVE',
                 });
             } else if (item.tipe === 'SPK') {

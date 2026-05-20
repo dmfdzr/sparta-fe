@@ -194,6 +194,7 @@ export type RABApprovalPayload = {
     nama_lengkap?:    string;
     jabatan:          "KOORDINATOR" | "MANAGER" | "DIREKTUR" | string;
     next_jabatan?:    "KOORDINATOR" | "MANAGER" | "DIREKTUR" | string;
+    next_status?:     string;
     tindakan:         "APPROVE" | "REJECT" | string;
     alasan_penolakan?: string | null;
 };
