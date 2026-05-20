@@ -77,7 +77,8 @@ export default function RABPage() {
   const { user } = useSession();
   const isHO = user?.isHO ?? false;
   const isSuperHuman = user?.isSuperHuman ?? false;
-  const isReadOnly = isHO && !isSuperHuman;
+  const isContractor = user?.roles?.some(role => role.includes('KONTRAKTOR')) ?? false;
+  const isReadOnly = isHO && !isSuperHuman && !isContractor;
 
   useEffect(() => {
     if (!user) return;
