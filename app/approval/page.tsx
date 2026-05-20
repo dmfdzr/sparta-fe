@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,6 +39,12 @@ import {
 
 import { parseCurrency } from '@/lib/utils';
 import { BRANCH_GROUPS, BRANCH_TO_ULOK, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
+import {
+    EMPTY_APPROVAL_COUNTS,
+    fetchApprovalNotificationCounts,
+    getApprovalNotificationTotal,
+    type ApprovalCounts,
+} from '@/lib/approval-notifications';
 
 // =============================================
 // TYPES INTERNAL
@@ -425,6 +431,8 @@ export default function ApprovalPage() {
     // --- DATA ---
     const [listData, setListData]         = useState<NormalizedListItem[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<NormalizedDetail | null>(null);
+    const [approvalCounts, setApprovalCounts] = useState<ApprovalCounts>(EMPTY_APPROVAL_COUNTS);
+    const [isCountsLoading, setIsCountsLoading] = useState(false);
     const [searchQuery, setSearchQuery]   = useState('');
     const [cabangFilter, setCabangFilter] = useState('');
 
@@ -538,6 +546,23 @@ export default function ApprovalPage() {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3500);
     };
+
+    const refreshApprovalCounts = useCallback(async () => {
+        if (!user) return;
+        setIsCountsLoading(true);
+        try {
+            const counts = await fetchApprovalNotificationCounts(user);
+            setApprovalCounts(counts);
+        } catch {
+            setApprovalCounts(EMPTY_APPROVAL_COUNTS);
+        } finally {
+            setIsCountsLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        refreshApprovalCounts();
+    }, [refreshApprovalCounts]);
 
     // ==========================================
     // LOAD LIST
@@ -688,6 +713,7 @@ export default function ApprovalPage() {
             });
 
             setListData(normalized);
+            refreshApprovalCounts();
         } catch (err: any) {
             showToast(err.message || 'Gagal memuat data.', 'error');
             setListData([]);
@@ -970,6 +996,7 @@ export default function ApprovalPage() {
                 setSelectedDetail(null);
                 setActiveView('list');
             }
+            refreshApprovalCounts();
             showToast(`${APPROVAL_CONFIG[item.tipe].label} berhasil di-approve!`, 'success');
         } catch (err: any) {
             showToast(err.message || 'Gagal melakukan approval.', 'error');
@@ -1040,6 +1067,7 @@ export default function ApprovalPage() {
                 setSelectedDetail(null);
                 setActiveView('list');
             }
+            refreshApprovalCounts();
             showToast('Pengajuan berhasil ditolak.', 'success');
         } catch (err: any) {
             showToast(err.message || 'Gagal menolak pengajuan.', 'error');
@@ -1209,6 +1237,7 @@ export default function ApprovalPage() {
         total_nilai: selectedDetail.total_nilai, email_pembuat: selectedDetail.email_pembuat,
         created_at: selectedDetail.created_at, _raw: {} as any
     } : null;
+    const approvalTotalCount = getApprovalNotificationTotal(approvalCounts, accessibleTypes);
 
     // ==========================================
     // RENDER
@@ -1262,6 +1291,11 @@ export default function ApprovalPage() {
                 backHref="/dashboard"
                 rightActions={
                     <div className="flex items-center gap-2">
+                        {approvalTotalCount > 0 && (
+                            <Badge className="bg-red-100 text-red-700 border-red-200 font-bold text-xs px-2.5">
+                                {approvalTotalCount} Proses
+                            </Badge>
+                        )}
                         {selectedType && listData.length > 0 && activeView === 'list' && (
                             <Badge className="bg-yellow-400 text-yellow-900 border-0 font-bold text-xs px-2.5">
                                 {listData.length} Item
@@ -1286,12 +1320,18 @@ export default function ApprovalPage() {
                         <div className={`grid grid-cols-1 gap-6 w-full px-4 ${accessibleTypes.length === 1 ? 'max-w-sm' : accessibleTypes.length === 2 ? 'md:grid-cols-2 max-w-2xl' : 'md:grid-cols-3 max-w-3xl'}`}>
                             {accessibleTypes.map(type => {
                                 const cfg = APPROVAL_CONFIG[type];
+                                const count = approvalCounts[type] ?? 0;
                                 return (
                                     <Card
                                         key={type}
-                                        className={`hover:shadow-lg cursor-pointer transition-all border-2 border-transparent ${cfg.hoverBorder} group`}
+                                        className={`hover:shadow-lg cursor-pointer transition-all border-2 border-transparent ${cfg.hoverBorder} group relative overflow-hidden`}
                                         onClick={() => handleSelectType(type)}
                                     >
+                                        {count > 0 && (
+                                            <div className="absolute right-4 top-4 min-w-7 h-7 px-2 rounded-full bg-red-600 text-white text-xs font-extrabold flex items-center justify-center shadow-sm">
+                                                {count > 99 ? '99+' : count}
+                                            </div>
+                                        )}
                                         <CardContent className="p-10 flex flex-col items-center text-center gap-4">
                                             <div className={`${cfg.color} transition-transform group-hover:scale-110 duration-200`}>
                                                 {cfg.icon}
@@ -1300,7 +1340,12 @@ export default function ApprovalPage() {
                                                 <h3 className="font-bold text-xl text-slate-800">{cfg.label}</h3>
                                                 <p className="text-sm text-slate-500 mt-1">{cfg.description}</p>
                                             </div>
-                                            <Badge className={`${cfg.badgeColor} text-xs font-semibold border`}>{type}</Badge>
+                                            <div className="flex items-center gap-2">
+                                                <Badge className={`${cfg.badgeColor} text-xs font-semibold border`}>{type}</Badge>
+                                                {isCountsLoading && (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-300" />
+                                                )}
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 );

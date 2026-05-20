@@ -14,6 +14,13 @@ import AppNavbar from '@/components/AppNavbar';
 import { ALL_MENUS, ROLE_CONFIG, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
 import { fetchDashboardAll, fetchRABDetail, fetchOpnameList } from '@/lib/api';
+import {
+    EMPTY_APPROVAL_COUNTS,
+    fetchApprovalNotificationCounts,
+    getAccessibleApprovalTypes,
+    getApprovalNotificationTotal,
+    type ApprovalCounts,
+} from '@/lib/approval-notifications';
 import { 
     Activity, CheckCircle2, ChevronRight, Clock, FileCheck, FileEdit, FileText, 
     HardHat, Layers, Search, Store, Users, MapPin, RefreshCw,
@@ -42,6 +49,7 @@ export default function DashboardPage() {
     const [sidebarOpen, setSidebarOpen]     = useState(true);
     const [isContractor, setIsContractor]   = useState(false);
     const [canViewMonitoringDashboard, setCanViewMonitoringDashboard] = useState(false);
+    const [approvalCounts, setApprovalCounts] = useState<ApprovalCounts>(EMPTY_APPROVAL_COUNTS);
 
     // Data State
     const [projects, setProjects] = useState<any[]>([]);
@@ -118,6 +126,9 @@ export default function DashboardPage() {
         // Dashboard monitoring tersedia untuk semua cabang.
         // Hanya Super Human dan role global view-only yang melihat semua cabang.
         fetchDashboardData(userCabang.toUpperCase(), canViewAllBranches(roles, isSuperHuman));
+        fetchApprovalNotificationCounts(user)
+            .then(setApprovalCounts)
+            .catch(() => setApprovalCounts(EMPTY_APPROVAL_COUNTS));
         setIsLoading(false);
     }, [user]);
 
@@ -632,6 +643,9 @@ export default function DashboardPage() {
                     <nav className="flex-1 overflow-y-auto px-2.5 py-2.5 flex flex-col gap-0.5">
                         {allowedMenus.map((menu) => {
                             const IconComp = menu.icon;
+                            const approvalCount = menu.id === "menu-approval" && user
+                                ? getApprovalNotificationTotal(approvalCounts, getAccessibleApprovalTypes(user))
+                                : 0;
                             const inner = (
                                 <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-50 hover:border-red-200 border border-transparent transition-all duration-200 group cursor-pointer">
                                     <div className="w-7 h-7 rounded-md bg-slate-100 group-hover:bg-red-100 flex items-center justify-center shrink-0 transition-colors">
@@ -642,6 +656,11 @@ export default function DashboardPage() {
                                             <p className="text-[12px] font-semibold text-slate-700 group-hover:text-red-700 leading-snug transition-colors wrap-break-word">{menu.title}</p>
                                             <p className="text-[10px] text-slate-400 leading-snug wrap-break-word mt-0.5">{menu.desc}</p>
                                         </div>
+                                        {approvalCount > 0 && (
+                                            <span className="ml-2 min-w-5 h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                                                {approvalCount > 99 ? '99+' : approvalCount}
+                                            </span>
+                                        )}
                                     </div>
                                     <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-red-400 shrink-0 transition-colors" />
                                 </div>
