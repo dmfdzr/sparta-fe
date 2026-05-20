@@ -18,6 +18,7 @@ import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import { PHOTO_POINTS, ALL_POINTS, TOTAL_PHOTOS, FLOOR_IMAGES, PAGE_LABELS, type PhotoPoint } from './photoPoints';
 import CameraModal from './CameraModal';
 import { submitDokumentasiBangunan, fetchRABList, fetchDokumentasiBangunanList } from '@/lib/api';
+import { canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 
 // =============================================================================
@@ -60,6 +61,8 @@ export default function FTDokumenPage() {
     const [isLoadingUlok, setIsLoadingUlok] = useState(true);
 
     const { user } = useSession();
+    const isSuperHuman = user?.isSuperHuman ?? false;
+    const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman);
 
     // Populate cabang from session + fetch ULOK data from SPK list
     useEffect(() => {
@@ -89,7 +92,7 @@ export default function FTDokumenPage() {
 
                     // Filter based on user branch
                     const rabCabang = rab.cabang || rab.toko?.cabang || '';
-                    if (user.cabang !== 'HEAD OFFICE') {
+                    if (!canViewAllBranches(user.roles, user.isSuperHuman ?? false)) {
                         if (rabCabang.toUpperCase() !== user.cabang.toUpperCase()) {
                             continue;
                         }
@@ -141,6 +144,10 @@ export default function FTDokumenPage() {
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (isReadOnly) {
+            showAlert({ message: 'Role ini hanya memiliki akses view.', type: 'warning' });
+            return;
+        }
         if (!formData.nomorUlok) { showAlert({ message: 'Pilih Nomor ULOK terlebih dahulu.', type: 'warning' }); return; }
         if (!formData.namaToko) { showAlert({ message: 'Isi Nama Toko.', type: 'warning' }); return; }
         setCurrentStep('floorplan');
@@ -166,6 +173,10 @@ export default function FTDokumenPage() {
     };
 
     const handleSavePdf = async () => {
+        if (isReadOnly) {
+            showAlert({ message: 'Role ini hanya memiliki akses view.', type: 'warning' });
+            return;
+        }
         if (completedCount < TOTAL_PHOTOS) {
             showAlert({ message: `Mohon lengkapi seluruh ${TOTAL_PHOTOS} foto sebelum menyimpan.`, type: 'warning' });
             return;
@@ -229,6 +240,7 @@ export default function FTDokumenPage() {
                         setFormData={setFormData}
                         ulokOptions={ulokOptions}
                         isLoadingUlok={isLoadingUlok}
+                        isReadOnly={isReadOnly}
                     />
                 ) : (
                     <FloorPlanView
@@ -241,7 +253,7 @@ export default function FTDokumenPage() {
                         progressPct={progressPct}
                         isSubmitting={isSubmitting}
                         onBack={() => setCurrentStep('form')}
-                        onPointClick={(p) => setCameraPoint(p)}
+                        onPointClick={(p) => !isReadOnly && setCameraPoint(p)}
                         onSavePdf={handleSavePdf}
                     />
                 )}
@@ -263,13 +275,14 @@ export default function FTDokumenPage() {
 // =============================================================================
 // DATA FORM VIEW
 // =============================================================================
-function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, isLoadingUlok }: {
+function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, isLoadingUlok, isReadOnly }: {
     formData: FormData;
     onChange: (field: keyof FormData, value: string) => void;
     onSubmit: (e: React.FormEvent) => void;
     setFormData: React.Dispatch<React.SetStateAction<FormData>>;
     ulokOptions: UlokOption[];
     isLoadingUlok: boolean;
+    isReadOnly: boolean;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -319,7 +332,7 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                                     <Loader2 className="w-4 h-4 animate-spin" /> Memuat daftar ULOK...
                                 </div>
                             ) : (
-                                <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} required>
+                                <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} disabled={isReadOnly} required>
                                     <SelectTrigger className="bg-white h-auto min-h-10 whitespace-normal wrap-break-word text-left">
                                         <SelectValue placeholder="-- Pilih Nomor ULOK --" />
                                     </SelectTrigger>
@@ -372,19 +385,19 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                         </div>
                         <div className="space-y-2">
                             <Label>Tanggal GO <span className="text-red-500">*</span></Label>
-                            <DatePicker value={formData.tanggalGo} onChange={val => onChange('tanggalGo', val)} />
+                            <DatePicker value={formData.tanggalGo} onChange={val => onChange('tanggalGo', val)} disabled={isReadOnly} />
                         </div>
                         <div className="space-y-2">
                             <Label>Tanggal ST <span className="text-red-500">*</span></Label>
-                            <DatePicker value={formData.tanggalSt} onChange={val => onChange('tanggalSt', val)} />
+                            <DatePicker value={formData.tanggalSt} onChange={val => onChange('tanggalSt', val)} disabled={isReadOnly} />
                         </div>
                         <div className="space-y-2">
                             <Label>Tanggal Ambil Foto <span className="text-red-500">*</span></Label>
-                            <DatePicker value={formData.tanggalAmbilFoto} onChange={val => onChange('tanggalAmbilFoto', val)} />
+                            <DatePicker value={formData.tanggalAmbilFoto} onChange={val => onChange('tanggalAmbilFoto', val)} disabled={isReadOnly} />
                         </div>
                     </div>
                     <div className="flex justify-end mt-8 border-t border-slate-100 pt-6">
-                        <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-2.5">
+                        <Button type="submit" disabled={isReadOnly} className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-2.5">
                             <ArrowRight className="w-4 h-4 mr-2" /> Lanjut ke Denah & Foto
                         </Button>
                     </div>

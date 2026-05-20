@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { hasRegionalManagerRole, hasSuperHumanRole } from '@/lib/constants';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export interface UserSession {
@@ -17,6 +18,8 @@ export interface UserSession {
   isHO: boolean;
   /** true jika jabatan === "BUILDING & MAINTENANCE SUPER HUMAN" — akses penuh ke semua cabang & aksi */
   isSuperHuman: boolean;
+  /** true jika jabatan === "BUILDING & MAINTENANCE REGIONAL MANAGER" */
+  isRegionalManager: boolean;
 }
 
 interface SessionContextValue {
@@ -103,9 +106,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       .map((r: string) => r.trim().toUpperCase())
       .filter(Boolean);
 
-    const isSuperHuman = roles.some(
-      (r: string) => r === 'BUILDING & MAINTENANCE SUPER HUMAN'
-    );
+    const isSuperHuman = hasSuperHumanRole(roles);
+    const isRegionalManager = hasRegionalManagerRole(roles);
 
     const sessionUser: UserSession = {
       email,
@@ -117,12 +119,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       roles,
       isHO,
       isSuperHuman,
+      isRegionalManager,
     };
 
     setUser(sessionUser);
 
     // Time restriction: HEAD OFFICE & SUPER HUMAN always allowed
-    if (!isHO && !isSuperHuman && !isWithinOperatingHours()) {
+    if (!isHO && !isSuperHuman && !isRegionalManager && !isWithinOperatingHours()) {
       setIsTimeBlocked(true);
     } else {
       setIsTimeBlocked(false);

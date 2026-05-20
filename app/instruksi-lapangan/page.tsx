@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Trash2, Save, Loader2, Upload, X } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fetchTokoDetail, fetchPricesData, submitInstruksiLapangan, fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, fetchSPKList } from '@/lib/api';
+import { canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 const toRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(num || 0);
 const formatAngka = (num: number) => (num || num === 0) ? num.toLocaleString('id-ID') : '0';
@@ -41,20 +42,20 @@ export default function InstruksiLapanganPage() {
     const [alertMessage, setAlertMessage] = useState<{title: string, desc: string, type: 'info' | 'error' | 'success' | 'warning'}>({ title: "", desc: "", type: "info" });
 
     const { user } = useSession();
-    const isHOUser = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isSuperHuman = user?.isSuperHuman ?? false;
-    const isReadOnly = isHOUser && !isSuperHuman;
+    const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman);
 
     useEffect(() => {
         if (!user) return;
 
         const userCabang = user.cabang.toUpperCase();
         setCabang(userCabang);
-        const isHO = userCabang === 'HEAD OFFICE';
         const isSH = user.isSuperHuman ?? false;
 
         fetchSPKList({ status: "SPK_APPROVED" }).then(res => {
-            const filtered = (isHO || isSH) ? res.data : res.data.filter(spk => (spk.toko?.cabang || (spk as any).cabang || "").toUpperCase() === userCabang);
+            const filtered = canViewAllBranches(user.roles, isSH)
+                ? res.data
+                : res.data.filter(spk => (spk.toko?.cabang || (spk as any).cabang || "").toUpperCase() === userCabang);
             setSpkList(filtered);
         }).catch(err => {
             console.error(err);
@@ -201,6 +202,10 @@ export default function InstruksiLapanganPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isReadOnly) {
+            showAlert("Akses Ditolak", "Role ini hanya memiliki akses view.", "warning");
+            return;
+        }
         if (!selectedToko) return showAlert("Peringatan", "Silakan pilih Toko terlebih dahulu.", "error");
         if (!tanggalMulai || !tanggalSelesai) {
             return showAlert("Peringatan", "Tanggal mulai dan tanggal selesai wajib diisi.", "warning");

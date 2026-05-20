@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // Import base URL dari constants
-import { API_URL } from '@/lib/constants';
+import { API_URL, REGIONAL_MANAGER_ROLE } from '@/lib/constants';
 import { fetchUserCabangList } from '@/lib/api';
 
 // URL Google Apps Script tetap di sini karena spesifik hanya untuk file ini (logging)
@@ -73,6 +73,7 @@ export default function LoginPage() {
     if (upper.includes("PROJECT PLANNING") && upper.includes("MANAGER")) return "PROJECT PLANNING & DEVELOPMENT MANAGER";
     if (upper.includes("PP MANAGER")) return "PROJECT PLANNING & DEVELOPMENT MANAGER";
     if (upper.includes("PROJECT PLANNING") || upper.includes("PP SPECIALIST")) return "PROJECT PLANNING & DEVELOPMENT SPECIALIST";
+    if (upper.includes("REGIONAL") && upper.includes("MANAGER")) return REGIONAL_MANAGER_ROLE;
     if (upper.includes("BUILDING MAINTENANCE MANAGER") || upper === "BBMM") return "BRANCH BUILDING & MAINTENANCE MANAGER";
     if (upper.includes("BRANCH MANAGER") || upper === "BM") return "BRANCH MANAGER";
     if (upper.includes("DOKUMENTASI") || upper === "BBSD") return "BRANCH BUILDING SUPPORT DOKUMENTASI";

@@ -18,7 +18,7 @@ import {
     submitPICPengawasan, fetchPICPengawasanList, fetchUserCabangList,
     type SPKListItem
 } from '@/lib/api';
-import { BRANCH_GROUPS } from '@/lib/constants';
+import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // =============================================================================
 // CONSTANTS
@@ -532,9 +532,8 @@ function SpkPicForm({
 }) {
     const { user } = useSession();
     const { showAlert } = useGlobalAlert();
-    const isHOUser = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isSuperHuman = user?.isSuperHuman ?? false;
-    const isReadOnly = isHOUser && !isSuperHuman;
+    const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman);
     const [picName, setPicName] = useState('');
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [ganttDuration, setGanttDuration] = useState<number>(0);
@@ -618,6 +617,10 @@ function SpkPicForm({
     }, [ganttDuration, requiredDays, showAlert]);
 
     const handleSubmit = async () => {
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         if (!picName.trim()) return;
 
         const idToko = spk.toko?.id ?? spk.id_toko;
@@ -854,9 +857,11 @@ export default function InputPICPage() {
         const roleUpper = role.toUpperCase();
         const cabangUpper = cabang.toUpperCase();
         const isHO = cabangUpper === 'HEAD OFFICE';
+        const isRegional = user.isRegionalManager ?? false;
 
         const isAllowed = 
             isHO ||
+            isRegional ||
             roleUpper === 'BRANCH BUILDING COORDINATOR' ||
             (cabangUpper === 'MANADO' && roleUpper === 'BRANCH BUILDING & MAINTENANCE MANAGER');
 
@@ -893,7 +898,8 @@ export default function InputPICPage() {
             const upperCabang = cabang.toUpperCase();
             const isHO = upperCabang === 'HEAD OFFICE';
             let userGroup: string[] | null = null;
-            if (!isHO) {
+            const canSeeAllBranches = canViewAllBranches(user?.roles, user?.isSuperHuman ?? false);
+            if (!canSeeAllBranches) {
                 for (const grp of Object.values(BRANCH_GROUPS)) {
                     if (grp.includes(upperCabang)) {
                         userGroup = grp;
@@ -902,7 +908,7 @@ export default function InputPICPage() {
                 }
             }
             const filtered = allSpks.filter((s: SPKListItem) => {
-                if (isHO) return true;
+                if (canSeeAllBranches) return true;
                 const spkCabang = (s.toko?.cabang || '').toUpperCase();
                 if (userGroup) return userGroup.includes(spkCabang);
                 return spkCabang === upperCabang;

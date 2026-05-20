@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import AppNavbar from '@/components/AppNavbar';
-import { ALL_MENUS, ROLE_CONFIG, BRANCH_GROUPS, canAccessProjectPlanningByCabang } from '@/lib/constants';
+import { ALL_MENUS, ROLE_CONFIG, BRANCH_GROUPS, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
 import { fetchDashboardAll, fetchRABDetail, fetchOpnameList } from '@/lib/api';
 import { 
@@ -71,7 +71,7 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!user) return;
 
-        const { role, cabang: userCabang, namaLengkap, roles, isHO, isSuperHuman } = user;
+        const { role, cabang: userCabang, namaLengkap, roles, isHO, isSuperHuman, isRegionalManager } = user;
 
         // Handle Multi-Role (DIREKTUR, KONTRAKTOR)
         const contractorFlag = roles.some(r => r.includes('KONTRAKTOR'));
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         if (isSuperHuman) {
             allowedIds = ALL_MENUS.map(m => m.id);
         } else if (allowedIds.length === 0) {
-            allowedIds = isHO ? [] : [...(ROLE_CONFIG['BRANCH BUILDING SUPPORT'] ?? [])];
+            allowedIds = [...(ROLE_CONFIG[isHO ? 'HEAD OFFICE' : 'BRANCH BUILDING SUPPORT'] ?? [])];
         }
 
         // Super Human gets menu-users explicitly (already in ROLE_CONFIG but ensure it)
@@ -101,7 +101,7 @@ export default function DashboardPage() {
             allowedIds.push("menu-inputpic");
         }
 
-        if (!canAccessProjectPlanningByCabang(userCabang)) {
+        if (!canAccessProjectPlanningByCabang(userCabang) && !isRegionalManager && !isSuperHuman) {
             allowedIds = allowedIds.filter(id => id !== "menu-projek-planning");
         }
 
@@ -112,7 +112,7 @@ export default function DashboardPage() {
         
         if (window.innerWidth <= 768) setSidebarOpen(false);
 
-        const canViewMonitoring = isHO || isSuperHuman;
+        const canViewMonitoring = isHO || isSuperHuman || isRegionalManager;
         setCanViewMonitoringDashboard(canViewMonitoring);
         if (!canViewMonitoring) {
             setProjects([]);
@@ -122,7 +122,7 @@ export default function DashboardPage() {
         }
 
         // Initial Data Fetch - dashboard monitoring hanya untuk Head Office/Super Human
-        fetchDashboardData(userCabang.toUpperCase(), isSuperHuman);
+        fetchDashboardData(userCabang.toUpperCase(), canViewAllBranches(roles, isSuperHuman));
         setIsLoading(false);
     }, [user]);
 
@@ -133,7 +133,7 @@ export default function DashboardPage() {
         }
     }, [detailModal.open, detailModal.context, detailModal.subContext]);
 
-    const fetchDashboardData = async (userCabang: string, isSuperHuman = false) => {
+    const fetchDashboardData = async (userCabang: string, canSeeAllBranches = false) => {
         setIsDataLoading(true);
         try {
             // Fetch dari API real
@@ -141,9 +141,9 @@ export default function DashboardPage() {
             let data = json.data || [];
             
             // Tentukan allowedBranches berdasarkan branch group
-            // HEAD OFFICE dan SUPER HUMAN melihat semua cabang
+            // Super Human dan Regional Manager melihat semua cabang.
             let allowedBranches: string[] = [];
-            if (userCabang !== 'HEAD OFFICE' && !isSuperHuman) {
+            if (!canSeeAllBranches) {
                 const group = Object.values(BRANCH_GROUPS).find(g => g.includes(userCabang));
                 if (group) {
                     allowedBranches = group;
@@ -211,7 +211,7 @@ export default function DashboardPage() {
 
     // Fetch semua Opname Items sekaligus (1 request) untuk Nilai Toko, Kontraktor
     useEffect(() => {
-        if (!user?.isHO && !user?.isSuperHuman) return;
+        if (!user?.isHO && !user?.isSuperHuman && !user?.isRegionalManager) return;
         if (opnameFetched.current) return;
         opnameFetched.current = true;
 

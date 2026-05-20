@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Download, Plus, Save, Trash2, Upload, Info, FileSpreadsheet, Search } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
-import { BRANCH_GROUPS, ME_CATEGORIES, SIPIL_CATEGORIES, BRANCH_TO_ULOK } from "@/lib/constants";
+import { BRANCH_GROUPS, ME_CATEGORIES, SIPIL_CATEGORIES, BRANCH_TO_ULOK, canViewAllBranches, isViewOnlyUser } from "@/lib/constants";
 import {
   fetchPricesData,
   fetchRABDetail,
@@ -102,6 +102,7 @@ const parseCsv = (text: string) => {
 
 export default function UbahRabItemPage() {
   const { user } = useSession();
+  const isReadOnly = isViewOnlyUser(user?.roles, user?.isSuperHuman ?? false);
 
   const [cabangOptions, setCabangOptions] = useState<string[]>([]);
   const [selectedCabang, setSelectedCabang] = useState<string>("");
@@ -152,7 +153,7 @@ export default function UbahRabItemPage() {
     if (!user) return;
 
     const userCabang = user.cabang.toUpperCase();
-    if (user.isHO) {
+    if (canViewAllBranches(user.roles, user.isSuperHuman ?? false)) {
       const allCabang = Array.from(new Set([
         "HEAD OFFICE",
         ...Object.keys(BRANCH_TO_ULOK)
@@ -340,6 +341,10 @@ export default function UbahRabItemPage() {
   };
 
   const handleCsvFile = async (file: File) => {
+    if (isReadOnly) {
+      showAlert("Akses Ditolak", "Role ini hanya memiliki akses view.", "warning");
+      return;
+    }
     if (!selectedRabId) {
       showAlert("Peringatan", "Pilih nomor ULOK terlebih dahulu.", "warning");
       return;
@@ -403,6 +408,10 @@ export default function UbahRabItemPage() {
   };
 
   const handleSave = async () => {
+    if (isReadOnly) {
+      showAlert("Akses Ditolak", "Role ini hanya memiliki akses view.", "warning");
+      return;
+    }
     if (!selectedRabId) {
       showAlert("Peringatan", "Pilih nomor ULOK terlebih dahulu.", "warning");
       return;
@@ -602,11 +611,11 @@ export default function UbahRabItemPage() {
                 variant="outline"
                 className="gap-2 h-9 text-sm border-slate-300 hover:bg-slate-50"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={!selectedRabId}
+                disabled={!selectedRabId || isReadOnly}
               >
                 <Upload className="w-4 h-4 text-slate-500" /> Replace CSV
               </Button>
-              <Button className="gap-2 h-9 text-sm bg-red-600 hover:bg-red-700 shadow-sm" onClick={addRow} disabled={!selectedRabId}>
+              <Button className="gap-2 h-9 text-sm bg-red-600 hover:bg-red-700 shadow-sm" onClick={addRow} disabled={!selectedRabId || isReadOnly}>
                 <Plus className="w-4 h-4" /> Tambah Item
               </Button>
             </div>
@@ -754,7 +763,7 @@ export default function UbahRabItemPage() {
                     onChange={(e) => setGrandTotal(Number.isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber)}
                     className="h-10 focus-visible:ring-red-500"
                     placeholder="Isi grand total"
-                    disabled={!selectedRabId}
+                    disabled={!selectedRabId || isReadOnly}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -788,7 +797,7 @@ export default function UbahRabItemPage() {
                   size="lg"
                   className="gap-2 bg-red-600 hover:bg-red-700 text-white shadow-md font-medium px-8 transition-all active:scale-95" 
                   onClick={handleSave} 
-                  disabled={!selectedRabId || loading || tableRows.length === 0}
+                  disabled={!selectedRabId || loading || tableRows.length === 0 || isReadOnly}
                 >
                   <Save className="w-4 h-4" /> 
                   {loading ? "Menyimpan Data..." : "Simpan Perubahan"}

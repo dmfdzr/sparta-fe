@@ -18,6 +18,7 @@ import { BRANCH_TO_ULOK } from '@/lib/constants';
 // Role yang tersedia sesuai instruksi
 const JABATAN_OPTIONS = [
     'BRANCH BUILDING & MAINTENANCE MANAGER',
+    'BUILDING & MAINTENANCE REGIONAL MANAGER',
     'BUILDING & MAINTENANCE SUPER HUMAN',
     'BRANCH BUILDING COORDINATOR',
     'BRANCH BUILDING SUPPORT',
@@ -76,17 +77,16 @@ export default function UsersPage() {
     useEffect(() => {
         if (!user) return;
 
-        const { role, email, cabang, namaLengkap, isHO, isSuperHuman } = user;
+        const { role, email, cabang, namaLengkap, isHO, isSuperHuman, isRegionalManager } = user;
 
-        // HEAD OFFICE dan SUPER HUMAN yang boleh akses
-        if (!isHO && !isSuperHuman) {
-            alert("Hanya pengguna Head Office atau Super Human yang dapat mengakses halaman ini.");
+        if (!isHO && !isSuperHuman && !isRegionalManager) {
+            alert("Hanya pengguna Head Office, Super Human, atau Regional Manager yang dapat mengakses halaman ini.");
             router.push('/dashboard');
             return;
         }
 
         setUserInfo({ name: namaLengkap.toUpperCase(), role, cabang, email });
-        loadUsers();
+        loadUsers(searchQuery, isHO && !isSuperHuman && !isRegionalManager ? 'HEAD OFFICE' : filterCabang, filterJabatan);
     }, [user, router]);
 
     const showToast = (msg: string, type: 'success' | 'error') => {
@@ -100,7 +100,8 @@ export default function UsersPage() {
     const loadUsers = async (searchStr: string = searchQuery, cabang: string = filterCabang, jabatan: string = filterJabatan) => {
         setIsLoading(true);
         try {
-            const res = await fetchUserCabangList({ search: searchStr, cabang, jabatan });
+            const scopedCabang = user?.isHO && !user?.isSuperHuman && !user?.isRegionalManager ? 'HEAD OFFICE' : cabang;
+            const res = await fetchUserCabangList({ search: searchStr, cabang: scopedCabang, jabatan });
             setUsers(res.data || []);
         } catch (err: any) {
             showToast(err.message || 'Gagal memuat data user.', 'error');
@@ -118,12 +119,20 @@ export default function UsersPage() {
     // FORM HANDLERS
     // =========================================================================
     const openAddForm = () => {
+        if (user?.isRegionalManager) {
+            showToast('Regional Manager hanya memiliki akses view.', 'error');
+            return;
+        }
         setIsEditing(false);
         setFormData({ cabang: '', email_sat: '', nama_lengkap: '', jabatan: '', nama_pt: '' });
         setIsFormOpen(true);
     };
 
     const openEditForm = (user: any) => {
+        if (!userInfo.role.includes('SUPER HUMAN')) {
+            showToast('Anda tidak memiliki akses untuk mengubah user.', 'error');
+            return;
+        }
         setIsEditing(true);
         setEditId(user.id);
         setFormData({
@@ -137,6 +146,10 @@ export default function UsersPage() {
     };
 
     const handleSave = async () => {
+        if (!user?.isSuperHuman) {
+            showToast('Anda tidak memiliki akses untuk menyimpan user.', 'error');
+            return;
+        }
         if (!formData.cabang || !formData.email_sat) {
             showToast('Cabang dan Email wajib diisi!', 'error');
             return;
@@ -172,6 +185,10 @@ export default function UsersPage() {
     // DELETE HANDLER
     // =========================================================================
     const confirmDelete = async () => {
+        if (!user?.isSuperHuman) {
+            showToast('Anda tidak memiliki akses untuk menghapus user.', 'error');
+            return;
+        }
         if (!deleteModal) return;
         setIsProcessing(true);
         try {

@@ -36,7 +36,7 @@ import {
   PenyimpananDokumenItem,
   RABDetailToko,
 } from '@/lib/api';
-import { BRANCH_GROUPS } from '@/lib/constants';
+import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // ==========================================
 // CONSTANTS
@@ -60,8 +60,8 @@ const DOCUMENT_CATEGORIES = [
 const ITEMS_PER_PAGE = 10;
 
 /** Resolve cabang list user boleh lihat (termasuk sub-branch) */
-function getVisibleBranches(cabang: string): string[] | null {
-  if (cabang.toLowerCase() === "head office") return null; // semua
+function getVisibleBranches(cabang: string, canSeeAllBranches = false): string[] | null {
+  if (canSeeAllBranches) return null;
   const upper = cabang.toUpperCase();
   for (const [, subs] of Object.entries(BRANCH_GROUPS)) {
     if (subs.map(s => s.toUpperCase()).includes(upper)) return subs.map(s => s.toUpperCase());
@@ -108,14 +108,15 @@ export default function PenyimpananDokumenPage() {
   // Delete Modal State
   const [deleteModal, setDeleteModal] = useState<PenyimpananDokumenItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useSession();
 
   // ==========================================
   // ACCESS CONTROL
   // ==========================================
 
   const isReadOnly = useMemo(() => {
-    return userInfo.cabang.toLowerCase() === "head office";
-  }, [userInfo.cabang]);
+    return isViewOnlyUser(userInfo.role, user?.isSuperHuman ?? false);
+  }, [userInfo.role, user?.isSuperHuman]);
 
   // ==========================================
   // INIT
@@ -126,20 +127,18 @@ export default function PenyimpananDokumenPage() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const { user } = useSession();
-
   useEffect(() => {
     if (!user) return;
     const { email, cabang, role } = user;
     setUserInfo({ email, cabang, role });
-    loadTokoList(cabang);
+    loadTokoList(cabang, canViewAllBranches(user.roles, user.isSuperHuman ?? false));
   }, [user]);
 
-  const loadTokoList = async (cabang: string) => {
+  const loadTokoList = async (cabang: string, canSeeAllBranches = false) => {
     setIsLoading(true);
     try {
       const res = await fetchTokoList();
-      const visible = getVisibleBranches(cabang);
+      const visible = getVisibleBranches(cabang, canSeeAllBranches);
       const filtered = visible
         ? res.data.filter(t => visible.includes((t.cabang || '').toUpperCase()))
         : res.data;
@@ -210,6 +209,10 @@ export default function PenyimpananDokumenPage() {
   };
 
   const handleUpdateDoc = async () => {
+    if (isReadOnly) {
+      showToast("Anda tidak memiliki akses untuk mengubah dokumen", "error");
+      return;
+    }
     if (!editingDoc || !selectedToko) return;
     setIsUpdating(true);
     try {

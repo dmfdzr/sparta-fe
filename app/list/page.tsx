@@ -32,7 +32,7 @@ import {
     type ProjekPlanningItem,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
-import { BRANCH_GROUPS, BRANCH_TO_ULOK, getPpRoles, canAccessProjectPlanningByCabang } from '@/lib/constants';
+import { BRANCH_GROUPS, BRANCH_TO_ULOK, getPpRoles, canAccessProjectPlanningByCabang, canViewAllBranches, hasSuperHumanRole } from '@/lib/constants';
 
 // =============================================================================
 // TYPES
@@ -688,7 +688,7 @@ export default function DaftarDokumenPage() {
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         const contractorFlag = roles.some(r => r.includes('KONTRAKTOR'));
         const direkturFlag = roles.some(r => r.includes('DIREKTUR'));
-        const superHumanFlag = roles.some(r => r.includes('SUPER HUMAN'));
+        const superHumanFlag = hasSuperHumanRole(roles);
         setIsContractor(contractorFlag);
         setIsDirektur(direkturFlag);
         setIsSuperHuman(superHumanFlag);
@@ -710,7 +710,11 @@ export default function DaftarDokumenPage() {
     // LOAD LIST
     // =========================================================================
     const loadList = useCallback(async (kategori: DokumenKategori) => {
-        if (kategori === 'PROJECT_PLANNING' && !canAccessProjectPlanningByCabang(sessionStorage.getItem('loggedInUserCabang') || '')) {
+        const sessionRoleRaw = sessionStorage.getItem('userRole') || '';
+        const sessionRoles = sessionRoleRaw.split(',').map(r => r.trim().toUpperCase()).filter(Boolean);
+        const sessionIsSuperHuman = hasSuperHumanRole(sessionRoles);
+        const sessionCanViewAllBranches = canViewAllBranches(sessionRoles, sessionIsSuperHuman);
+        if (kategori === 'PROJECT_PLANNING' && !sessionCanViewAllBranches && !canAccessProjectPlanningByCabang(sessionStorage.getItem('loggedInUserCabang') || '')) {
             showToast('Project Planning sementara hanya dapat diakses oleh user cabang HEAD OFFICE.', 'error');
             return;
         }
@@ -760,9 +764,9 @@ export default function DaftarDokumenPage() {
                 docs = normalizeDokumentasiBangunanDocs(res.data ?? []);
             }
 
-            // Filter by cabang for non-HO users (branch group aware)
+            // Filter by cabang for users without global branch visibility.
             const upperUserCabang = (sessionStorage.getItem('loggedInUserCabang') || '').toUpperCase();
-            if (upperUserCabang && upperUserCabang !== 'HEAD OFFICE') {
+            if (upperUserCabang && !sessionCanViewAllBranches) {
                 let userGroup: string[] | null = null;
                 for (const grp of Object.values(BRANCH_GROUPS)) {
                     if (grp.includes(upperUserCabang)) {
@@ -1257,7 +1261,8 @@ export default function DaftarDokumenPage() {
     const cabangOptions = useMemo(() => {
         const upper = userInfo.cabang?.toUpperCase();
         if (!upper) return [];
-        if (upper === 'HEAD OFFICE') {
+        const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHuman);
+        if (canSeeAllBranches) {
             return Object.keys(BRANCH_TO_ULOK).sort();
         }
         let userGroup: string[] | null = null;
@@ -1268,15 +1273,16 @@ export default function DaftarDokumenPage() {
             }
         }
         return userGroup ? [...userGroup].sort() : [];
-    }, [userInfo.cabang]);
+    }, [userInfo.cabang, userInfo.role, isSuperHuman]);
 
+    const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHuman);
     const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isHeadGroup = useMemo(() => {
         if (!userInfo.cabang) return false;
         const upper = userInfo.cabang.toUpperCase();
         return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
     }, [userInfo.cabang]);
-    const showCabangFilter = isHO || isHeadGroup || isContractor || isDirektur;
+    const showCabangFilter = canSeeAllBranches || isHeadGroup || isContractor || isDirektur;
 
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
@@ -1495,7 +1501,7 @@ export default function DaftarDokumenPage() {
                                 if (isPPOnly && kat !== 'PROJECT_PLANNING') return false;
                                 // Hide PROJECT_PLANNING dari KONTRAKTOR dan DIREKTUR
                                 if (kat === 'PROJECT_PLANNING' && (isContractor || isDirektur)) return false;
-                                if (kat === 'PROJECT_PLANNING' && !canAccessProjectPlanningByCabang(userInfo.cabang)) return false;
+                                if (kat === 'PROJECT_PLANNING' && !canViewAllBranches(userInfo.role, isSuperHuman) && !canAccessProjectPlanningByCabang(userInfo.cabang)) return false;
                                 return true;
                             }).map(kat => {
                                 const cfg = KATEGORI_CONFIG[kat];

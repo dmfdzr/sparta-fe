@@ -21,7 +21,7 @@ import {
 import { Plus, Trash2, Save, Loader2, Info, AlertTriangle, Bell, Upload, X, Image as ImageIcon, Download } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 
-import { SIPIL_CATEGORIES, ME_CATEGORIES, BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
+import { SIPIL_CATEGORIES, ME_CATEGORIES, BRANCH_GROUPS, BRANCH_TO_ULOK, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 import { checkRevisionStatus, fetchPricesData, submitRABData, fetchRABDetail, fetchTokoDetail, getRABLogoDownloadUrl, getRABInsuranceDownloadUrl } from '@/lib/api';
 
 const toRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(num || 0);
@@ -75,10 +75,9 @@ export default function RABPage() {
 
   // --- 1. INISIALISASI SESI & CEK STATUS REVISI ---
   const { user } = useSession();
-  const isHO = user?.isHO ?? false;
   const isSuperHuman = user?.isSuperHuman ?? false;
   const isContractor = user?.roles?.some(role => role.includes('KONTRAKTOR')) ?? false;
-  const isReadOnly = isHO && !isSuperHuman && !isContractor;
+  const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman) && !isContractor;
 
   useEffect(() => {
     if (!user) return;
@@ -86,11 +85,10 @@ export default function RABPage() {
     const userCabang = user.cabang.toUpperCase();
     const userEmail = user.email;
     const userAlamatCabang = user.alamatCabang || '';
-    const isHO = userCabang === 'HEAD OFFICE';
     const isSuperHuman = user?.isSuperHuman ?? false;
     
-    if (isHO || isSuperHuman) {
-      setAvailableCabang(Array.from(new Set(Object.values(BRANCH_GROUPS).flat())).sort());
+    if (canViewAllBranches(user.roles, isSuperHuman)) {
+      setAvailableCabang(Object.keys(BRANCH_TO_ULOK).sort());
     } else {
       setAvailableCabang(BRANCH_GROUPS[userCabang] || [userCabang]);
     }
@@ -408,6 +406,10 @@ export default function RABPage() {
   // --- 7. SUBMIT DATA MENGGUNAKAN API SERVICE ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      showAlert("Akses Ditolak", "Role ini hanya memiliki akses view.", "warning");
+      return;
+    }
     if (luasTerbangun <= 0) return showAlert("Peringatan", "Luas Terbangun tidak boleh kosong.", "error");
     if (formData.lokasiCabang.length < 4 || formData.lokasiTanggal.length !== 4 || formData.lokasiManual.length !== 4) return showAlert("Peringatan", "Format Nomor Ulok belum lengkap.", "error");
 

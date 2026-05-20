@@ -22,7 +22,7 @@ import {
   downloadProjekPlanningPdf, proxyProjekPlanningFile,
   type ProjekPlanningItem, type ProjekPlanningLog,
 } from "@/lib/api";
-import { getPpRoles, canAccessProjectPlanningByCabang } from "@/lib/constants";
+import { getPpRoles, canAccessProjectPlanningByCabang, canViewAllBranches } from "@/lib/constants";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-700" },
@@ -298,7 +298,7 @@ export default function DetailProjekPlanning() {
     const role = sessionStorage.getItem("userRole") || "";
     if (!email) { router.push("/auth"); return; }
     const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
-    if (!canAccessProjectPlanningByCabang(cabang)) { router.replace("/dashboard"); return; }
+    if (!canAccessProjectPlanningByCabang(cabang) && !canViewAllBranches(role)) { router.replace("/dashboard"); return; }
     setUserEmail(email); setUserRole(role.toUpperCase());
     load();
   }, [id]);

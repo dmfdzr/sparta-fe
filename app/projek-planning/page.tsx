@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { fetchProjekPlanningList, type ProjekPlanningItem } from "@/lib/api";
-import { getPpRoles, canAccessProjectPlanningByCabang } from "@/lib/constants";
+import { getPpRoles, canAccessProjectPlanningByCabang, canViewAllBranches } from "@/lib/constants";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-700 border-slate-300", icon: <FileText className="w-3 h-3" /> },
@@ -57,6 +57,7 @@ export default function ProjekPlanningPage() {
       if (statusFilter) filters.status = statusFilter;
       
       const isHO = userCabang.toUpperCase() === "HEAD OFFICE";
+      const canSeeAllBranches = canViewAllBranches(userRole);
       const { isCoor, isBM, isPP, isPPMgr } = getPpRoles(userRole, userEmail);
 
       const isOnlyCoor = isCoor && !isBM && !isPP && !isPPMgr;
@@ -67,7 +68,7 @@ export default function ProjekPlanningPage() {
       } else if (search.trim()) {
         // Manual search override
         filters.cabang = search.trim();
-      } else if (!isHO && !isCoor && userCabang) {
+      } else if (!isHO && !canSeeAllBranches && !isCoor && userCabang) {
         // BM, PP, Manager: filter by their own cabang
         filters.cabang = userCabang;
       }
@@ -77,6 +78,7 @@ export default function ProjekPlanningPage() {
       let data = res.data || [];
       
       data = data.filter((d: any) => {
+        if (canSeeAllBranches) return true;
         if (!isCoor && d.status !== "COMPLETED") return false;
         if (isHO && !isCoor && !isBM && !isPP && !isPPMgr) return true; // Admin/Direktur
         
@@ -100,7 +102,7 @@ export default function ProjekPlanningPage() {
     const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
     const role = sessionStorage.getItem("userRole") || "";
     if (!email) { router.push("/auth"); return; }
-    if (!canAccessProjectPlanningByCabang(cabang)) { router.replace("/dashboard"); return; }
+    if (!canAccessProjectPlanningByCabang(cabang) && !canViewAllBranches(role)) { router.replace("/dashboard"); return; }
     setUserEmail(email);
     setUserCabang(cabang);
     setUserRole(role.toUpperCase());
@@ -115,7 +117,7 @@ export default function ProjekPlanningPage() {
 
   const { isCoor, isBM } = getPpRoles(userRole, userEmail);
   const isBogorBm = isBM && userCabang.toUpperCase() === "BOGOR";
-  const canCreateFpd = isCoor || isBogorBm;
+  const canCreateFpd = (isCoor || isBogorBm) && !canViewAllBranches(userRole);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">

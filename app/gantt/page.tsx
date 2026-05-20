@@ -18,7 +18,7 @@ import {
     fetchRABList, fetchRABDetail, fetchSPKList
 } from '@/lib/api';
 import type { GanttListItem } from '@/lib/api';
-import { API_URL, BRANCH_GROUPS } from '@/lib/constants';
+import { API_URL, BRANCH_GROUPS, canViewAllBranches, REGIONAL_MANAGER_ROLE, isViewOnlyUser } from '@/lib/constants';
 import InstruksiLapanganModal from '@/components/InstruksiLapanganModal';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 
@@ -100,6 +100,7 @@ function GanttBoard() {
     const [activeHeaderClick, setActiveHeaderClick] = useState<{ dayIndex: number, dateString: string, label: string } | null>(null);
 
     const { user } = useSession();
+    const isReadOnly = isViewOnlyUser(user?.roles, user?.isSuperHuman ?? false);
 
     useEffect(() => {
         if (!user) return;
@@ -119,7 +120,8 @@ function GanttBoard() {
         setUserRole(role);
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         let currentAppMode: 'kontraktor' | 'pic' = 'kontraktor';
-        const picRoles = ['BUILDING & MAINTENANCE SUPER HUMAN', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT', 'DIREKTUR'];
+        const picRoles = ['BUILDING & MAINTENANCE SUPER HUMAN', REGIONAL_MANAGER_ROLE, 'BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT', 'DIREKTUR'];
+        const canSeeAllBranches = canViewAllBranches(roles, user.isSuperHuman ?? false);
         
         if (roles.includes('KONTRAKTOR')) {
             currentAppMode = 'kontraktor';
@@ -145,7 +147,7 @@ function GanttBoard() {
                 .then(res => {
                     const data = res.data || [];
                     const filtered = upperCabang ? data.filter(item => {
-                        if (roles.includes('BUILDING & MAINTENANCE SUPER HUMAN') || (user as any).isSuperHuman || upperCabang === 'HEAD OFFICE') return true;
+                        if (canSeeAllBranches) return true;
                         if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
                         return item.cabang?.toUpperCase() === upperCabang;
                     }) : data;
@@ -164,7 +166,7 @@ function GanttBoard() {
                 .then(res => {
                     const data = res.data || [];
                     const filtered = upperCabang ? data.filter(item => {
-                        if (roles.includes('BUILDING & MAINTENANCE SUPER HUMAN') || (user as any).isSuperHuman || upperCabang === 'HEAD OFFICE') return true;
+                        if (canSeeAllBranches) return true;
                         if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
                         return item.cabang?.toUpperCase() === upperCabang;
                     }) : data;
@@ -176,7 +178,7 @@ function GanttBoard() {
                 .then(res => {
                     const data = res.data || [];
                     const filtered = upperCabang ? data.filter(item => {
-                        if (roles.includes('BUILDING & MAINTENANCE SUPER HUMAN') || (user as any).isSuperHuman || upperCabang === 'HEAD OFFICE') return true;
+                        if (canSeeAllBranches) return true;
                         if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
                         return item.cabang?.toUpperCase() === upperCabang;
                     }) : data;
@@ -590,6 +592,10 @@ function GanttBoard() {
     };
 
     const handleSaveData = async (status: 'Active' | 'Terkunci') => {
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         setIsApplying(true);
         try {
             const email = sessionStorage.getItem('loggedInUserEmail') || "-";
@@ -703,6 +709,10 @@ function GanttBoard() {
     };
 
     const handleDeleteGantt = async () => {
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         if (!selectedGanttId) return;
 
         const isConfirmed = window.confirm("Hapus draft jadwal ini? Semua data periode dan keterikatan di dalamnya akan terhapus permanen.");

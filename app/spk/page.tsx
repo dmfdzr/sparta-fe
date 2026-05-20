@@ -9,7 +9,7 @@ import { Save, Loader2, Search, FileText, AlertCircle, CheckCircle, XCircle, Ale
 import AppNavbar from '@/components/AppNavbar';
 import { useGlobalAlert } from '@/context/GlobalAlertContext';
 import { fetchKontraktorList, fetchSPKList, submitSPK, fetchRABList, sendEmailNotification } from '@/lib/api';
-import { BRANCH_GROUPS } from '@/lib/constants';
+import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 import { parseCurrency } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -100,9 +100,8 @@ export default function SPKPage() {
     });
 
     const { user } = useSession();
-    const isHO = user?.isHO ?? false;
     const isSuperHuman = user?.isSuperHuman ?? false;
-    const isReadOnly = isHO && !isSuperHuman;
+    const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman);
 
     useEffect(() => {
         if (!user) return;
@@ -110,9 +109,10 @@ export default function SPKPage() {
         const { role, email, cabang } = user;
         const isHOUser = cabang.toUpperCase() === 'HEAD OFFICE';
         const isSHUser = user.isSuperHuman ?? false;
+        const isRegionalUser = user.isRegionalManager ?? false;
 
         const picRoles = ['BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT'];
-        if (!isHOUser && !isSHUser && !picRoles.includes(role.toUpperCase())) {
+        if (!isHOUser && !isSHUser && !isRegionalUser && !picRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Hanya PIC yang dapat membuat SPK.", type: "warning", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -121,17 +121,16 @@ export default function SPKPage() {
         setUserInfo({ name, role, cabang, email });
         setForm(prev => ({ ...prev, kode_cabang: getCabangCode(cabang) }));
 
-        loadApprovedRabs(cabang, isSHUser);
+        loadApprovedRabs(cabang, canViewAllBranches(user.roles, isSHUser));
     }, [user, router]);
 
-    const loadApprovedRabs = async (cabang: string, isSuperHumanUser = false) => {
+    const loadApprovedRabs = async (cabang: string, canSeeAllBranches = false) => {
         setIsLoading(true);
         try {
             const res = await fetchRABList({ status: "Disetujui" });
             const listRab = res.data || [];
             
             const upperCabang = cabang.toUpperCase();
-            const isHOUser = upperCabang === 'HEAD OFFICE';
             let userGroup: string[] | null = null;
             for (const grp of Object.values(BRANCH_GROUPS)) {
                 if (grp.includes(upperCabang)) {
@@ -140,8 +139,7 @@ export default function SPKPage() {
                 }
             }
             
-            // HO dan Super Human melihat semua RAB
-            const filteredRabs = (isHOUser || isSuperHumanUser) ? listRab : listRab.filter((r: any) => {
+            const filteredRabs = canSeeAllBranches ? listRab : listRab.filter((r: any) => {
                 if (userGroup) {
                     return userGroup.includes(r.cabang?.toUpperCase());
                 }
@@ -302,6 +300,10 @@ export default function SPKPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         if (!selectedRabObj) return;
 
         // Validasi perubahan untuk SPK_REJECTED
@@ -461,7 +463,7 @@ export default function SPKPage() {
                                     <div className="pt-4 border-t mt-4 border-slate-100">
                                         <div className="mb-4 space-y-2 md:w-1/2">
                                             <label className="text-sm font-bold text-slate-700">Kode Toko *</label>
-                                            <input type="text" required className="w-full p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500 uppercase" value={form.kode_toko} onChange={e => setForm({...form, kode_toko: e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()})} placeholder="Masukkan Kode Toko (Misal: T123)..." />
+                                        <input type="text" required readOnly={isReadOnly} className="w-full p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500 uppercase" value={form.kode_toko} onChange={e => setForm({...form, kode_toko: e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()})} placeholder="Masukkan Kode Toko (Misal: T123)..." />
                                         </div>
                                         
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg">
@@ -481,7 +483,7 @@ export default function SPKPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-700">Nama Kontraktor *</label>
-                                        <select required className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500" value={form.nama_kontraktor} onChange={e => setForm({...form, nama_kontraktor: e.target.value})}>
+                                        <select required disabled={isReadOnly} className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500" value={form.nama_kontraktor} onChange={e => setForm({...form, nama_kontraktor: e.target.value})}>
                                             <option value="">-- Pilih Kontraktor --</option>
                                             {kontraktorList.map(k => <option key={k} value={k}>{k}</option>)}
                                         </select>
@@ -500,22 +502,22 @@ export default function SPKPage() {
                                             <span className="font-bold text-slate-400">/</span>
                                             <span className="font-bold text-slate-600 whitespace-nowrap">PROPNDEV-{form.kode_cabang || '...'}</span>
                                             <span className="font-bold text-slate-400">/</span>
-                                            <input type="text" required placeholder="Bulan (X)" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.spk_bulan} onChange={e => setForm({...form, spk_bulan: e.target.value.toUpperCase()})} />
+                                            <input type="text" required readOnly={isReadOnly} placeholder="Bulan (X)" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.spk_bulan} onChange={e => setForm({...form, spk_bulan: e.target.value.toUpperCase()})} />
                                             <span className="font-bold text-slate-400">/</span>
-                                            <input type="text" required placeholder="Thn (25)" maxLength={2} className="w-14 p-1.5 text-center border rounded font-bold outline-none" value={form.spk_tahun} onChange={e => setForm({...form, spk_tahun: e.target.value})} />
+                                            <input type="text" required readOnly={isReadOnly} placeholder="Thn (25)" maxLength={2} className="w-14 p-1.5 text-center border rounded font-bold outline-none" value={form.spk_tahun} onChange={e => setForm({...form, spk_tahun: e.target.value})} />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-700">Nomor PAR *</label>
                                         <div className="flex items-center gap-2 bg-slate-50 p-2 border border-slate-300 rounded-lg overflow-x-auto text-sm">
-                                            <input type="text" required placeholder="No" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.par_no} onChange={e => setForm({...form, par_no: e.target.value.toUpperCase()})} />
+                                            <input type="text" required readOnly={isReadOnly} placeholder="No" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.par_no} onChange={e => setForm({...form, par_no: e.target.value.toUpperCase()})} />
                                             <span className="font-bold text-slate-400">/</span>
                                             <span className="font-bold text-slate-600 whitespace-nowrap">PROPNDEV-{form.kode_cabang || '...'}</span>
                                             <span className="font-bold text-slate-400">-</span>
-                                            <input type="text" required placeholder="Bulan (X)" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.par_bulan} onChange={e => setForm({...form, par_bulan: e.target.value.toUpperCase()})} />
+                                            <input type="text" required readOnly={isReadOnly} placeholder="Bulan (X)" className="w-16 p-1.5 text-center border rounded font-bold outline-none uppercase" value={form.par_bulan} onChange={e => setForm({...form, par_bulan: e.target.value.toUpperCase()})} />
                                             <span className="font-bold text-slate-400">-</span>
-                                            <input type="text" required placeholder="Thn" maxLength={4} className="w-16 p-1.5 text-center border rounded font-bold outline-none" value={form.par_tahun} onChange={e => setForm({...form, par_tahun: e.target.value})} />
+                                            <input type="text" required readOnly={isReadOnly} placeholder="Thn" maxLength={4} className="w-16 p-1.5 text-center border rounded font-bold outline-none" value={form.par_tahun} onChange={e => setForm({...form, par_tahun: e.target.value})} />
                                         </div>
                                     </div>
                                 </div>
@@ -530,11 +532,12 @@ export default function SPKPage() {
                                         <DatePicker
                                             value={form.waktu_mulai}
                                             onChange={val => setForm({...form, waktu_mulai: val})}
-                                            min={['LAMPUNG', 'LUWU'].includes(userInfo.cabang?.toUpperCase()) ? undefined : getTodayDateString()}
+                                            disabled={isReadOnly}
+                                            min={['LAMPUNG', 'LUWU', 'JEMBER'].includes(userInfo.cabang?.toUpperCase()) ? undefined : getTodayDateString()}
                                             className="font-semibold"
                                         />
                                         <p className="text-xs text-slate-500 mt-1">
-                                            {['LAMPUNG', 'LUWU'].includes(userInfo.cabang?.toUpperCase()) 
+                                            {['LAMPUNG', 'LUWU', 'JEMBER'].includes(userInfo.cabang?.toUpperCase()) 
                                                 ? `Cabang ${userInfo.cabang?.toUpperCase()} dapat memilih tanggal sebelum hari ini (backdate).`
                                                 : "Tanggal sebelum hari ini tidak bisa dipilih."}
                                         </p>

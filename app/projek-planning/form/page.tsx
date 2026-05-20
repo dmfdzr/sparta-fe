@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Send, Loader2, ChevronDown, Building2, Droplets, Wind, Zap, ClipboardList, FileText, Camera, Store, PlusCircle, Search, MapPin, CheckCircle2, FileImage, CheckCircle, Eye } from "lucide-react";
 import { fetchTokoList, submitProjekPlanning, resubmitProjekPlanning, fetchProjekPlanningDetail } from "@/lib/api";
-import { getPpRoles, BRANCH_TO_ULOK, canAccessProjectPlanningByCabang } from "@/lib/constants";
+import { getPpRoles, BRANCH_TO_ULOK, canAccessProjectPlanningByCabang, canViewAllBranches } from "@/lib/constants";
 import { PHOTO_POINTS, FLOOR_IMAGES, PAGE_LABELS, ALL_POINTS } from "@/app/ftdokumen/photoPoints";
 
 type TokoOption = { id: number; nomor_ulok: string; nama_toko: string; cabang: string; proyek: string; lingkup_pekerjaan: string; kode_toko: string };
@@ -212,7 +212,8 @@ function FormProjekPlanningInner() {
     const email = sessionStorage.getItem("loggedInUserEmail") || "";
     if (!email) { router.push("/auth"); return; }
     const cabang = sessionStorage.getItem("loggedInUserCabang") || "";
-    if (!canAccessProjectPlanningByCabang(cabang)) { router.replace("/dashboard"); return; }
+    const role = sessionStorage.getItem("userRole") || "";
+    if (!canAccessProjectPlanningByCabang(cabang) || canViewAllBranches(role)) { router.replace("/dashboard"); return; }
     setUserEmail(email);
     const nama = sessionStorage.getItem("nama_lengkap") || "";
     set("nama_pengaju", nama);

@@ -139,6 +139,13 @@ export const ALL_MENUS = [
 // -----------------------------------------------------------------------------
 
 export const ROLE_CONFIG: Record<string, string[]> = {
+    "HEAD OFFICE": [
+        "menu-rab", "menu-spk", "menu-inputpic", "menu-opname",
+        "menu-dokumentasi", "menu-tambahspk", "menu-svdokumen",
+        "menu-gantt", "menu-sp", "menu-approval", "menu-daftardokumen",
+        "menu-il", "menu-projek-planning",
+    ],
+
     "BRANCH MANAGER": [
         "menu-approval", "menu-daftardokumen"
     ],
@@ -176,6 +183,13 @@ export const ROLE_CONFIG: Record<string, string[]> = {
         "menu-approval", "menu-projek-planning", "menu-daftardokumen"
     ],
 
+    "BUILDING & MAINTENANCE REGIONAL MANAGER": [
+        "menu-rab", "menu-ubah-rab-item", "menu-spk", "menu-inputpic", "menu-opname",
+        "menu-dokumentasi", "menu-tambahspk", "menu-svdokumen",
+        "menu-gantt", "menu-sp", "menu-approval", "menu-daftardokumen",
+        "menu-il", "menu-users", "menu-projek-planning",
+    ],
+
     // ─── Super Human: akses penuh ke semua menu ───────────────────────────────
     "BUILDING & MAINTENANCE SUPER HUMAN": [
         "menu-rab", "menu-ubah-rab-item", "menu-spk", "menu-inputpic", "menu-opname",
@@ -187,6 +201,30 @@ export const ROLE_CONFIG: Record<string, string[]> = {
 
 export const canAccessProjectPlanningByCabang = (cabang?: string | null): boolean =>
     String(cabang ?? "").trim().toUpperCase() === "HEAD OFFICE";
+
+export const REGIONAL_MANAGER_ROLE = "BUILDING & MAINTENANCE REGIONAL MANAGER";
+export const SUPER_HUMAN_ROLE = "BUILDING & MAINTENANCE SUPER HUMAN";
+
+export const normalizeRoles = (role: string | string[] | undefined | null): string[] => {
+    const roles = Array.isArray(role) ? role : String(role ?? "").split(",");
+    return roles.map(r => r.trim().toUpperCase()).filter(Boolean);
+};
+
+export const hasRegionalManagerRole = (role: string | string[] | undefined | null): boolean =>
+    normalizeRoles(role).some(r => r === REGIONAL_MANAGER_ROLE);
+
+export const hasSuperHumanRole = (role: string | string[] | undefined | null): boolean =>
+    normalizeRoles(role).some(r => r === SUPER_HUMAN_ROLE);
+
+export const canViewAllBranches = (
+    role: string | string[] | undefined | null,
+    isSuperHuman = false
+): boolean => isSuperHuman || hasRegionalManagerRole(role);
+
+export const isViewOnlyUser = (
+    role: string | string[] | undefined | null,
+    isSuperHuman = false
+): boolean => hasRegionalManagerRole(role) && !isSuperHuman;
 
 // -----------------------------------------------------------------------------
 // KATEGORI PEKERJAAN

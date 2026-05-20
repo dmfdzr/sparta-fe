@@ -38,7 +38,7 @@ import {
 } from '@/lib/api';
 
 import { parseCurrency } from '@/lib/utils';
-import { BRANCH_GROUPS, BRANCH_TO_ULOK } from '@/lib/constants';
+import { BRANCH_GROUPS, BRANCH_TO_ULOK, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // =============================================
 // TYPES INTERNAL
@@ -452,6 +452,7 @@ export default function ApprovalPage() {
         
         const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
         const isSuperHuman = user.isSuperHuman ?? false;
+        const isRegionalManager = user.isRegionalManager ?? false;
         const isProjectPlanningApprovalRole = roles.some(r =>
             r.includes('PROJECT PLANNING & DEVELOPMENT SPECIALIST') ||
             r.includes('PROJECT PLANNING & DEVELOPMENT MANAGER') ||
@@ -461,10 +462,16 @@ export default function ApprovalPage() {
 
         // Find all accessible types across all roles
         const allAccessibleTypes = new Set<ApprovalType>();
-        if (isProjectPlanningApprovalRole && isHO && !isSuperHuman) {
+        if (isRegionalManager || isSuperHuman) {
+            allAccessibleTypes.add('RAB');
+            allAccessibleTypes.add('SPK');
+            allAccessibleTypes.add('PERTAMBAHAN_SPK');
+            allAccessibleTypes.add('OPNAME_FINAL');
+            allAccessibleTypes.add('INSTRUKSI_LAPANGAN');
             allAccessibleTypes.add('PROJECT_PLANNING');
-        } else if (isHO || isSuperHuman) {
-            // HO dan Super Human melihat semua tipe approval
+        } else if (isProjectPlanningApprovalRole && isHO) {
+            allAccessibleTypes.add('PROJECT_PLANNING');
+        } else if (isHO) {
             allAccessibleTypes.add('RAB');
             allAccessibleTypes.add('SPK');
             allAccessibleTypes.add('PERTAMBAHAN_SPK');
@@ -581,16 +588,16 @@ export default function ApprovalPage() {
                 const upperUserCabang = normalizeBranch(userInfo.cabang);
                 const isHOUser = upperUserCabang === 'HEAD OFFICE';
                 const isSuperHumanUser = user?.isSuperHuman ?? false;
+                const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHumanUser);
+                const isRegionalManagerUser = user?.isRegionalManager ?? false;
                 const userRoles = userInfo.role
                     .split(',')
                     .map(r => r.trim().toUpperCase())
                     .filter(Boolean);
 
                 if (type === 'PROJECT_PLANNING') {
+                    if (canSeeAllBranches) return true;
                     if (!isHOUser) return false;
-                    if (isSuperHumanUser) {
-                        return !['DRAFT', 'COMPLETED', 'REJECTED'].includes(upper);
-                    }
                     const projek = item._raw as ProjekPlanningItem;
 
                     const isBmManager = userRoles.some(r =>
@@ -616,7 +623,7 @@ export default function ApprovalPage() {
                         ));
 
                     if (!statusMatchesRole) return false;
-                    if (isHOUser) return true;
+                    if (isHOUser) return normalizeBranch(item.cabang) === upperUserCabang;
                     if (!upperUserCabang || !item.cabang || item.cabang === '-') return true;
 
                     let userGroup: string[] | null = null;
@@ -631,37 +638,26 @@ export default function ApprovalPage() {
                     return userGroup ? userGroup.includes(itemCabangUpper) : itemCabangUpper === upperUserCabang;
                 }
 
-                // Super Human dan HO melihat semua cabang
-                if (isHOUser || isSuperHumanUser) {
-                    // HO murni (bukan SH): hanya tampilkan pending untuk RAB & IL
-                    if (isHOUser && !isSuperHumanUser) {
-                        if (type === 'RAB' || type === 'INSTRUKSI_LAPANGAN') {
-                            return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
-                        }
-                        return true;
-                    }
-                    // Super Human: lihat semua status
+                if (canSeeAllBranches || isRegionalManagerUser) {
                     return true;
                 }
 
                 // 1. FILTER CABANG (Wajib sesuai cabang user)
                 // Jika item.cabang adalah '-' atau empty, kita loloskan agar tidak tersembunyi karena data kurang
                 if (jabatan !== 'DIREKTUR' && type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {
-                    if (upperUserCabang !== 'HEAD OFFICE') {
-                        let userGroup: string[] | null = null;
-                        for (const grp of Object.values(BRANCH_GROUPS)) {
-                            if (grp.includes(upperUserCabang)) {
-                                userGroup = grp;
-                                break;
-                            }
+                    let userGroup: string[] | null = null;
+                    for (const grp of Object.values(BRANCH_GROUPS)) {
+                        if (grp.includes(upperUserCabang)) {
+                            userGroup = grp;
+                            break;
                         }
-                        
-                        const itemCabangUpper = item.cabang.toUpperCase();
-                        if (userGroup) {
-                            if (!userGroup.includes(itemCabangUpper)) return false;
-                        } else {
-                            if (itemCabangUpper !== upperUserCabang) return false;
-                        }
+                    }
+                    
+                    const itemCabangUpper = item.cabang.toUpperCase();
+                    if (userGroup) {
+                        if (!userGroup.includes(itemCabangUpper)) return false;
+                    } else {
+                        if (itemCabangUpper !== upperUserCabang) return false;
                     }
                 }
                 
@@ -1124,10 +1120,8 @@ export default function ApprovalPage() {
      *   - "Ditolak"  / "Rejected"
      */
     const isActionableByRole = (status: string, tipe: ApprovalType): boolean => {
-        // Pure HO (bukan Super Human) tidak bisa aksi
-        const isHOUser = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
         const isSuperHumanUser = user?.isSuperHuman ?? false;
-        if (isHOUser && !isSuperHumanUser) return false;
+        if (isViewOnlyUser(userInfo.role, isSuperHumanUser)) return false;
         const upper = (status ?? '').toUpperCase();
         
         // Cek Tolak/Setuju secara universal termasuk SPK
@@ -1165,21 +1159,20 @@ export default function ApprovalPage() {
         return upper === 'REJECTED' || upper.includes('DITOLAK') || upper.includes('TOLAK');
     };
 
-    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isSuperHuman = user?.isSuperHuman ?? false;
-    const isReadOnly = isHO && !isSuperHuman;
+    const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHuman);
     const isHeadGroup = useMemo(() => {
         if (!userInfo.cabang) return false;
         const upper = userInfo.cabang.toUpperCase();
         return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
     }, [userInfo.cabang]);
-    const showCabangFilter = isHO || isHeadGroup;
+    const showCabangFilter = canSeeAllBranches || isHeadGroup;
 
     // Static cabang options based on user role/group
     const cabangOptions = useMemo(() => {
         const upper = userInfo.cabang?.toUpperCase();
         if (!upper) return [];
-        if (upper === 'HEAD OFFICE') {
+        if (canSeeAllBranches) {
             return Object.keys(BRANCH_TO_ULOK).sort();
         }
         let userGroup: string[] | null = null;
@@ -1190,7 +1183,7 @@ export default function ApprovalPage() {
             }
         }
         return userGroup ? [...userGroup].sort() : [];
-    }, [userInfo.cabang]);
+    }, [userInfo.cabang, canSeeAllBranches]);
 
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();

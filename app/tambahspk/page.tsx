@@ -21,7 +21,7 @@ import {
     updatePertambahanSPK,
     downloadPertambahanSPKLampiran,
 } from '@/lib/api';
-import { BRANCH_GROUPS } from '@/lib/constants';
+import { canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -144,9 +144,8 @@ export default function TambahSPKPage() {
     // ════════════════════════════════════════════════════════════════════
 
     const { user } = useSession();
-    const isHOUser = user?.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isSuperHuman = user?.isSuperHuman ?? false;
-    const isReadOnly = isHOUser && !isSuperHuman;
+    const isReadOnly = isViewOnlyUser(user?.roles, isSuperHuman);
 
     useEffect(() => {
         if (!user) return;
@@ -154,12 +153,13 @@ export default function TambahSPKPage() {
         const { role, email, cabang } = user;
         const isHOUser = cabang.toUpperCase() === 'HEAD OFFICE';
         const isSHUser = user.isSuperHuman ?? false;
+        const isRegionalUser = user.isRegionalManager ?? false;
 
         const allowedRoles = [
             'BRANCH BUILDING & MAINTENANCE MANAGER',
             'BRANCH BUILDING SUPPORT DOKUMENTASI',
         ];
-        if (!isHOUser && !isSHUser && !allowedRoles.includes(role.toUpperCase())) {
+        if (!isHOUser && !isSHUser && !isRegionalUser && !allowedRoles.includes(role.toUpperCase())) {
             showAlert({ message: "Anda tidak memiliki akses ke halaman ini.", type: "error", onConfirm: () => router.push('/dashboard') });
             return;
         }
@@ -167,7 +167,7 @@ export default function TambahSPKPage() {
         const name = email.split('@')[0].toUpperCase();
         setUserInfo({ name, role, cabang, email });
 
-        loadApprovedSpks(cabang);
+        loadApprovedSpks(cabang, canViewAllBranches(user.roles, isSHUser));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, router]);
 
@@ -205,26 +205,17 @@ export default function TambahSPKPage() {
         }
     };
 
-    const loadApprovedSpks = async (cabang: string) => {
+    const loadApprovedSpks = async (cabang: string, canSeeAllBranches = false) => {
         setIsLoading(true);
         try {
             const res = await fetchSPKList({ status: 'SPK_APPROVED' });
             const allSpks = res.data || [];
 
-            // Get matching branches from branch groups
-            const branchGroup = Object.values(BRANCH_GROUPS).find(group =>
-                group.some(b => b.toUpperCase() === cabang.toUpperCase())
-            );
-            const matchBranches = branchGroup
-                ? branchGroup.map(b => b.toUpperCase())
-                : [cabang.toUpperCase()];
-
-            // Filter by nomor_ulok containing branch code
-            // Since SPK doesn't have cabang field directly, we match by brute force
-            // Actually SPK data comes from RAB which has cabang, but SPKListItem doesn't have it.
-            // We'll show all approved SPKs and let the user filter. The backend should handle it.
-            // For now, show all approved SPKs (the user's access is already limited by role).
-            setApprovedSpks(allSpks);
+            const upperCabang = cabang.toUpperCase();
+            const visibleSpks = canSeeAllBranches
+                ? allSpks
+                : allSpks.filter((spk: SPKListItem) => (spk.toko?.cabang || '').toUpperCase() === upperCabang);
+            setApprovedSpks(visibleSpks);
         } catch (error: any) {
             setStatusMsg({ text: "Gagal memuat data SPK: " + error.message, type: 'error' });
         } finally {
@@ -308,7 +299,11 @@ export default function TambahSPKPage() {
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
     if (!selectedSpk) return;
     if (!pertambahanHari || parseInt(pertambahanHari) <= 0) {
         showAlert({ message: "Pertambahan hari harus lebih dari 0.", type: "warning" });

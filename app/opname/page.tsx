@@ -22,7 +22,7 @@ import {
     fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList,
     type OpnameItem, type RABDetailItem, type RABDetailToko, type RABListItem,
 } from '@/lib/api';
-import { BRANCH_GROUPS } from '@/lib/constants';
+import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // =============================================================================
 // HELPERS
@@ -109,9 +109,9 @@ function InfoItem({ icon, label, value, highlight }: {
 function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; cabang: string; email: string; isSuperHuman?: boolean } }) {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
-    const isHO = userInfo.cabang?.toUpperCase() === 'HEAD OFFICE';
     const isSuperHuman = userInfo.isSuperHuman ?? false;
-    const isReadOnly = isHO && !isSuperHuman;
+    const isReadOnly = isViewOnlyUser(userInfo.role, isSuperHuman);
+    const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHuman);
 
     // Data
     const [rabList, setRabList] = useState<RABListItem[]>([]);
@@ -151,8 +151,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             .then(res => {
                 const data = res.data || [];
                 const filtered = data.filter(item => {
-                    // HO dan SH melihat semua cabang
-                    const matchCabang = (isHO || isSuperHuman) || !userInfo.cabang
+                    const matchCabang = canSeeAllBranches || !userInfo.cabang
                         ? true
                         : item.cabang?.toUpperCase() === userInfo.cabang.toUpperCase();
                     const isApproved = item.status?.toUpperCase().includes('DISETUJUI') ||
@@ -163,7 +162,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             })
             .catch(err => console.error("Gagal memuat RAB list:", err))
             .finally(() => setIsLoading(false));
-    }, [userInfo.cabang, isHO, isSuperHuman]);
+    }, [userInfo.cabang, canSeeAllBranches]);
 
     // Filter RAB List by search
     const filteredRabList = useMemo(() => {
@@ -312,6 +311,10 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
     // Actual kunci logic (extracted so GlobalAlert can call it)
     const executeKunciOpnameFinal = async () => {
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         if (!selectedRab || !allApproved) return;
 
         setIsSubmitting(true);
@@ -402,6 +405,10 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
 
     // Submit Opname per item (single) — uses bulk endpoint with 1 item for consistency
     const handleSubmitItem = async (rabItem: RABDetailItem) => {
+        if (isReadOnly) {
+            showAlert({ message: "Role ini hanya memiliki akses view.", type: "warning" });
+            return;
+        }
         if (!selectedRab) return;
         const input = opnameInputs[rabItem.id];
         // Allow if there is a new file OR an existing photo
@@ -1780,9 +1787,9 @@ export default function OpnamePage() {
         const name = (user.namaLengkap || email.split('@')[0]).toUpperCase();
         setUserInfo({ name, role, cabang, email, isSuperHuman: user.isSuperHuman ?? false });
 
-        const isHO = cabang?.toUpperCase() === 'HEAD OFFICE';
         const isSH = user.isSuperHuman ?? false;
-        if (isHO || isSH) {
+        const isRegional = user.isRegionalManager ?? false;
+        if (cabang?.toUpperCase() === 'HEAD OFFICE' || isSH || isRegional) {
             setAppMode('pic');
         } else if (roles.includes('KONTRAKTOR')) {
             setAppMode('kontraktor');
