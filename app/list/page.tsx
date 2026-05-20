@@ -397,21 +397,21 @@ const getStatusLabel = (status: string) => {
 
     if (upper.includes('DISETUJUI') || upper === 'APPROVED' || upper === 'SPK_APPROVED') return 'Approved';
 
-    if (upper.includes('KOORDINATOR')) return 'Pending Koord.';
-    if (upper.includes('MANAGER') || upper.includes('MANAJER')) return 'Pending Mgr.';
-    if (upper.includes('DIREKTUR')) return 'Pending Dir.';
-    if (upper === 'WAITING_FOR_BM_APPROVAL' || upper === 'MENUNGGU PERSETUJUAN') return 'Pending BM';
-    if (upper.includes('PENDING')) return 'Pending';
-
     // Project Planning statuses
     if (upper === 'DRAFT') return 'Draft';
-    if (upper === 'WAITING_BM_APPROVAL') return 'Pending BM';
+    if (upper === 'WAITING_BM_APPROVAL') return 'Pending B&M Mgr';
     if (upper === 'WAITING_PP_APPROVAL_1') return 'Pending PP (1)';
     if (upper === 'PP_DESIGN_3D_REQUIRED') return 'Design 3D';
     if (upper === 'WAITING_RAB_UPLOAD') return 'Upload RAB';
     if (upper === 'WAITING_PP_MANAGER_APPROVAL') return 'Pending PP Mgr';
     if (upper === 'WAITING_PP_APPROVAL_2') return 'Pending PP (2)';
     if (upper === 'COMPLETED') return 'Selesai';
+
+    if (upper.includes('KOORDINATOR')) return 'Pending Koord.';
+    if (upper.includes('MANAGER') || upper.includes('MANAJER')) return 'Pending Mgr.';
+    if (upper.includes('DIREKTUR')) return 'Pending Dir.';
+    if (upper === 'WAITING_FOR_BM_APPROVAL' || upper === 'MENUNGGU PERSETUJUAN') return 'Pending BM';
+    if (upper.includes('PENDING')) return 'Pending';
 
     return status;
 };

@@ -276,7 +276,7 @@ const STATUS_LABEL: Record<string, string> = {
     'MENUNGGU PERSETUJUAN KONTRAKTOR':  'PENDING (KONTR.)',
     'DITOLAK OLEH KONTRAKTOR':          'REJECTED (KONTR.)',
     // Project Planning
-    WAITING_BM_APPROVAL:                'Pending B&M',
+    WAITING_BM_APPROVAL:                'Pending B&M Mgr',
     WAITING_PP_APPROVAL_1:              'Pending PP (1)',
     PP_DESIGN_3D_REQUIRED:              'Design 3D',
     WAITING_RAB_UPLOAD:                 'Upload RAB',
