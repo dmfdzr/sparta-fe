@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import AppNavbar from '@/components/AppNavbar';
-import { ALL_MENUS, ROLE_CONFIG, BRANCH_GROUPS, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
+import { ALL_MENUS, ROLE_CONFIG, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
 import { fetchDashboardAll, fetchRABDetail, fetchOpnameList } from '@/lib/api';
 import { 
@@ -112,16 +112,11 @@ export default function DashboardPage() {
         
         if (window.innerWidth <= 768) setSidebarOpen(false);
 
-        const canViewMonitoring = isHO || isSuperHuman || isRegionalManager;
+        const canViewMonitoring = true;
         setCanViewMonitoringDashboard(canViewMonitoring);
-        if (!canViewMonitoring) {
-            setProjects([]);
-            setCabangList([]);
-            setIsLoading(false);
-            return;
-        }
 
-        // Initial Data Fetch - dashboard monitoring hanya untuk Head Office/Super Human
+        // Dashboard monitoring tersedia untuk semua cabang.
+        // Hanya Super Human dan role global view-only yang melihat semua cabang.
         fetchDashboardData(userCabang.toUpperCase(), canViewAllBranches(roles, isSuperHuman));
         setIsLoading(false);
     }, [user]);
@@ -140,17 +135,11 @@ export default function DashboardPage() {
             const json = await fetchDashboardAll();
             let data = json.data || [];
             
-            // Tentukan allowedBranches berdasarkan branch group
-            // Super Human dan Regional Manager melihat semua cabang.
+            // Super Human dan role global view-only melihat semua cabang.
+            // User lain, termasuk HEAD OFFICE non-global, hanya melihat cabang session-nya sendiri.
             let allowedBranches: string[] = [];
             if (!canSeeAllBranches) {
-                const group = Object.values(BRANCH_GROUPS).find(g => g.includes(userCabang));
-                if (group) {
-                    allowedBranches = group;
-                } else {
-                    allowedBranches = [userCabang];
-                }
-                // Filter data sesuai allowed branches
+                allowedBranches = [userCabang];
                 data = data.filter((p: any) => allowedBranches.includes(p.toko?.cabang?.toUpperCase()));
                 setCabangList(allowedBranches.sort());
             } else {
@@ -211,7 +200,7 @@ export default function DashboardPage() {
 
     // Fetch semua Opname Items sekaligus (1 request) untuk Nilai Toko, Kontraktor
     useEffect(() => {
-        if (!user?.isHO && !user?.isSuperHuman && !user?.isRegionalManager) return;
+        if (!user) return;
         if (opnameFetched.current) return;
         opnameFetched.current = true;
 
@@ -234,7 +223,7 @@ export default function DashboardPage() {
         };
 
         fetchAll();
-    }, [user?.isHO, user?.isSuperHuman]);
+    }, [user]);
 
 
     // Summary Stats
@@ -576,6 +565,7 @@ export default function DashboardPage() {
     }, [filteredProjects, rabItemsMap, opnameItemsMap]);
 
     const handleLogout = () => { sessionStorage.clear(); router.push('/'); };
+    const canSeeAllMonitoringBranches = canViewAllBranches(userInfo.roles, user?.isSuperHuman ?? false);
 
     // =========================================================================
     // LOADING STATE
@@ -709,7 +699,7 @@ export default function DashboardPage() {
                         {canViewMonitoringDashboard && (
                             <div className="flex items-center gap-3 shrink-0">
                                 {/* Branch Select (For HO or Group) */}
-                                {(userInfo.cabang === 'HEAD OFFICE' || cabangList.length > 1) && (
+                                {cabangList.length > 1 && (
                                     <Select value={selectedCabang} onValueChange={setSelectedCabang}>
                                         <SelectTrigger className="w-full md:w-40 h-8 rounded-lg text-xs bg-slate-50 border-slate-200">
                                             <SelectValue placeholder="Pilih Cabang" />
@@ -726,7 +716,7 @@ export default function DashboardPage() {
                                     variant="outline"
                                     size="icon"
                                     className="h-8 w-8 shrink-0 bg-slate-50 border-slate-200"
-                                    onClick={() => fetchDashboardData(userInfo.cabang)}
+                                    onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches)}
                                     disabled={isDataLoading}
                                 >
                                     <RefreshCw className={`w-3.5 h-3.5 ${isDataLoading ? 'animate-spin' : ''}`} />
@@ -952,7 +942,7 @@ export default function DashboardPage() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="h-8 w-8 text-white hover:bg-white/10 rounded-full"
-                                onClick={() => fetchDashboardData(selectedCabang)}
+                                onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches)}
                                 disabled={isDataLoading}
                             >
                                 <RefreshCw className={`w-3.5 h-3.5 ${isDataLoading ? 'animate-spin' : ''}`} />
