@@ -238,6 +238,15 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
     'DITOLAK OLEH KOORDINATOR':         'bg-red-100 text-red-700 border-red-200',
     'DITOLAK OLEH MANAJER':             'bg-red-100 text-red-700 border-red-200',
     'DITOLAK OLEH DIREKTUR':            'bg-red-100 text-red-700 border-red-200',
+    // Project Planning
+    WAITING_BM_APPROVAL:                'bg-yellow-100 text-yellow-700 border-yellow-200',
+    WAITING_PP_APPROVAL_1:              'bg-yellow-100 text-yellow-700 border-yellow-200',
+    PP_DESIGN_3D_REQUIRED:              'bg-purple-100 text-purple-700 border-purple-200',
+    WAITING_RAB_UPLOAD:                 'bg-orange-100 text-orange-700 border-orange-200',
+    WAITING_PP_APPROVAL_2:              'bg-yellow-100 text-yellow-700 border-yellow-200',
+    WAITING_PP_MANAGER_APPROVAL:        'bg-yellow-100 text-yellow-700 border-yellow-200',
+    COMPLETED:                          'bg-green-100 text-green-700 border-green-200',
+    DRAFT:                              'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -265,12 +274,14 @@ const STATUS_LABEL: Record<string, string> = {
     'MENUNGGU PERSETUJUAN KONTRAKTOR':  'PENDING (KONTR.)',
     'DITOLAK OLEH KONTRAKTOR':          'REJECTED (KONTR.)',
     // Project Planning
-    WAITING_BM_APPROVAL:                'PENDING B&M',
-    WAITING_PP_APPROVAL_1:              'PENDING PP 1',
-    PP_DESIGN_3D_REQUIRED:              'DESAIN 3D',
-    WAITING_RAB_UPLOAD:                 'UPLOAD RAB',
-    WAITING_PP_APPROVAL_2:              'PENDING PP 2',
-    WAITING_PP_MANAGER_APPROVAL:        'PENDING PP MGR',
+    WAITING_BM_APPROVAL:                'Pending BM',
+    WAITING_PP_APPROVAL_1:              'Pending PP (1)',
+    PP_DESIGN_3D_REQUIRED:              'Design 3D',
+    WAITING_RAB_UPLOAD:                 'Upload RAB',
+    WAITING_PP_APPROVAL_2:              'Pending PP (2)',
+    WAITING_PP_MANAGER_APPROVAL:        'Pending PP Mgr',
+    COMPLETED:                          'Selesai',
+    DRAFT:                              'Draft',
 };
 
 // =============================================
@@ -374,7 +385,7 @@ const normalizeProjekPlanningList = (items: ProjekPlanningItem[]): NormalizedLis
 const ApprovalBadge = ({ status }: { status: string }) => {
     const upper = (status ?? '').toUpperCase();
     return (
-        <Badge className={`${STATUS_BADGE_CLASS[upper] ?? 'bg-slate-100 text-slate-600'} font-semibold text-xs px-2 py-0.5 border`}>
+        <Badge className={`${STATUS_BADGE_CLASS[upper] ?? 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold text-xs px-2 py-0.5 border`}>
             {STATUS_LABEL[upper] ?? status}
         </Badge>
     );
@@ -1368,7 +1379,9 @@ export default function ApprovalPage() {
                                                 <th className="p-3 border-r font-semibold min-w-50">Nama Toko</th>
                                                 <th className="p-3 border-r font-semibold">Pengaju</th>
                                                 <th className="p-3 border-r font-semibold text-center whitespace-nowrap">Tgl Pengajuan</th>
-                                                <th className="p-3 border-r font-semibold text-right">Total Nilai</th>
+                                                {selectedType !== 'PROJECT_PLANNING' && (
+                                                    <th className="p-3 border-r font-semibold text-right">Total Nilai</th>
+                                                )}
                                                 <th className="p-3 border-r font-semibold text-center">Status</th>
                                                 <th className="p-3 font-semibold text-center">Aksi</th>
                                             </tr>
@@ -1386,7 +1399,9 @@ export default function ApprovalPage() {
                                                     </td>
                                                     <td className="p-3 border-r text-slate-600 text-xs">{item.email_pembuat}</td>
                                                     <td className="p-3 border-r text-center text-xs text-slate-600 whitespace-nowrap">{formatDate(item.created_at)}</td>
-                                                    <td className="p-3 border-r text-right font-bold text-slate-800">{item.tipe === 'PERTAMBAHAN_SPK' ? `+${item.pertambahan_hari || '-'} Hari` : formatRupiah(item.total_nilai)}</td>
+                                                    {selectedType !== 'PROJECT_PLANNING' && (
+                                                        <td className="p-3 border-r text-right font-bold text-slate-800">{item.tipe === 'PERTAMBAHAN_SPK' ? `+${item.pertambahan_hari || '-'} Hari` : formatRupiah(item.total_nilai)}</td>
+                                                    )}
                                                     <td className="p-3 border-r text-center"><ApprovalBadge status={item.status} /></td>
                                                     <td className="p-3 text-center">
                                                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
@@ -1599,11 +1614,13 @@ export default function ApprovalPage() {
                                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Perpanjangan</p>
                                                         <p className="text-3xl font-extrabold text-emerald-700">+{selectedDetail.pertambahan_hari} Hari</p>
                                                     </>
-                                                ) : (
+                                                ) : selectedDetail.tipe !== 'PROJECT_PLANNING' ? (
                                                     <>
                                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Nilai</p>
                                                         <p className="text-3xl font-extrabold text-slate-800">{formatRupiah(selectedDetail.total_nilai)}</p>
                                                     </>
+                                                ) : (
+                                                    null
                                                 )}
                                                 <Badge className={`mt-2 ${APPROVAL_CONFIG[selectedDetail.tipe].badgeColor} font-semibold border`}>
                                                     {APPROVAL_CONFIG[selectedDetail.tipe].label}

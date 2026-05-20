@@ -1674,14 +1674,18 @@ export default function DaftarDokumenPage() {
                                                 {/* Right info */}
                                                 <div className="flex items-center gap-3 shrink-0 md:pl-4">
                                                     <div className="text-right">
-                                                        <p className="text-sm font-bold text-slate-800">
-                                                            {selectedKategori === 'PERTAMBAHAN_SPK'
-                                                                ? `+${doc.pertambahan_hari || '-'} Hari`
-                                                                : (selectedKategori === 'PENGAWASAN' || selectedKategori === 'DOKUMENTASI_BANGUNAN')
-                                                                ? null
-                                                                : formatRupiah(doc.total_nilai)
-                                                            }
-                                                        </p>
+                                                        {selectedKategori === 'PERTAMBAHAN_SPK' ? (
+                                                            <p className="text-sm font-bold text-slate-800">+{doc.pertambahan_hari || '-'} Hari</p>
+                                                        ) : (
+                                                            selectedKategori !== 'PENGAWASAN'
+                                                            && selectedKategori !== 'DOKUMENTASI_BANGUNAN'
+                                                            && doc.total_nilai > 0
+                                                            && (
+                                                                <p className="text-sm font-bold text-slate-800">
+                                                                    {formatRupiah(doc.total_nilai)}
+                                                                </p>
+                                                            )
+                                                        )}
                                                         {selectedKategori === 'SPK' && doc.nomor_spk && (
                                                             <p className="text-[11px] text-slate-400 mt-0.5">SPK: {doc.nomor_spk}</p>
                                                         )}
