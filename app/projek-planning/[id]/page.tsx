@@ -45,6 +45,19 @@ const FPD_STEPS = [
   { id: "COMPLETED", label: "Selesai" },
 ];
 
+const firstFileUrl = (url?: string | null) =>
+  String(url || "").split(/\r?\n/).map(item => item.trim()).filter(Boolean)[0] || "";
+
+const shouldUseDriveProxy = (url?: string | null) => {
+  const first = firstFileUrl(url).toLowerCase();
+  return (
+    first.includes("drive.google.com/file/d/") ||
+    first.includes("drive.google.com/open?id=") ||
+    first.includes("drive.google.com/uc?id=") ||
+    first.includes("drive.google.com/thumbnail?id=")
+  );
+};
+
 function FpdTimeline({ currentStatus }: { currentStatus: string }) {
   const isRejected = currentStatus === "REJECTED";
 
@@ -147,7 +160,12 @@ function FileProxyRow({
   const handle = async (mode: "view" | "download") => {
     setLoading(mode);
     try {
-      await proxyProjekPlanningFile(projektId, field, mode);
+      const directUrl = firstFileUrl(fileUrl);
+      if (directUrl && !shouldUseDriveProxy(directUrl)) {
+        window.open(directUrl, "_blank", "noopener,noreferrer");
+      } else {
+        await proxyProjekPlanningFile(projektId, field, mode);
+      }
       setViewed(true);
       onViewed(field);
       const userEmail = sessionStorage.getItem('loggedInUserEmail') || 'unknown';
@@ -447,19 +465,26 @@ export default function DetailProjekPlanning() {
   const isBogorBm = (isBM || isBBMM) && (data.cabang || "").toUpperCase() === "BOGOR";
   const canActAsSubmitter = isCoor || isBogorBm;
 
-  const requiredFields = [
+  const coordinatorFields = [
     data.link_gambar_rab_sipil ? "rab_sipil_awal" : null,
     data.link_gambar_rab_me ? "rab_me_awal" : null,
     data.link_fpd ? "fpd" : null,
     data.link_gambar_kerja ? "gambar_kerja_awal" : null,
     data.link_gambar_kompetitor ? "gambar_kompetitor" : null,
+  ].filter(Boolean) as string[];
+  const ppSpecialistFields = [
     data.link_desain_3d && !isPP ? "desain_3d" : null,
     data.link_fpd_approved ? "fpd_approved" : null,
+  ].filter(Boolean) as string[];
+  const rabFinalFields = [
     data.link_rab_sipil ? "rab_sipil_final" : null,
     data.link_rab_me ? "rab_me_final" : null,
     (data.link_gambar_kerja_final_sipil || data.link_gambar_kerja_final) ? "gambar_kerja_final_sipil" : null,
     data.link_gambar_kerja_final_me ? "gambar_kerja_final_me" : null,
   ].filter(Boolean) as string[];
+  const requiredFields = isPPMgr && data.status === "WAITING_PP_MANAGER_APPROVAL"
+    ? [...ppSpecialistFields, ...rabFinalFields]
+    : [...coordinatorFields, ...ppSpecialistFields, ...rabFinalFields];
   const allLinksOpened = requiredFields.length === 0 || requiredFields.every(f => openedLinks.has(f));
   const isRabReupload = !!(data.pp2_alasan_penolakan || data.pp_manager_alasan_penolakan);
   const hasRabUploadInput = !!(linkRabSipil.trim() || fileRabSipil.length > 0 || linkRabMe.trim() || fileRabMe.length > 0 || linkGambarSipil.trim() || fileGambarSipil.length > 0 || linkGambarMe.trim() || fileGambarMe.length > 0);
@@ -522,7 +547,7 @@ export default function DetailProjekPlanning() {
             <InfoRow label="Cabang" value={data.cabang} />
             <InfoRow label="Proyek" value={data.proyek || data.jenis_proyek} />
             <InfoRow label="Tipe Bangunan" value={`${data.is_ruko ? 'Ruko' : 'Non-Ruko'}${data.jumlah_lantai ? ` — ${data.jumlah_lantai} Lantai` : ''}`} />
-            <InfoRow label="Kategori Toko" value={(data as any).is_dark_store ? 'Dark Store' : 'Reguler'} />
+            <InfoRow label="Kategori Toko" value={(data as any).is_dark_store ? 'B2B' : 'Reguler'} />
             <InfoRow label="Lingkup Pekerjaan" value={data.lingkup_pekerjaan} />
             <InfoRow label="Pengaju" value={data.nama_pengaju} />
             <InfoRow label="Email Pembuat" value={data.email_pembuat} />
@@ -536,8 +561,8 @@ export default function DetailProjekPlanning() {
               })()}
             />
             {(data as any).beanspot_tipe && <InfoRow label="Tipe Bean Spot" value={(data as any).beanspot_tipe === "Basic" ? "RTD ONLY" : (data as any).beanspot_tipe} />}
-            <InfoRow label="Head to Head" value={(data as any).is_head_to_head ? '✓ Ya' : 'Tidak'} />
-            <InfoRow label="Seating Area" value={(data as any).is_seating_area ? '✓ Ya' : 'Tidak'} />
+            <InfoRow label="Head to Head" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? 'Tidak' : ((data as any).is_head_to_head ? '✓ Ya' : 'Tidak')} />
+            <InfoRow label="Seating Area" value={(data.jenis_pengajuan || '').includes('DARK STORE') ? 'Tidak' : ((data as any).is_seating_area ? '✓ Ya' : 'Tidak')} />
             <InfoRow label="Estimasi Biaya" value={data.estimasi_biaya ? `Rp ${Number(data.estimasi_biaya).toLocaleString('id-ID')}` : null} />
           </CardContent>
         </Card>

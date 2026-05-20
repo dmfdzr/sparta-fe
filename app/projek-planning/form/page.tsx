@@ -19,7 +19,8 @@ import { PHOTO_POINTS, FLOOR_IMAGES, PAGE_LABELS, ALL_POINTS } from "@/app/ftdok
 
 type TokoOption = { id: number; nomor_ulok: string; nama_toko: string; cabang: string; proyek: string; lingkup_pekerjaan: string; kode_toko: string };
 
-const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "LAINNYA"];
+const JENIS_OPTIONS = ["DRIVE THRU", "BEAN SPOT", "FASADE", "DARK STORE", "LAINNYA"];
+const DARK_STORE_OPTION = "DARK STORE";
 const BEANSPOT_TIPE_OPTIONS = ["RTD ONLY", "Medium", "Advance"];
 
 type ProjectFileState = File[];
@@ -93,6 +94,13 @@ function FormProjekPlanningInner() {
   const [isSeatingArea, setIsSeatingArea] = useState(false);
   const [isDarkStore, setIsDarkStore] = useState(false);
   const [beanspotTipe, setBeanspotTipe] = useState("");
+  const isDarkStoreDesign = jenisSelected.includes(DARK_STORE_OPTION);
+
+  useEffect(() => {
+    if (!isDarkStoreDesign) return;
+    setIsHeadToHead(false);
+    setIsSeatingArea(false);
+  }, [isDarkStoreDesign]);
 
   // Foto State
   const [fotoFiles, setFotoFiles] = useState<{ [key: number]: File | null }>({});
@@ -336,6 +344,17 @@ function FormProjekPlanningInner() {
     if (!manualCabang || !manualTanggal || !manualUrutan) { setAlertMsg({ title: "Error", desc: "Harap lengkapi semua field Nomor ULOK (Kode Cabang, Tanggal, dan Urutan)", type: "error" }); setAlertOpen(true); return; }
     if (!isManualUlok && !f.jenis_proyek) { setAlertMsg({ title: "Error", desc: "Pilih proyek", type: "error" }); setAlertOpen(true); return; }
     if (jenisSelected.length === 0) { setAlertMsg({ title: "Error", desc: "Pilih minimal satu jenis pengajuan", type: "error" }); setAlertOpen(true); return; }
+    const fasilitasTanpaKeterangan = fasilitas.find(fac => {
+      const selected = fac.jenis_fasilitas === "LAINNYA"
+        ? !!fac.nama_fasilitas_lainnya?.trim()
+        : fac.is_tersedia;
+      return selected && !fac.keterangan?.trim();
+    });
+    if (fasilitasTanpaKeterangan) {
+      setAlertMsg({ title: "Error", desc: "Keterangan/alasan wajib diisi untuk setiap fasilitas yang dipilih.", type: "error" });
+      setAlertOpen(true);
+      return;
+    }
 
     if (resubmitId && originalF) {
       // Cek apakah ada perubahan
@@ -386,8 +405,8 @@ function FormProjekPlanningInner() {
         // Multi-select jenis: join with comma
         jenis_pengajuan: jenisSelected.join(","),
         // New fields
-        is_head_to_head: isHeadToHead,
-        is_seating_area: isSeatingArea,
+        is_head_to_head: isDarkStoreDesign ? false : isHeadToHead,
+        is_seating_area: isDarkStoreDesign ? false : isSeatingArea,
         is_dark_store: isDarkStore,
         beanspot_tipe: jenisSelected.includes("BEAN SPOT") ? beanspotTipe : "",
         ketentuan: JSON.stringify(ketentuan.filter(k => k.trim() !== "")),
@@ -602,11 +621,31 @@ function FormProjekPlanningInner() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {JENIS_OPTIONS.map(j => {
                   const isActive = jenisSelected.includes(j);
+                  const isDisabled = isDarkStoreDesign && j !== DARK_STORE_OPTION;
                   return (
                     <button key={j} type="button"
-                      onClick={() => setJenisSelected(prev => isActive ? prev.filter(x => x !== j) : [...prev, j])}
+                      disabled={isDisabled}
+                      onClick={() => {
+                        setJenisSelected(prev => {
+                          if (j === DARK_STORE_OPTION) {
+                            const next = isActive ? [] : [DARK_STORE_OPTION];
+                            if (!isActive) {
+                              setIsHeadToHead(false);
+                              setIsSeatingArea(false);
+                              setFileGambarKompetitor([]);
+                              set("link_gambar_kompetitor", "");
+                            }
+                            return next;
+                          }
+                          return isActive ? prev.filter(x => x !== j) : [...prev.filter(x => x !== DARK_STORE_OPTION), j];
+                        });
+                      }}
                       className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-                        isActive ? "bg-red-600 text-white border-red-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:border-red-300"
+                        isActive
+                          ? "bg-red-600 text-white border-red-600 shadow-sm"
+                          : isDisabled
+                            ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-red-300"
                       }`}>
                       {isActive && <span className="text-xs">✓</span>} {j}
                     </button>
@@ -663,7 +702,7 @@ function FormProjekPlanningInner() {
                   </div>
                 </div>
 
-                {/* Dark Store */}
+                {/* Kategori Toko */}
                 <div className="pt-2 border-t border-slate-100">
                   <Label className="text-sm font-bold text-slate-700 mb-2 block">Kategori Toko</Label>
                   <div className="flex gap-4">
@@ -673,7 +712,7 @@ function FormProjekPlanningInner() {
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" name="is_dark_store" checked={isDarkStore} onChange={() => setIsDarkStore(true)} className="w-4 h-4 text-red-600" />
-                      <span className="text-sm font-medium text-slate-700">Dark Store</span>
+                      <span className="text-sm font-medium text-slate-700">B2B</span>
                     </label>
                   </div>
                 </div>
@@ -686,15 +725,15 @@ function FormProjekPlanningInner() {
                   <Label className="text-sm font-bold text-slate-700">🏪 Apakah Toko Head to Head?</Label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_head_to_head" checked={!isHeadToHead} onChange={() => setIsHeadToHead(false)} className="w-4 h-4 text-red-600" />
+                      <input type="radio" name="is_head_to_head" checked={!isHeadToHead || isDarkStoreDesign} onChange={() => setIsHeadToHead(false)} className="w-4 h-4 text-red-600" disabled={isDarkStoreDesign} />
                       <span className="text-sm">Tidak</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_head_to_head" checked={isHeadToHead} onChange={() => setIsHeadToHead(true)} className="w-4 h-4 text-red-600" />
+                    <label className={`flex items-center gap-2 ${isDarkStoreDesign ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                      <input type="radio" name="is_head_to_head" checked={isHeadToHead && !isDarkStoreDesign} onChange={() => setIsHeadToHead(true)} className="w-4 h-4 text-red-600" disabled={isDarkStoreDesign} />
                       <span className="text-sm font-semibold text-red-700">Ya</span>
                     </label>
                   </div>
-                  {isHeadToHead && (
+                  {isHeadToHead && !isDarkStoreDesign && (
                     <div className="space-y-2 pt-2 border-t border-slate-100">
                       <Label className="text-xs font-semibold text-slate-600">Gambar Kompetitor *</Label>
                       <Input placeholder="Link Google Drive..." value={(f as any).link_gambar_kompetitor} onChange={e => { set("link_gambar_kompetitor", e.target.value); setFileGambarKompetitor([]); }} className="bg-white" disabled={fileGambarKompetitor.length > 0} />
@@ -710,11 +749,11 @@ function FormProjekPlanningInner() {
                   <Label className="text-sm font-bold text-slate-700">🪑 Apakah Ada Seating Area?</Label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_seating_area" checked={!isSeatingArea} onChange={() => setIsSeatingArea(false)} className="w-4 h-4 text-red-600" />
+                      <input type="radio" name="is_seating_area" checked={!isSeatingArea || isDarkStoreDesign} onChange={() => setIsSeatingArea(false)} className="w-4 h-4 text-red-600" disabled={isDarkStoreDesign} />
                       <span className="text-sm">Tidak</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="is_seating_area" checked={isSeatingArea} onChange={() => setIsSeatingArea(true)} className="w-4 h-4 text-red-600" />
+                    <label className={`flex items-center gap-2 ${isDarkStoreDesign ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                      <input type="radio" name="is_seating_area" checked={isSeatingArea && !isDarkStoreDesign} onChange={() => setIsSeatingArea(true)} className="w-4 h-4 text-red-600" disabled={isDarkStoreDesign} />
                       <span className="text-sm font-semibold text-green-700">Ya</span>
                     </label>
                   </div>
