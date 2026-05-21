@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import {
 import AppNavbar from '@/components/AppNavbar';
 import { ALL_MENUS, ROLE_CONFIG, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
-import { checkRevisionStatus, fetchDashboardAll, fetchOpnameList } from '@/lib/api';
+import { fetchDashboardAll } from '@/lib/api';
 import {
     EMPTY_APPROVAL_COUNTS,
     fetchApprovalNotificationCounts,
@@ -60,8 +60,6 @@ export default function DashboardPage() {
 
     // Opname items map keyed by id_toko — populated once via bulk fetch
     const [opnameItemsMap, setOpnameItemsMap] = useState<Record<number, any[]>>({});
-    const opnameFetched = useRef(false);
-
     // RAB items map keyed by rab.id — populated once after dashboard load
     const [rabItemsMap, setRabItemsMap] = useState<Record<number, any[]>>({});
 
@@ -125,13 +123,10 @@ export default function DashboardPage() {
 
         // Dashboard monitoring tersedia untuk semua cabang.
         // Hanya Super Human dan role global view-only yang melihat semua cabang.
-        fetchDashboardData(userCabang.toUpperCase(), canViewAllBranches(roles, isSuperHuman));
+        fetchDashboardData(userCabang.toUpperCase(), canViewAllBranches(roles, isSuperHuman), user.email);
         fetchApprovalNotificationCounts(user)
             .then(setApprovalCounts)
             .catch(() => setApprovalCounts(EMPTY_APPROVAL_COUNTS));
-        checkRevisionStatus(user.email, userCabang.toUpperCase())
-            .then(result => setRabRevisionCount(result.rejected_submissions?.length ?? 0))
-            .catch(() => setRabRevisionCount(0));
         setIsLoading(false);
     }, [user]);
 
@@ -142,7 +137,7 @@ export default function DashboardPage() {
         }
     }, [detailModal.open, detailModal.context, detailModal.subContext]);
 
-    const fetchDashboardData = async (userCabang: string, canSeeAllBranches = false) => {
+    const fetchDashboardData = async (userCabang: string, canSeeAllBranches = false, userEmail = '') => {
         setIsDataLoading(true);
         try {
             // Fetch dari API real
@@ -163,10 +158,41 @@ export default function DashboardPage() {
 
             setProjects(data);
 
+            const opnameMap: Record<number, any[]> = {};
+            let rejectedRabCount = 0;
+            const normalizedEmail = (userEmail || '').toLowerCase();
+
+            data.forEach((project: any) => {
+                const tokoId = project.toko?.id;
+                const opnameFinals = Array.isArray(project.opname_final)
+                    ? project.opname_final
+                    : (project.opname_final ? [project.opname_final] : []);
+
+                opnameFinals.forEach((final: any) => {
+                    const items = Array.isArray(final?.items) ? final.items : [];
+                    if (!tokoId || items.length === 0) return;
+                    if (!opnameMap[tokoId]) opnameMap[tokoId] = [];
+                    opnameMap[tokoId].push(...items);
+                });
+
+                const rabList = Array.isArray(project.rab) ? project.rab : (project.rab ? [project.rab] : []);
+                rejectedRabCount += rabList.filter((rab: any) => {
+                    const status = String(rab?.status || '').toUpperCase();
+                    const isRejected = status.includes('TOLAK') || status === 'REJECTED';
+                    const isMine = String(rab?.email_pembuat || '').toLowerCase() === normalizedEmail;
+                    return isRejected && (!normalizedEmail || isMine);
+                }).length;
+            });
+
+            setOpnameItemsMap(opnameMap);
+            setRabRevisionCount(rejectedRabCount);
+
         } catch (err) {
             console.error('Gagal memuat data dashboard:', err);
             setProjects([]);
             setCabangList([]);
+            setOpnameItemsMap({});
+            setRabRevisionCount(0);
         } finally {
             setIsDataLoading(false);
         }
@@ -188,34 +214,6 @@ export default function DashboardPage() {
             return matchSearch && matchCabang;
         });
     }, [projects, searchQuery, selectedCabang]);
-
-    // Fetch semua Opname Items sekaligus (1 request) untuk Nilai Toko, Kontraktor
-    useEffect(() => {
-        if (!user) return;
-        if (opnameFetched.current) return;
-        opnameFetched.current = true;
-
-        const fetchAll = async () => {
-            try {
-                const res = await fetchOpnameList();
-                const items: any[] = res?.data || [];
-                // Group by id_toko
-                const map: Record<number, any[]> = {};
-                items.forEach((item: any) => {
-                    const tid = item.id_toko;
-                    if (!tid) return;
-                    if (!map[tid]) map[tid] = [];
-                    map[tid].push(item);
-                });
-                setOpnameItemsMap(map);
-            } catch (e) {
-                console.error('Gagal fetch opname bulk:', e);
-            }
-        };
-
-        fetchAll();
-    }, [user]);
-
 
     // Summary Stats
     const stats = useMemo(() => {
@@ -719,7 +717,7 @@ export default function DashboardPage() {
                                     variant="outline"
                                     size="icon"
                                     className="h-8 w-8 shrink-0 bg-slate-50 border-slate-200"
-                                    onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches)}
+                                    onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches, user?.email ?? '')}
                                     disabled={isDataLoading}
                                 >
                                     <RefreshCw className={`w-3.5 h-3.5 ${isDataLoading ? 'animate-spin' : ''}`} />
@@ -945,7 +943,7 @@ export default function DashboardPage() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="h-8 w-8 text-white hover:bg-white/10 rounded-full"
-                                onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches)}
+                                onClick={() => fetchDashboardData(userInfo.cabang, canSeeAllMonitoringBranches, user?.email ?? '')}
                                 disabled={isDataLoading}
                             >
                                 <RefreshCw className={`w-3.5 h-3.5 ${isDataLoading ? 'animate-spin' : ''}`} />

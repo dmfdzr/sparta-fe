@@ -208,7 +208,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
     const jabatan = getApprovalJabatan(user);
     const counts = { ...EMPTY_APPROVAL_COUNTS };
 
-    await Promise.all(accessibleTypes.map(async type => {
+    for (const type of accessibleTypes) {
         if (type === "RAB") {
             let filters: RABListFilters | undefined;
             if (jabatan === "DIREKTUR") {
@@ -269,7 +269,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                 raw: item,
             })), user, jabatan);
         }
-    }));
+    }
 
     return counts;
 };
