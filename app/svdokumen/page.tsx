@@ -77,6 +77,29 @@ const toArchiveToko = (
   nama_kontraktor: "",
 });
 
+const docsToArchiveToko = (docs: PenyimpananDokumenItem[]): RABDetailToko[] => {
+  const grouped = new Map<string, { kode_toko: string | null; nama_toko: string | null; cabang: string | null; jumlah_dokumen: number }>();
+
+  docs.forEach(doc => {
+    const key = `${doc.kode_toko || ""}|${doc.nama_toko || ""}|${doc.cabang || ""}`;
+    const current = grouped.get(key);
+    if (current) {
+      current.jumlah_dokumen += 1;
+      return;
+    }
+    grouped.set(key, {
+      kode_toko: doc.kode_toko || null,
+      nama_toko: doc.nama_toko || null,
+      cabang: doc.cabang || null,
+      jumlah_dokumen: 1,
+    });
+  });
+
+  return Array.from(grouped.values())
+    .filter(store => store.kode_toko || store.nama_toko)
+    .map(toArchiveToko);
+};
+
 /** Resolve cabang list user boleh lihat (termasuk sub-branch) */
 function getVisibleBranches(cabang: string, canSeeAllBranches = false): string[] | null {
   if (canSeeAllBranches) return null;
@@ -186,10 +209,22 @@ export default function PenyimpananDokumenPage() {
       try {
         const archiveRes = await fetchPenyimpananDokumenArchiveStores(keyword);
         if (isCancelled) return;
-        const archiveStores = (archiveRes.data || [])
+        let archiveStores = (archiveRes.data || [])
           .filter(store => store.kode_toko || store.nama_toko)
           .filter(store => !visibleBranches || visibleBranches.includes((store.cabang || '').toUpperCase()))
           .map(toArchiveToko);
+
+        if (archiveStores.length === 0) {
+          const [byKode, byNama] = await Promise.all([
+            fetchPenyimpananDokumenList({ kode_toko: keyword }).catch(() => ({ status: "error", data: [] })),
+            fetchPenyimpananDokumenList({ nama_toko: keyword }).catch(() => ({ status: "error", data: [] })),
+          ]);
+          if (isCancelled) return;
+          const docs = [...(byKode.data || []), ...(byNama.data || [])];
+          archiveStores = docsToArchiveToko(docs)
+            .filter(store => !visibleBranches || visibleBranches.includes((store.cabang || '').toUpperCase()));
+        }
+
         setArchiveTokoList(archiveStores);
       } catch (err) {
         console.error(err);
