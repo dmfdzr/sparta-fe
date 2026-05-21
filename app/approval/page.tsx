@@ -27,7 +27,6 @@ import {
     type PertambahanSPKListItem, type PertambahanSPKDetailResponse,
     // Opname Final
     fetchOpnameFinalList, fetchOpnameFinalDetail, approveOpnameFinal, downloadOpnameFinalPdf,
-    downloadOpnameFoto,
     sendEmailNotification,
     fetchProjekPlanningList,
     type ProjekPlanningItem,
@@ -139,6 +138,34 @@ const formatDate = (dateStr: string) => {
 };
 
 const normalizeBranch = (branch?: string | null) => (branch ?? '').trim().toUpperCase();
+
+const getFirstNonEmptyString = (...values: unknown[]) => {
+    const value = values.find(v => typeof v === 'string' && v.trim());
+    return typeof value === 'string' ? value.trim() : null;
+};
+
+type ObjectRecord = Record<string, unknown>;
+
+const isObjectRecord = (value: unknown): value is ObjectRecord =>
+    typeof value === 'object' && value !== null;
+
+const getNestedRecord = (source: ObjectRecord, key: string) => {
+    const value = source[key];
+    return isObjectRecord(value) ? value : null;
+};
+
+const getOpnameFinalItems = (payload: unknown) => {
+    if (!isObjectRecord(payload)) return [];
+    if (Array.isArray(payload.items)) return payload.items;
+
+    const toko = getNestedRecord(payload, 'toko');
+    if (Array.isArray(toko?.items)) return toko.items;
+
+    const opnameFinal = getNestedRecord(payload, 'opname_final');
+    if (Array.isArray(opnameFinal?.items)) return opnameFinal.items;
+
+    return [];
+};
 
 // =============================================
 // ROLE CONFIG
@@ -440,7 +467,6 @@ export default function ApprovalPage() {
     const [isLoading, setIsLoading]           = useState(false);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [processingId, setProcessingId]     = useState<number | string | null>(null);
-    const [downloadingFotoId, setDownloadingFotoId] = useState<number | null>(null);
     const [rejectModal, setRejectModal]       = useState<NormalizedListItem | null>(null);
     const [rejectNote, setRejectNote]         = useState('');
     const [toast, setToast]                   = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -835,7 +861,7 @@ export default function ApprovalPage() {
                 const payload = res?.data ?? {};
                 const header = payload.opname_final ?? payload;
                 const toko = payload.toko ?? {};
-                const detailItems = Array.isArray(payload.items) ? payload.items : [];
+                const detailItems = getOpnameFinalItems(payload);
                 detail = {
                     id: header.id,
                     tipe: 'OPNAME_FINAL',
@@ -872,7 +898,7 @@ export default function ApprovalPage() {
                             kualitas:        it.kualitas ?? it.opname_kualitas ?? null,
                             spesifikasi:     it.spesifikasi ?? it.opname_spesifikasi ?? null,
                             catatan:         it.catatan ?? it.opname_catatan ?? null,
-                            foto:            it.foto ?? it.opname_foto ?? null,
+                            foto:            getFirstNonEmptyString(it.foto, it.opname_foto, it.dokumentasi, it.link_foto, it.foto_url),
                         };
                     }),
                 };
@@ -1117,18 +1143,6 @@ export default function ApprovalPage() {
             showToast(err.message || 'Gagal mengunduh PDF.', 'error');
         } finally {
             setProcessingId(null);
-        }
-    };
-
-    const handleDownloadOpnameFoto = async (opnameItemId: number) => {
-        setDownloadingFotoId(opnameItemId);
-        try {
-            await downloadOpnameFoto(opnameItemId);
-            showToast('Foto opname berhasil diunduh.', 'success');
-        } catch (err: any) {
-            showToast(err.message || 'Gagal mengunduh foto opname.', 'error');
-        } finally {
-            setDownloadingFotoId(null);
         }
     };
 
@@ -1821,18 +1835,20 @@ export default function ApprovalPage() {
                                                                 <>
                                                                     {selectedDetail.tipe !== 'RAB' && (
                                                                         <td className="p-3 text-center border-r">
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="outline"
-                                                                                className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                                                                disabled={!row.foto || downloadingFotoId === row.id}
-                                                                                onClick={() => handleDownloadOpnameFoto(row.id)}
-                                                                            >
-                                                                                {downloadingFotoId === row.id
-                                                                                    ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                                                                                    : <FileDown className="w-3.5 h-3.5 mr-1" />}
-                                                                                {row.foto ? 'Download' : 'Tidak ada foto'}
-                                                                            </Button>
+                                                                            {row.foto ? (
+                                                                                <a href={row.foto} target="_blank" rel="noopener noreferrer">
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="outline"
+                                                                                        className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                                                                    >
+                                                                                        <Eye className="w-3.5 h-3.5 mr-1" />
+                                                                                        Lihat Foto
+                                                                                    </Button>
+                                                                                </a>
+                                                                            ) : (
+                                                                                <span className="text-xs text-slate-400">Tidak ada foto</span>
+                                                                            )}
                                                                         </td>
                                                                     )}
                                                                     <td className="p-3 text-slate-500 italic text-xs border-r">{row.catatan || '-'}</td>

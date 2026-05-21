@@ -45,6 +45,13 @@ const formatTanggalShort = (dateStr: string | null | undefined): string => {
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+type OpnameFinalSummary = {
+    id?: number | string;
+    created_at?: string | null;
+    status?: string | null;
+    status_opname_final?: string | null;
+};
+
 function formatUlokWithDash(ulok: string) {
     if (!ulok) return "";
     if (ulok.includes("-")) return ulok;
@@ -213,8 +220,30 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             let lockedOpnameFinal = false;
             try {
                 const finalRes = await fetchOpnameFinalList({ id_toko: rab.id_toko, aksi: 'terkunci' });
-                if (finalRes.data && finalRes.data.length > 0) {
-                    lockedOpnameFinal = true;
+                const finalData = finalRes.data as unknown;
+                let finalItems: OpnameFinalSummary[] = [];
+                if (Array.isArray(finalData)) {
+                    finalItems = finalData as OpnameFinalSummary[];
+                } else if (finalData && typeof finalData === 'object') {
+                    const opnameFinal = (finalData as { opname_final?: unknown }).opname_final;
+                    finalItems = Array.isArray(opnameFinal) ? opnameFinal as OpnameFinalSummary[] : [];
+                }
+
+                const latestFinal = finalItems.reduce<OpnameFinalSummary | null>((latest, item) => {
+                    if (!latest) return item;
+                    const latestId = Number(latest.id) || 0;
+                    const itemId = Number(item.id) || 0;
+                    if (itemId !== latestId) return itemId > latestId ? item : latest;
+
+                    const latestTime = new Date(latest.created_at || 0).getTime();
+                    const itemTime = new Date(item.created_at || 0).getTime();
+                    return itemTime > latestTime ? item : latest;
+                }, null);
+
+                if (latestFinal) {
+                    const status = String(latestFinal.status_opname_final || latestFinal.status || '').toUpperCase();
+                    const isRejected = status.includes('DITOLAK') || status.includes('TOLAK') || status.includes('REJECTED');
+                    lockedOpnameFinal = !isRejected;
                 }
             } catch {
                 // ignore
@@ -779,7 +808,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                 </div>
 
                                 {/* Opname Final Button */}
-                                {!isReadOnly && (
+                                {!isReadOnly && !isOpnameFinalLocked && (
                                     <div className={`p-4 rounded-xl border shadow-sm flex items-center justify-between mb-6 ${allApproved ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
                                         <div>
                                             <h4 className={`font-bold text-sm ${allApproved ? 'text-emerald-800' : 'text-slate-500'}`}>
@@ -1181,11 +1210,13 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     const [rejectReason, setRejectReason] = useState('');
 
     const userCabang = (userInfo.cabang || '').toUpperCase();
+    const isHeadOfficeContractor = userCabang === 'HEAD OFFICE';
     const allowedBranches = useMemo(() => {
+        if (isHeadOfficeContractor) return [];
         const group = BRANCH_GROUPS[userCabang];
         if (group) return group.map(b => b.toUpperCase());
         return [userCabang];
-    }, [userCabang]);
+    }, [userCabang, isHeadOfficeContractor]);
 
     const [selectedCabangFilter, setSelectedCabangFilter] = useState<string>('ALL');
 
@@ -1238,9 +1269,10 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     const filteredTokoGroups = useMemo(() => {
         const q = searchQuery.toLowerCase();
         return tokoGroups.filter(g => {
-            // Strict branch checking for Contractor
-            if (g.cabang && !allowedBranches.includes(g.cabang)) return false;
-            if (!g.cabang && allowedBranches.length > 0 && allowedBranches[0] !== '') return false;
+            if (!isHeadOfficeContractor) {
+                if (g.cabang && !allowedBranches.includes(g.cabang)) return false;
+                if (!g.cabang && allowedBranches.length > 0 && allowedBranches[0] !== '') return false;
+            }
             
             // Dropdown filter check
             if (selectedCabangFilter !== 'ALL' && g.cabang !== selectedCabangFilter) return false;
@@ -1248,7 +1280,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
             return g.nomor_ulok.toLowerCase().includes(q) ||
                    g.nama_toko.toLowerCase().includes(q);
         });
-    }, [tokoGroups, searchQuery, allowedBranches, selectedCabangFilter]);
+    }, [tokoGroups, searchQuery, allowedBranches, selectedCabangFilter, isHeadOfficeContractor]);
 
     // Handle toko selection
     const handleSelectToko = async (tokoId: number) => {
@@ -1789,10 +1821,10 @@ export default function OpnamePage() {
 
         const isSH = user.isSuperHuman ?? false;
         const isRegional = user.isRegionalManager ?? false;
-        if (cabang?.toUpperCase() === 'HEAD OFFICE' || isSH || isRegional) {
-            setAppMode('pic');
-        } else if (roles.includes('KONTRAKTOR')) {
+        if (roles.includes('KONTRAKTOR')) {
             setAppMode('kontraktor');
+        } else if (cabang?.toUpperCase() === 'HEAD OFFICE' || isSH || isRegional) {
+            setAppMode('pic');
         } else if (isSH || roles.some(r => picRoles.includes(r))) {
             setAppMode('pic');
         } else {
