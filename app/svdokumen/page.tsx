@@ -38,7 +38,7 @@ import {
   PenyimpananDokumenItem,
   RABDetailToko,
 } from '@/lib/api';
-import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
+import { BRANCH_GROUPS, BRANCH_TO_ULOK, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 // ==========================================
 // CONSTANTS
@@ -86,6 +86,16 @@ function getVisibleBranches(cabang: string, canSeeAllBranches = false): string[]
     if (subs.map(s => s.toUpperCase()).includes(upper)) return subs.map(s => s.toUpperCase());
   }
   return [upper];
+}
+
+function getBranchLocationName(cabang?: string | null): string {
+  const upper = String(cabang ?? "").trim().toUpperCase();
+  if (!upper) return "-";
+  const code = BRANCH_TO_ULOK[upper];
+  if (!code) return upper;
+
+  const primary = Object.entries(BRANCH_TO_ULOK).find(([, value]) => value === code)?.[0];
+  return primary ?? upper;
 }
 
 // ==========================================
@@ -334,7 +344,7 @@ export default function PenyimpananDokumenPage() {
   // ==========================================
 
   const cabangOptions = useMemo(() => {
-    return Array.from(new Set([...archiveTokoList, ...tokoList].map(t => t.cabang))).sort();
+    return Array.from(new Set([...archiveTokoList, ...tokoList].map(t => getBranchLocationName(t.cabang)))).sort();
   }, [archiveTokoList, tokoList]);
 
   const filteredToko = useMemo(() => {
@@ -344,7 +354,7 @@ export default function PenyimpananDokumenPage() {
       const matchSearch = !q || (t.nama_toko || '').toLowerCase().includes(q)
         || (t.nomor_ulok || '').toLowerCase().includes(q)
         || (t.kode_toko || '').toLowerCase().includes(q);
-      const matchCabang = filterCabang === 'all' || t.cabang === filterCabang;
+      const matchCabang = filterCabang === 'all' || getBranchLocationName(t.cabang) === filterCabang;
       return matchSearch && matchCabang;
     });
   }, [archiveTokoList, tokoList, searchToko, filterCabang]);
