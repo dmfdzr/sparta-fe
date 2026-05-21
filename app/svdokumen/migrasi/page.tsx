@@ -148,11 +148,12 @@ export default function MigrasiPenyimpananDokumenPage() {
 
         {result && (
           <>
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-6">
               {[
                 ["Baris Excel", result.totalRows],
                 ["Baris Ada File", result.rowsWithFiles],
                 ["Baris Kosong", result.emptyFileRows],
+                ["Toko Terbaca", result.parsedStores],
                 ["Dokumen Terbaca", result.parsedDocuments],
                 ["Tersimpan Baru", result.inserted],
               ].map(([label, value]) => (
@@ -169,7 +170,7 @@ export default function MigrasiPenyimpananDokumenPage() {
               <Card className="border-emerald-200 bg-emerald-50 shadow-sm">
                 <CardContent className="flex items-center gap-3 p-4 text-sm font-semibold text-emerald-700">
                   <CheckCircle className="h-5 w-5" />
-                  {formatNumber(result.skippedDuplicates)} dokumen dilewati karena sudah ada dari migrasi sebelumnya.
+                  {formatNumber(result.skippedStoreDuplicates)} toko dan {formatNumber(result.skippedDuplicates)} dokumen dilewati karena sudah ada dari migrasi sebelumnya.
                 </CardContent>
               </Card>
             )}

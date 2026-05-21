@@ -2122,7 +2122,10 @@ export type PenyimpananDokumenMigrationResult = {
     totalRows: number;
     rowsWithFiles: number;
     emptyFileRows: number;
+    parsedStores?: number;
     parsedDocuments: number;
+    insertedStores?: number;
+    skippedStoreDuplicates?: number;
     inserted?: number;
     skippedDuplicates?: number;
     unparsedRows: Array<{ rowNumber: number; kode_toko: string | null; reason: string }>;
