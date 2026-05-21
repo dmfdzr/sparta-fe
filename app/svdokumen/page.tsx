@@ -69,9 +69,9 @@ const toArchiveToko = (
   id: -1 * (index + 1),
   nomor_ulok: store.kode_toko || store.nama_toko || `ARSIP-${index + 1}`,
   kode_toko: store.kode_toko || "",
-  nama_toko: store.nama_toko || store.kode_toko || "Arsip Dokumen",
+  nama_toko: store.nama_toko || store.kode_toko || "Dokumen Toko",
   cabang: store.cabang || "-",
-  proyek: `Arsip Migrasi (${store.jumlah_dokumen})`,
+  proyek: "Penyimpanan Dokumen",
   lingkup_pekerjaan: "",
   alamat: "",
   nama_kontraktor: "",
@@ -173,7 +173,7 @@ export default function PenyimpananDokumenPage() {
         setArchiveTokoList(archiveStores);
       } catch (archiveErr) {
         console.error(archiveErr);
-        showToast("Data toko tampil, tapi arsip migrasi belum bisa dimuat", "info");
+        showToast("Data toko tampil, tapi sebagian dokumen belum bisa dimuat", "info");
       }
     } catch (err: any) {
       console.error(err);
@@ -225,7 +225,7 @@ export default function PenyimpananDokumenPage() {
     }
     if (!files || files.length === 0 || !selectedToko) return;
     if (isArchiveToko(selectedToko)) {
-      showToast("Data arsip migrasi hanya bisa dilihat, belum bisa upload manual", "error");
+      showToast("Data ini hanya bisa dilihat, belum bisa upload manual", "error");
       return;
     }
     setUploadingCategory(categoryKey);
@@ -354,9 +354,6 @@ export default function PenyimpananDokumenPage() {
           <CardContent className="pt-6">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Toko</div>
             <div className="text-3xl font-bold text-slate-900 mt-1">{totalCombinedToko}</div>
-            {totalArchiveToko > 0 && (
-              <div className="mt-1 text-xs font-semibold text-amber-600">Termasuk {totalArchiveToko} arsip migrasi</div>
-            )}
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm border-slate-100">
@@ -487,7 +484,6 @@ export default function PenyimpananDokumenPage() {
               <Badge className="bg-red-100 text-red-700 border-red-200">{selectedToko.nomor_ulok}</Badge>
               <Badge variant="secondary">{selectedToko.cabang}</Badge>
               {selectedToko.proyek && <Badge variant="secondary">{selectedToko.proyek}</Badge>}
-              {isArchiveToko(selectedToko) && <Badge className="bg-amber-50 text-amber-700 border-amber-200">Data Arsip</Badge>}
             </div>
           </div>
           <div className="flex gap-2 items-center shrink-0">
