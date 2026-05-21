@@ -217,7 +217,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                     const userCabang = normalizeBranch(user.cabang);
                     if (userCabang && userCabang !== "HEAD OFFICE") filters.cabang = user.cabang;
                 }
-                const res = await fetchRABList(filters);
+                const res = await fetchRABList(filters, { suppressGlobalError: true });
                 counts.RAB = countItems((res.data ?? []).map(item => ({
                     tipe: "RAB",
                     status: item.status,
@@ -241,7 +241,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                     raw: item,
                 })), user, jabatan);
             } else if (type === "OPNAME_FINAL") {
-                const res = await fetchOpnameFinalList({ aksi: "terkunci" });
+                const res = await fetchOpnameFinalList({ aksi: "terkunci" }, { suppressGlobalError: true });
                 const rows = Array.isArray(res.data)
                     ? res.data
                     : Array.isArray((res.data as any)?.opname_final)
@@ -254,7 +254,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                     raw: item,
                 })), user, jabatan);
             } else if (type === "INSTRUKSI_LAPANGAN") {
-                const res = await fetchInstruksiLapanganList();
+                const res = await fetchInstruksiLapanganList(undefined, { suppressGlobalError: true });
                 counts.INSTRUKSI_LAPANGAN = countItems((res.data ?? []).map((item: any) => ({
                     tipe: "INSTRUKSI_LAPANGAN",
                     status: item.status,
@@ -262,7 +262,7 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                     raw: item,
                 })), user, jabatan);
             } else if (type === "PROJECT_PLANNING") {
-                const res = await fetchProjekPlanningList();
+                const res = await fetchProjekPlanningList(undefined, { suppressGlobalError: true });
                 counts.PROJECT_PLANNING = countItems((res.data ?? []).map((item: any) => ({
                     tipe: "PROJECT_PLANNING",
                     status: item.status,

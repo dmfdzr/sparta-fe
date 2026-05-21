@@ -372,7 +372,8 @@ export const submitRABData = async (
 
 /** Ambil daftar RAB dengan filter opsional. */
 export const fetchRABList = async (
-    filters?: RABListFilters
+    filters?: RABListFilters,
+    options?: ApiRequestOptions
 ): Promise<{ status: string; data: RABListItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
@@ -382,7 +383,7 @@ export const fetchRABList = async (
     if (filters?.nama_pt)    params.append("nama_pt",    filters.nama_pt);
     if (filters?.email_pembuat) params.append("email_pembuat", filters.email_pembuat);
     const url = `${base}/api/rab${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 /** Ambil detail lengkap RAB berdasarkan ID. */
@@ -1182,7 +1183,7 @@ export const fetchOpnameFinalList = async (filters?: {
     id_toko?: number;
     nomor_ulok?: string;
     cabang?: string;
-}) => {
+}, options?: ApiRequestOptions) => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.status) params.append("status", filters.status);
@@ -1191,7 +1192,7 @@ export const fetchOpnameFinalList = async (filters?: {
     if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
     if (filters?.cabang) params.append("cabang", filters.cabang);
     const url = `${base}/api/final_opname${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 /** Detail Opname Final */
@@ -1805,7 +1806,8 @@ export type InstruksiLapanganFilters = {
 };
 
 export const fetchInstruksiLapanganList = async (
-    filters?: InstruksiLapanganFilters
+    filters?: InstruksiLapanganFilters,
+    options?: ApiRequestOptions
 ): Promise<any> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
@@ -1814,7 +1816,7 @@ export const fetchInstruksiLapanganList = async (
     if (filters?.cabang) params.append("cabang", filters.cabang);
     if (filters?.email_pembuat) params.append("email_pembuat", filters.email_pembuat);
     const url = `${base}/api/instruksi-lapangan/list${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 export const fetchInstruksiLapanganDetail = async (id: number): Promise<any> => {
@@ -2569,7 +2571,8 @@ export const resubmitProjekPlanning = async (
 
 /** Ambil daftar Project Planning. */
 export const fetchProjekPlanningList = async (
-    filters?: ProjekPlanningListFilters
+    filters?: ProjekPlanningListFilters,
+    options?: ApiRequestOptions
 ): Promise<{ status: string; data: ProjekPlanningItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
@@ -2579,7 +2582,7 @@ export const fetchProjekPlanningList = async (
     if (filters?.email_pembuat) params.append("email_pembuat", filters.email_pembuat);
     if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
     const url = `${base}/api/projek-planning${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 export const fetchProjekPlanningTaskCounts = async (params: {

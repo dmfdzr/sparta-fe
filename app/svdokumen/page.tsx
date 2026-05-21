@@ -493,23 +493,41 @@ export default function PenyimpananDokumenPage() {
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const logo = await loadImageAsDataUrl("/assets/Alfamart-Emblem.png");
+    const [logo, spartaLogo] = await Promise.all([
+      loadImageAsDataUrl("/assets/Alfamart-Emblem.png"),
+      loadImageAsDataUrl("/assets/Building-Logo.png"),
+    ]);
 
     doc.setFillColor(220, 38, 38);
-    doc.roundedRect(32, 24, pageWidth - 64, 58, 4, 4, "F");
+    doc.roundedRect(32, 24, pageWidth - 64, 68, 4, 4, "F");
     if (logo) {
-      doc.addImage(logo, "PNG", 46, 37, 70, 28);
+      doc.addImage(logo, "PNG", 48, 43, 68, 27);
       doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(1);
-      doc.line(130, 34, 130, 72);
+      doc.setLineWidth(1.2);
+      doc.line(132, 36, 132, 80);
+    }
+    if (spartaLogo) {
+      doc.addImage(spartaLogo, "PNG", 150, 39, 26, 34);
     }
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(17);
+    doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("PENYIMPANAN DOKUMEN TOKO", logo ? 144 : 46, 49);
+    doc.text("SPARTA", spartaLogo ? 184 : 150, 50);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`Daftar kelengkapan dokumen toko | Export ${new Date().toLocaleString("id-ID")} | ${rows.length} data`, logo ? 144 : 46, 66);
+    doc.text("Building", spartaLogo ? 185 : 150, 64);
+
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
+    doc.text("PENYIMPANAN DOKUMEN TOKO", pageWidth - 48, 50, { align: "right" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `Daftar kelengkapan dokumen toko | Export ${new Date().toLocaleString("id-ID")} | ${rows.length} data`,
+      pageWidth - 48,
+      66,
+      { align: "right" }
+    );
 
     doc.saveGraphicsState();
     doc.setTextColor(245, 245, 245);
@@ -525,20 +543,28 @@ export default function PenyimpananDokumenPage() {
     autoTable(doc, {
       head: [exportHeaders],
       body: rows,
-      startY: 100,
+      startY: 110,
       margin: { left: 32, right: 32 },
-      styles: { fontSize: 6, cellPadding: 3, overflow: "linebreak", valign: "top" },
-      headStyles: { fillColor: [220, 38, 38] },
+      styles: { fontSize: 6, cellPadding: 3, overflow: "linebreak", valign: "middle", minCellHeight: 18 },
+      headStyles: {
+        fillColor: [220, 38, 38],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        halign: "center",
+        valign: "middle",
+        cellPadding: { top: 5, right: 3, bottom: 5, left: 3 },
+        minCellHeight: 24,
+      },
       alternateRowStyles: { fillColor: [249, 250, 251] },
       columnStyles: {
-        0: { cellWidth: 24 },
+        0: { cellWidth: 24, halign: "center" },
         1: { cellWidth: 64 },
         2: { cellWidth: 48 },
         3: { cellWidth: 90 },
         4: { cellWidth: 64 },
         5: { cellWidth: 82 },
-        6: { cellWidth: 62 },
-        7: { cellWidth: 44 },
+        6: { cellWidth: 62, halign: "center" },
+        7: { cellWidth: 44, halign: "center" },
         8: { cellWidth: 142 },
         9: { cellWidth: 142 },
       },
