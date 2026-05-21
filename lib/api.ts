@@ -23,6 +23,9 @@ export type ApiErrorContext = {
 };
 
 export type ApiErrorHandler = (error: Error, context?: ApiErrorContext) => void;
+export type ApiRequestOptions = RequestInit & {
+    suppressGlobalError?: boolean;
+};
 
 let apiErrorHandler: ApiErrorHandler | null = null;
 
@@ -46,17 +49,20 @@ const reportApiError = (error: Error, context?: ApiErrorContext) => {
  * - Melempar error yang informatif jika respons gagal
  * - Menghindari crash saat server mengembalikan HTML (misalnya halaman error nginx)
  */
-export const safeFetchJSON = async (url: string, options?: RequestInit) => {
+export const safeFetchJSON = async (url: string, options?: ApiRequestOptions) => {
+    const { suppressGlobalError, ...fetchOptions } = options ?? {};
     let reported = false;
     try {
-        const res = await fetch(url, options);
+        const res = await fetch(url, fetchOptions);
         const contentType = res.headers.get("content-type");
 
         if (contentType?.includes("application/json")) {
             const data = await res.json();
             if (!res.ok) {
                 const err = new Error(data.message || `Error Server (${res.status})`);
-                reportApiError(err, { url, status: res.status, responseBody: data, contentType });
+                if (!suppressGlobalError) {
+                    reportApiError(err, { url, status: res.status, responseBody: data, contentType });
+                }
                 reported = true;
                 throw err;
             }
@@ -66,11 +72,13 @@ export const safeFetchJSON = async (url: string, options?: RequestInit) => {
         const text = await res.text();
         console.error("Server mengembalikan non-JSON:", text);
         const err = new Error(`Endpoint salah atau tidak ditemukan (Status ${res.status}).`);
-        reportApiError(err, { url, status: res.status, responseBody: text, contentType });
+        if (!suppressGlobalError) {
+            reportApiError(err, { url, status: res.status, responseBody: text, contentType });
+        }
         reported = true;
         throw err;
     } catch (error) {
-        if (!reported) {
+        if (!reported && !suppressGlobalError) {
             const err = error instanceof Error ? error : new Error("Terjadi kesalahan pada API.");
             reportApiError(err, { url });
         }
@@ -1358,13 +1366,13 @@ export const submitSPK = async (payload: SPKSubmitPayload) => {
 export const fetchSPKList = async (filters?: {
     status?: string;
     nomor_ulok?: string;
-}): Promise<{ status: string; data: SPKListItem[] }> => {
+}, options?: ApiRequestOptions): Promise<{ status: string; data: SPKListItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.status)     params.append("status", filters.status);
     if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
     const url = `${base}/api/spk${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 /** Ambil detail pengajuan SPK beserta histori log approval. */
@@ -1595,14 +1603,15 @@ export const submitPertambahanSPK = async (payload: PertambahanSPKPayload) => {
 
 /** Ambil daftar pertambahan SPK dengan filter opsional. */
 export const fetchPertambahanSPKList = async (
-    filters?: PertambahanSPKListFilters
+    filters?: PertambahanSPKListFilters,
+    options?: ApiRequestOptions
 ): Promise<{ status: string; data: PertambahanSPKListItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.id_spk)              params.append("id_spk", filters.id_spk.toString());
     if (filters?.status_persetujuan)  params.append("status_persetujuan", filters.status_persetujuan);
     const url = `${base}/api/pertambahan-spk${params.toString() ? `?${params}` : ""}`;
-    return safeFetchJSON(url);
+    return safeFetchJSON(url, options);
 };
 
 /** Ambil detail pertambahan SPK berdasarkan ID. */
@@ -2153,7 +2162,7 @@ export type PenyimpananDokumenArchiveStore = {
 /** List dokumen penyimpanan (GET /api/doc/penyimpanan-dokumen) */
 export const fetchPenyimpananDokumenList = async (
     filters?: PenyimpananDokumenListFilters,
-    options?: RequestInit
+    options?: ApiRequestOptions
 ): Promise<{ status: string; data: PenyimpananDokumenItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();

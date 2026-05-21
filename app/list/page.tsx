@@ -849,7 +849,10 @@ export default function DaftarDokumenPage() {
                 const controller = new AbortController();
                 const timeoutId = window.setTimeout(() => controller.abort(), 10000);
                 try {
-                    const res = await fetchPenyimpananDokumenList(undefined, { signal: controller.signal });
+                    const res = await fetchPenyimpananDokumenList(undefined, {
+                        signal: controller.signal,
+                        suppressGlobalError: true,
+                    });
                     docs = normalizePenyimpananDokumenDocs(res.data ?? []);
                 } catch (storageErr: any) {
                     if (storageErr?.name === 'AbortError') {

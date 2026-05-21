@@ -209,65 +209,70 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
     const counts = { ...EMPTY_APPROVAL_COUNTS };
 
     for (const type of accessibleTypes) {
-        if (type === "RAB") {
-            let filters: RABListFilters | undefined;
-            if (jabatan === "DIREKTUR") {
-                filters = { nama_pt: user.namaPt };
-                const userCabang = normalizeBranch(user.cabang);
-                if (userCabang && userCabang !== "HEAD OFFICE") filters.cabang = user.cabang;
+        try {
+            if (type === "RAB") {
+                let filters: RABListFilters | undefined;
+                if (jabatan === "DIREKTUR") {
+                    filters = { nama_pt: user.namaPt };
+                    const userCabang = normalizeBranch(user.cabang);
+                    if (userCabang && userCabang !== "HEAD OFFICE") filters.cabang = user.cabang;
+                }
+                const res = await fetchRABList(filters);
+                counts.RAB = countItems((res.data ?? []).map(item => ({
+                    tipe: "RAB",
+                    status: item.status,
+                    cabang: item.cabang ?? item.toko?.cabang,
+                    raw: item,
+                })), user, jabatan);
+            } else if (type === "SPK") {
+                const res = await fetchSPKList({ status: "WAITING_FOR_BM_APPROVAL" }, { suppressGlobalError: true });
+                counts.SPK = countItems((res.data ?? []).map((item: any) => ({
+                    tipe: "SPK",
+                    status: item.status,
+                    cabang: item.toko?.cabang ?? item.cabang,
+                    raw: item,
+                })), user, jabatan);
+            } else if (type === "PERTAMBAHAN_SPK") {
+                const res = await fetchPertambahanSPKList({ status_persetujuan: "Menunggu Persetujuan" }, { suppressGlobalError: true });
+                counts.PERTAMBAHAN_SPK = countItems((res.data ?? []).map((item: any) => ({
+                    tipe: "PERTAMBAHAN_SPK",
+                    status: item.status_persetujuan,
+                    cabang: item.toko?.cabang,
+                    raw: item,
+                })), user, jabatan);
+            } else if (type === "OPNAME_FINAL") {
+                const res = await fetchOpnameFinalList({ aksi: "terkunci" });
+                const rows = Array.isArray(res.data)
+                    ? res.data
+                    : Array.isArray((res.data as any)?.opname_final)
+                        ? (res.data as any).opname_final
+                        : [];
+                counts.OPNAME_FINAL = countItems(rows.map((item: any) => ({
+                    tipe: "OPNAME_FINAL",
+                    status: item.status_opname_final,
+                    cabang: item.cabang ?? item.toko?.cabang,
+                    raw: item,
+                })), user, jabatan);
+            } else if (type === "INSTRUKSI_LAPANGAN") {
+                const res = await fetchInstruksiLapanganList();
+                counts.INSTRUKSI_LAPANGAN = countItems((res.data ?? []).map((item: any) => ({
+                    tipe: "INSTRUKSI_LAPANGAN",
+                    status: item.status,
+                    cabang: item.cabang,
+                    raw: item,
+                })), user, jabatan);
+            } else if (type === "PROJECT_PLANNING") {
+                const res = await fetchProjekPlanningList();
+                counts.PROJECT_PLANNING = countItems((res.data ?? []).map((item: any) => ({
+                    tipe: "PROJECT_PLANNING",
+                    status: item.status,
+                    cabang: item.cabang,
+                    raw: item,
+                })), user, jabatan);
             }
-            const res = await fetchRABList(filters);
-            counts.RAB = countItems((res.data ?? []).map(item => ({
-                tipe: "RAB",
-                status: item.status,
-                cabang: item.cabang ?? item.toko?.cabang,
-                raw: item,
-            })), user, jabatan);
-        } else if (type === "SPK") {
-            const res = await fetchSPKList({ status: "WAITING_FOR_BM_APPROVAL" });
-            counts.SPK = countItems((res.data ?? []).map((item: any) => ({
-                tipe: "SPK",
-                status: item.status,
-                cabang: item.toko?.cabang ?? item.cabang,
-                raw: item,
-            })), user, jabatan);
-        } else if (type === "PERTAMBAHAN_SPK") {
-            const res = await fetchPertambahanSPKList({ status_persetujuan: "Menunggu Persetujuan" });
-            counts.PERTAMBAHAN_SPK = countItems((res.data ?? []).map((item: any) => ({
-                tipe: "PERTAMBAHAN_SPK",
-                status: item.status_persetujuan,
-                cabang: item.toko?.cabang,
-                raw: item,
-            })), user, jabatan);
-        } else if (type === "OPNAME_FINAL") {
-            const res = await fetchOpnameFinalList({ aksi: "terkunci" });
-            const rows = Array.isArray(res.data)
-                ? res.data
-                : Array.isArray((res.data as any)?.opname_final)
-                    ? (res.data as any).opname_final
-                    : [];
-            counts.OPNAME_FINAL = countItems(rows.map((item: any) => ({
-                tipe: "OPNAME_FINAL",
-                status: item.status_opname_final,
-                cabang: item.cabang ?? item.toko?.cabang,
-                raw: item,
-            })), user, jabatan);
-        } else if (type === "INSTRUKSI_LAPANGAN") {
-            const res = await fetchInstruksiLapanganList();
-            counts.INSTRUKSI_LAPANGAN = countItems((res.data ?? []).map((item: any) => ({
-                tipe: "INSTRUKSI_LAPANGAN",
-                status: item.status,
-                cabang: item.cabang,
-                raw: item,
-            })), user, jabatan);
-        } else if (type === "PROJECT_PLANNING") {
-            const res = await fetchProjekPlanningList();
-            counts.PROJECT_PLANNING = countItems((res.data ?? []).map((item: any) => ({
-                tipe: "PROJECT_PLANNING",
-                status: item.status,
-                cabang: item.cabang,
-                raw: item,
-            })), user, jabatan);
+        } catch (error) {
+            console.warn(`Gagal memuat notifikasi approval ${type}:`, error);
+            counts[type] = 0;
         }
     }
 
