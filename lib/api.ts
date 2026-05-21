@@ -2138,9 +2138,11 @@ export type PenyimpananDokumenMigrationResult = {
 };
 
 export type PenyimpananDokumenArchiveStore = {
+    nomor_ulok?: string | null;
     kode_toko: string | null;
     nama_toko: string | null;
     cabang: string | null;
+    proyek?: string | null;
     jumlah_dokumen: number;
     last_created_at: string | null;
 };
@@ -2170,9 +2172,11 @@ export const fetchPenyimpananDokumenArchiveStores = async (search: string): Prom
 };
 
 export const createPenyimpananDokumenArchiveStore = async (payload: {
+    nomor_ulok?: string;
     kode_toko: string;
     nama_toko: string;
     cabang: string;
+    proyek?: string;
     folder_link?: string;
 }): Promise<{ status: string; message: string; data: PenyimpananDokumenArchiveStore }> => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/archive-stores`, {

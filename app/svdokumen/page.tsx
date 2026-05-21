@@ -64,15 +64,15 @@ const ITEMS_PER_PAGE = 10;
 const getDocumentCategoryKey = (doc: PenyimpananDokumenItem) => doc.kategori_dokumen || doc.nama_dokumen;
 const isArchiveToko = (toko?: RABDetailToko | null) => Boolean(toko && toko.id < 0);
 const toArchiveToko = (
-  store: { kode_toko: string | null; nama_toko: string | null; cabang: string | null; jumlah_dokumen: number },
+  store: { nomor_ulok?: string | null; kode_toko: string | null; nama_toko: string | null; cabang: string | null; proyek?: string | null; jumlah_dokumen: number },
   index: number
 ): RABDetailToko => ({
   id: -1 * (index + 1),
-  nomor_ulok: store.kode_toko || store.nama_toko || `ARSIP-${index + 1}`,
+  nomor_ulok: store.nomor_ulok || store.kode_toko || store.nama_toko || `DATA-${index + 1}`,
   kode_toko: store.kode_toko || "",
   nama_toko: store.nama_toko || store.kode_toko || "Dokumen Toko",
   cabang: store.cabang || "-",
-  proyek: "Penyimpanan Dokumen",
+  proyek: store.proyek || "Penyimpanan Dokumen",
   lingkup_pekerjaan: "",
   alamat: "",
   nama_kontraktor: "",
@@ -138,7 +138,7 @@ export default function PenyimpananDokumenPage() {
   // Manual toko/catalog input
   const [isCreateStoreOpen, setIsCreateStoreOpen] = useState(false);
   const [isCreatingStore, setIsCreatingStore] = useState(false);
-  const [newStoreForm, setNewStoreForm] = useState({ kode_toko: '', nama_toko: '', cabang: '' });
+  const [newStoreForm, setNewStoreForm] = useState({ nomor_ulok: '', kode_toko: '', nama_toko: '', cabang: '', proyek: '' });
 
   // Delete Modal State
   const [deleteModal, setDeleteModal] = useState<PenyimpananDokumenItem | null>(null);
@@ -272,13 +272,15 @@ export default function PenyimpananDokumenPage() {
     }
 
     const payload = {
+      nomor_ulok: newStoreForm.nomor_ulok.trim(),
       kode_toko: newStoreForm.kode_toko.trim(),
       nama_toko: newStoreForm.nama_toko.trim(),
       cabang: newStoreForm.cabang.trim().toUpperCase(),
+      proyek: newStoreForm.proyek.trim(),
     };
 
-    if (!payload.kode_toko || !payload.nama_toko || !payload.cabang) {
-      showToast("Kode toko, nama toko, dan cabang wajib diisi", "error");
+    if (!payload.nomor_ulok || !payload.kode_toko || !payload.nama_toko || !payload.cabang || !payload.proyek) {
+      showToast("ULOK, kode toko, nama toko, cabang, dan proyek wajib diisi", "error");
       return;
     }
 
@@ -287,7 +289,7 @@ export default function PenyimpananDokumenPage() {
       await createPenyimpananDokumenArchiveStore(payload);
       showToast("Data toko berhasil disimpan", "success");
       setIsCreateStoreOpen(false);
-      setNewStoreForm({ kode_toko: '', nama_toko: '', cabang: '' });
+      setNewStoreForm({ nomor_ulok: '', kode_toko: '', nama_toko: '', cabang: '', proyek: '' });
       await loadTokoList(userInfo.cabang, canViewAllBranches(user?.roles ?? [], user?.isSuperHuman ?? false));
     } catch (err: any) {
       showToast(err.message || "Gagal menyimpan data toko", "error");
@@ -759,6 +761,15 @@ export default function PenyimpananDokumenPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>ULOK</Label>
+              <Input
+                value={newStoreForm.nomor_ulok}
+                onChange={e => setNewStoreForm(prev => ({ ...prev, nomor_ulok: e.target.value }))}
+                placeholder="Contoh: Z001-2601-0005"
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Kode Toko</Label>
               <Input
                 value={newStoreForm.kode_toko}
@@ -782,6 +793,15 @@ export default function PenyimpananDokumenPage() {
                 value={newStoreForm.cabang}
                 onChange={e => setNewStoreForm(prev => ({ ...prev, cabang: e.target.value }))}
                 placeholder="Contoh: CILEUNGSI"
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Proyek</Label>
+              <Input
+                value={newStoreForm.proyek}
+                onChange={e => setNewStoreForm(prev => ({ ...prev, proyek: e.target.value }))}
+                placeholder="Contoh: Alfamart Reguler"
                 className="rounded-xl"
               />
             </div>
