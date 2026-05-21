@@ -112,6 +112,16 @@ function isDokumenLengkap(toko: PenyimpananDokumenToko): boolean {
   return Number(toko.jumlah_dokumen ?? 0) > 0;
 }
 
+function getStatusMeta(toko: PenyimpananDokumenToko) {
+  const lengkap = isDokumenLengkap(toko);
+  return {
+    label: lengkap ? "Sudah Lengkap" : "Belum Lengkap",
+    className: lengkap
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-amber-50 text-amber-700 border-amber-200",
+  };
+}
+
 // ==========================================
 // MAIN COMPONENT
 // ==========================================
@@ -386,6 +396,8 @@ export default function PenyimpananDokumenPage() {
   const totalArchiveToko = archiveTokoList.length;
   const totalCombinedToko = tokoList.length + totalArchiveToko;
   const progressPercent = Math.round((totalCombinedToko / TARGET_TOTAL) * 100);
+  const totalLengkap = useMemo(() => filteredToko.filter(isDokumenLengkap).length, [filteredToko]);
+  const totalBelumLengkap = filteredToko.length - totalLengkap;
 
   const totalPages = Math.ceil(filteredToko.length / ITEMS_PER_PAGE);
   const paginatedToko = useMemo(() => {
@@ -421,27 +433,27 @@ export default function PenyimpananDokumenPage() {
   const renderList = () => (
     <div className="space-y-6">
       {/* Target Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white shadow-sm border-slate-100">
-          <CardContent className="pt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Target Reguler</div>
             <div className="text-3xl font-bold text-slate-900 mt-2">{TARGET_REGULER.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white shadow-sm border-slate-100">
-          <CardContent className="pt-6">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Target Franchise</div>
             <div className="text-3xl font-bold text-slate-900 mt-2">{TARGET_FRANCHISE.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
-        <Card className="bg-red-50 shadow-sm border-red-100">
-          <CardContent className="pt-6">
+        <Card className="bg-red-50 shadow-sm border-red-100 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-bold text-red-600 uppercase tracking-wider">Target Total</div>
             <div className="text-3xl font-extrabold text-red-700 mt-2">{TARGET_TOTAL.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white shadow-sm border-slate-100">
-          <CardContent className="pt-6">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Progress Input Data</div>
             <div className="text-xl font-extrabold text-slate-900 mt-2">
               {totalCombinedToko.toLocaleString('id-ID')} / {TARGET_TOTAL.toLocaleString('id-ID')} Toko ({progressPercent}%)
@@ -454,21 +466,33 @@ export default function PenyimpananDokumenPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-white shadow-sm border-slate-100">
-          <CardContent className="pt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Toko</div>
             <div className="text-3xl font-bold text-slate-900 mt-1">{totalCombinedToko}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white shadow-sm border-slate-100">
-          <CardContent className="pt-6">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Hasil Filter</div>
             <div className="text-3xl font-bold text-slate-900 mt-1">{filteredToko.length}</div>
           </CardContent>
         </Card>
-        <Card className="bg-red-600 text-white shadow-md border-none">
-          <CardContent className="pt-6">
+        <Card className="bg-emerald-50 shadow-sm border-emerald-100 rounded-2xl">
+          <CardContent className="p-5">
+            <div className="text-sm font-medium text-emerald-700 uppercase tracking-wider">Sudah Lengkap</div>
+            <div className="text-3xl font-bold text-emerald-800 mt-1">{totalLengkap}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-50 shadow-sm border-amber-100 rounded-2xl">
+          <CardContent className="p-5">
+            <div className="text-sm font-medium text-amber-700 uppercase tracking-wider">Belum Lengkap</div>
+            <div className="text-3xl font-bold text-amber-800 mt-1">{totalBelumLengkap}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl">
+          <CardContent className="p-5">
             <div className="text-sm font-medium text-red-100 uppercase tracking-wider">Cabang</div>
             <div className="text-3xl font-extrabold mt-1">{cabangOptions.length}</div>
           </CardContent>
@@ -476,10 +500,11 @@ export default function PenyimpananDokumenPage() {
       </div>
 
       {/* Controls */}
-      <Card className="shadow-sm">
-        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-1 gap-4 w-full">
-            <div className="relative flex-1 max-w-md">
+      <Card className="shadow-sm border-slate-200 rounded-2xl">
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+            <div className="flex flex-col md:flex-row flex-1 gap-3 w-full">
+              <div className="relative flex-1 min-w-[240px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Cari ULOK, nama, atau kode toko..."
@@ -488,8 +513,8 @@ export default function PenyimpananDokumenPage() {
                 onChange={e => { setSearchToko(e.target.value); setCurrentPage(1); }}
               />
             </div>
-            <Select value={filterStatus} onValueChange={(v: 'all' | 'lengkap' | 'belum') => { setFilterStatus(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-48 h-10 rounded-xl">
+              <Select value={filterStatus} onValueChange={(v: 'all' | 'lengkap' | 'belum') => { setFilterStatus(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-full md:w-48 h-10 rounded-xl bg-white">
                 <SelectValue placeholder="Semua Status" />
               </SelectTrigger>
               <SelectContent>
@@ -500,7 +525,7 @@ export default function PenyimpananDokumenPage() {
             </Select>
             {cabangOptions.length > 1 && (
               <Select value={filterCabang} onValueChange={v => { setFilterCabang(v); setCurrentPage(1); }}>
-                <SelectTrigger className="w-50 h-10 rounded-xl">
+                <SelectTrigger className="w-full md:w-50 h-10 rounded-xl bg-white">
                   <SelectValue placeholder="Semua Cabang" />
                 </SelectTrigger>
                 <SelectContent>
@@ -511,17 +536,18 @@ export default function PenyimpananDokumenPage() {
                 </SelectContent>
               </Select>
             )}
-          </div>
+            </div>
           {!isReadOnly && (
-            <Button className="rounded-xl bg-red-600 hover:bg-red-700 text-white gap-2" onClick={() => setIsCreateStoreOpen(true)}>
+            <Button className="rounded-xl bg-red-600 hover:bg-red-700 text-white gap-2 h-10 shrink-0" onClick={() => setIsCreateStoreOpen(true)}>
               <PlusCircle className="w-4 h-4" /> Tambah Data
             </Button>
           )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <Card className="shadow-sm overflow-hidden border-slate-100">
+      <Card className="shadow-sm overflow-hidden border-slate-200 rounded-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
@@ -532,34 +558,41 @@ export default function PenyimpananDokumenPage() {
                 <th className="px-6 py-4">Nama Toko</th>
                 <th className="px-6 py-4">Cabang</th>
                 <th className="px-6 py-4">Proyek</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {paginatedToko.length > 0 ? paginatedToko.map((toko, i) => (
-                <tr key={toko.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4 text-slate-500">{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900 tracking-tight">{toko.nomor_ulok}</td>
-                  <td className="px-6 py-4 font-semibold text-slate-700">{toko.kode_toko || '-'}</td>
-                  <td className="px-6 py-4 font-medium text-slate-700">{toko.nama_toko}</td>
-                  <td className="px-6 py-4 text-slate-600">{toko.cabang}</td>
-                  <td className="px-6 py-4">
-                    <Badge className="bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-100">{toko.proyek || '-'}</Badge>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg text-xs gap-1.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
-                      onClick={() => openDetail(toko)}
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" /> Kelola Dokumen
-                    </Button>
-                  </td>
-                </tr>
-              )) : (
+              {paginatedToko.length > 0 ? paginatedToko.map((toko, i) => {
+                const status = getStatusMeta(toko);
+                return (
+                  <tr key={toko.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-6 py-4 text-slate-500">{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 tracking-tight">{toko.nomor_ulok}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-700">{toko.kode_toko || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">{toko.nama_toko}</td>
+                    <td className="px-6 py-4 text-slate-600">{getBranchLocationName(toko.cabang)}</td>
+                    <td className="px-6 py-4">
+                      <Badge className="bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-100">{toko.proyek || '-'}</Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge className={`${status.className} border`}>{status.label}</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg text-xs gap-1.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                        onClick={() => openDetail(toko)}
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" /> Kelola Dokumen
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              }) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">Tidak ada toko ditemukan</td>
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic">Tidak ada toko ditemukan</td>
                 </tr>
               )}
             </tbody>
