@@ -58,6 +58,9 @@ const DOCUMENT_CATEGORIES = [
   { key: "aanwijzing", label: "Aanwijzing", group: "Dokumen" },
   { key: "kerjaTambahKurang", label: "Kerja Tambah Kurang", group: "Dokumen" },
 ];
+const REQUIRED_DOCUMENT_CATEGORY_KEYS = DOCUMENT_CATEGORIES
+  .map(category => category.key)
+  .filter(key => key !== "pendukung");
 
 const ITEMS_PER_PAGE = 10;
 const TARGET_REGULER = 15322;
@@ -68,10 +71,13 @@ const HIDDEN_BRANCHES = new Set(["-", "HEAD OFFICE", "TESTING"]);
 const getDocumentCategoryKey = (doc: PenyimpananDokumenItem) => doc.kategori_dokumen || doc.nama_dokumen;
 const isArchiveToko = (toko?: RABDetailToko | null) => Boolean(toko && toko.id < 0);
 type PenyimpananDokumenToko = RABDetailToko & { jumlah_dokumen?: number };
+type PenyimpananDokumenTokoWithStatus = PenyimpananDokumenToko & {
+  kategori_counts?: Record<string, number>;
+};
 const toArchiveToko = (
-  store: { nomor_ulok?: string | null; kode_toko: string | null; nama_toko: string | null; cabang: string | null; proyek?: string | null; jumlah_dokumen: number },
+  store: { nomor_ulok?: string | null; kode_toko: string | null; nama_toko: string | null; cabang: string | null; proyek?: string | null; jumlah_dokumen: number; kategori_counts?: Record<string, number> },
   index: number
-): PenyimpananDokumenToko => ({
+): PenyimpananDokumenTokoWithStatus => ({
   id: -1 * (index + 1),
   nomor_ulok: store.nomor_ulok || store.kode_toko || store.nama_toko || `DATA-${index + 1}`,
   kode_toko: store.kode_toko || "",
@@ -82,6 +88,7 @@ const toArchiveToko = (
   alamat: "",
   nama_kontraktor: "",
   jumlah_dokumen: store.jumlah_dokumen,
+  kategori_counts: store.kategori_counts ?? {},
 });
 
 /** Resolve cabang list user boleh lihat (termasuk sub-branch) */
@@ -108,11 +115,12 @@ function isHiddenBranch(cabang?: string | null): boolean {
   return HIDDEN_BRANCHES.has(getBranchLocationName(cabang));
 }
 
-function isDokumenLengkap(toko: PenyimpananDokumenToko): boolean {
-  return Number(toko.jumlah_dokumen ?? 0) > 0;
+function isDokumenLengkap(toko: PenyimpananDokumenTokoWithStatus): boolean {
+  const counts = toko.kategori_counts ?? {};
+  return REQUIRED_DOCUMENT_CATEGORY_KEYS.every(key => Number(counts[key] ?? 0) > 0);
 }
 
-function getStatusMeta(toko: PenyimpananDokumenToko) {
+function getStatusMeta(toko: PenyimpananDokumenTokoWithStatus) {
   const lengkap = isDokumenLengkap(toko);
   return {
     label: lengkap ? "Sudah Lengkap" : "Belum Lengkap",
@@ -124,7 +132,7 @@ function getStatusMeta(toko: PenyimpananDokumenToko) {
 
 const exportHeaders = ["No", "ULOK", "Kode Toko", "Nama Toko", "Cabang", "Proyek", "Status", "Jumlah Dokumen"];
 
-function buildExportRows(rows: PenyimpananDokumenToko[]) {
+function buildExportRows(rows: PenyimpananDokumenTokoWithStatus[]) {
   return rows.map((toko, index) => [
     index + 1,
     toko.nomor_ulok || "-",
@@ -180,8 +188,8 @@ export default function PenyimpananDokumenPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Data
-  const [tokoList, setTokoList] = useState<PenyimpananDokumenToko[]>([]);
-  const [archiveTokoList, setArchiveTokoList] = useState<PenyimpananDokumenToko[]>([]);
+  const [tokoList, setTokoList] = useState<PenyimpananDokumenTokoWithStatus[]>([]);
+  const [archiveTokoList, setArchiveTokoList] = useState<PenyimpananDokumenTokoWithStatus[]>([]);
   const [documents, setDocuments] = useState<PenyimpananDokumenItem[]>([]);
   const [selectedToko, setSelectedToko] = useState<RABDetailToko | null>(null);
 
@@ -568,7 +576,7 @@ export default function PenyimpananDokumenPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
           <CardContent className="p-3 sm:p-5">
             <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Total Toko</div>
@@ -581,19 +589,16 @@ export default function PenyimpananDokumenPage() {
             <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">{filteredToko.length}</div>
           </CardContent>
         </Card>
-        <Card className="bg-emerald-50 shadow-sm border-emerald-100 rounded-2xl">
+        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
           <CardContent className="p-3 sm:p-5">
-            <div className="text-[10px] sm:text-sm font-medium text-emerald-700 uppercase tracking-wider leading-tight">Sudah Lengkap</div>
-            <div className="text-xl sm:text-3xl font-bold text-emerald-800 mt-1">{totalLengkap}</div>
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Dokumen Terisi</div>
+            <div className="flex items-end gap-2 mt-1">
+              <div className="text-xl sm:text-3xl font-bold text-slate-900">{totalLengkap}</div>
+              <div className="text-xs sm:text-sm text-slate-500 pb-0.5">toko</div>
+            </div>
           </CardContent>
         </Card>
-        <Card className="bg-amber-50 shadow-sm border-amber-100 rounded-2xl">
-          <CardContent className="p-3 sm:p-5">
-            <div className="text-[10px] sm:text-sm font-medium text-amber-700 uppercase tracking-wider leading-tight">Belum Lengkap</div>
-            <div className="text-xl sm:text-3xl font-bold text-amber-800 mt-1">{totalBelumLengkap}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl col-span-2 xl:col-span-1">
+        <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl">
           <CardContent className="p-3 sm:p-5">
             <div className="text-[10px] sm:text-sm font-medium text-red-100 uppercase tracking-wider leading-tight">Cabang</div>
             <div className="text-xl sm:text-3xl font-extrabold mt-1">{cabangOptions.length}</div>
@@ -657,6 +662,13 @@ export default function PenyimpananDokumenPage() {
                 </Button>
               )}
             </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-500">Ringkasan filter:</span>
+            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">{totalLengkap} sudah terisi</Badge>
+            <Badge className="bg-amber-50 text-amber-700 border-amber-200">{totalBelumLengkap} belum terisi</Badge>
+            {filterCabang !== 'all' && <Badge variant="secondary">{filterCabang}</Badge>}
+            {filterStatus !== 'all' && <Badge variant="secondary">{filterStatus === 'lengkap' ? 'Sudah Lengkap' : 'Belum Lengkap'}</Badge>}
           </div>
         </CardContent>
       </Card>

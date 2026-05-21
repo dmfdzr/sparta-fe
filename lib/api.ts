@@ -2144,6 +2144,7 @@ export type PenyimpananDokumenArchiveStore = {
     cabang: string | null;
     proyek?: string | null;
     jumlah_dokumen: number;
+    kategori_counts?: Record<string, number>;
     last_created_at: string | null;
 };
 
