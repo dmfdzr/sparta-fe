@@ -7,7 +7,7 @@ import {
     FileText, Stamp, FileSignature, Users, CheckSquare,
     Camera, FilePlus, FolderArchive, BarChartHorizontal,
     AlertTriangle, Activity, PieChart, ClipboardCheck,
-    FileStack, ClipboardList, FileEdit,
+    FileStack, ClipboardList, FileEdit, Upload,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -79,6 +79,13 @@ export const ALL_MENUS = [
         desc: "Form penyimpanan dokumen.",
         href: "/svdokumen",
         icon: FolderArchive,
+    },
+    {
+        id: "menu-migrasi-dokumen",
+        title: "Migrasi Dokumen",
+        desc: "Upload Excel penyimpanan dokumen.",
+        href: "/svdokumen/migrasi",
+        icon: Upload,
     },
     {
         id: "menu-gantt",
@@ -202,7 +209,7 @@ export const ROLE_CONFIG: Record<string, string[]> = {
     // ─── Super Human: akses penuh ke semua menu ───────────────────────────────
     "BUILDING & MAINTENANCE SUPER HUMAN": [
         "menu-rab", "menu-ubah-rab-item", "menu-spk", "menu-inputpic", "menu-opname",
-        "menu-dokumentasi", "menu-tambahspk", "menu-svdokumen",
+        "menu-dokumentasi", "menu-tambahspk", "menu-svdokumen", "menu-migrasi-dokumen",
         "menu-gantt", "menu-sp", "menu-approval", "menu-daftardokumen",
         "menu-il", "menu-users", "menu-projek-planning",
     ],

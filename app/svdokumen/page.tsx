@@ -59,6 +59,8 @@ const DOCUMENT_CATEGORIES = [
 
 const ITEMS_PER_PAGE = 10;
 
+const getDocumentCategoryKey = (doc: PenyimpananDokumenItem) => doc.kategori_dokumen || doc.nama_dokumen;
+
 /** Resolve cabang list user boleh lihat (termasuk sub-branch) */
 function getVisibleBranches(cabang: string, canSeeAllBranches = false): string[] | null {
   if (canSeeAllBranches) return null;
@@ -151,10 +153,15 @@ export default function PenyimpananDokumenPage() {
     }
   };
 
-  const loadDocuments = useCallback(async (idToko: number) => {
+  const loadDocuments = useCallback(async (toko: RABDetailToko) => {
     setIsLoadingDocs(true);
     try {
-      const res = await fetchPenyimpananDokumenList({ id_toko: idToko });
+      const res = await fetchPenyimpananDokumenList({
+        id_toko: toko.id,
+        kode_toko: toko.kode_toko || toko.nomor_ulok,
+        nama_toko: toko.nama_toko,
+        cabang: toko.cabang,
+      });
       setDocuments(res.data || []);
     } catch (err: any) {
       console.error(err);
@@ -168,7 +175,7 @@ export default function PenyimpananDokumenPage() {
   const openDetail = (toko: RABDetailToko) => {
     setSelectedToko(toko);
     setView('detail');
-    loadDocuments(toko.id);
+    loadDocuments(toko);
   };
 
   const backToList = () => {
@@ -199,7 +206,7 @@ export default function PenyimpananDokumenPage() {
         Array.from(files)
       );
       showToast(`${files.length} file berhasil diupload`, "success");
-      loadDocuments(selectedToko.id);
+      loadDocuments(selectedToko);
     } catch (err: any) {
       showToast(err.message || "Gagal upload", "error");
     } finally {
@@ -220,7 +227,7 @@ export default function PenyimpananDokumenPage() {
       showToast("Dokumen berhasil diperbarui", "success");
       setEditingDoc(null);
       setNewFile(null);
-      loadDocuments(selectedToko.id);
+      loadDocuments(selectedToko);
     } catch (err: any) {
       showToast(err.message || "Gagal memperbarui dokumen", "error");
     } finally {
@@ -243,7 +250,7 @@ export default function PenyimpananDokumenPage() {
       await deletePenyimpananDokumen(deleteModal.id);
       showToast("Dokumen berhasil dihapus", "success");
       setDeleteModal(null);
-      if (selectedToko) loadDocuments(selectedToko.id);
+      if (selectedToko) loadDocuments(selectedToko);
     } catch (err: any) {
       showToast(err.message || "Gagal menghapus", "error");
     } finally {
@@ -281,7 +288,8 @@ export default function PenyimpananDokumenPage() {
     const map: Record<string, PenyimpananDokumenItem[]> = {};
     DOCUMENT_CATEGORIES.forEach(c => { map[c.key] = []; });
     documents.forEach(d => {
-      if (map[d.nama_dokumen]) map[d.nama_dokumen].push(d);
+      const categoryKey = getDocumentCategoryKey(d);
+      if (map[categoryKey]) map[categoryKey].push(d);
       else {
         // dokumen yang kategori-nya tidak cocok, masuk "pendukung"
         map["pendukung"] = map["pendukung"] || [];
@@ -445,7 +453,7 @@ export default function PenyimpananDokumenPage() {
                 </a>
               </Button>
             )}
-            <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={() => loadDocuments(selectedToko.id)} disabled={isLoadingDocs}>
+            <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={() => loadDocuments(selectedToko)} disabled={isLoadingDocs}>
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDocs ? 'animate-spin' : ''}`} /> Refresh
             </Button>
           </div>
@@ -461,7 +469,7 @@ export default function PenyimpananDokumenPage() {
           </Card>
           {['Foto', 'Gambar', 'Dokumen'].map(g => {
             const cats = DOCUMENT_CATEGORIES.filter(c => c.group === g).map(c => c.key);
-            const count = documents.filter(d => cats.includes(d.nama_dokumen)).length;
+            const count = documents.filter(d => cats.includes(getDocumentCategoryKey(d))).length;
             return (
               <Card key={g} className="bg-white shadow-sm border-slate-100">
                 <CardContent className="py-4 px-5">
@@ -519,7 +527,7 @@ export default function PenyimpananDokumenPage() {
                           {catDocs.map(doc => (
                             <div key={doc.id} className="flex items-center justify-between gap-2 p-1.5 bg-white border border-slate-100 rounded-lg text-xs group/file hover:border-slate-200 transition-colors">
                               <a
-                                href={doc.link_dokumen}
+                                href={doc.link_dokumen || "#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 truncate flex-1 text-blue-600 hover:underline"

@@ -2094,18 +2094,45 @@ export const fetchDashboardAll = async (search?: string) => {
 
 export type PenyimpananDokumenItem = {
     id:              number;
-    id_toko:         number;
+    id_toko:         number | null;
     nama_dokumen:    string;
-    drive_file_id:   string;
-    drive_folder_id: string;
-    link_dokumen:    string;
-    link_folder:     string;
+    drive_file_id:   string | null;
+    drive_folder_id: string | null;
+    link_dokumen:    string | null;
+    link_folder:     string | null;
+    kode_toko?:      string | null;
+    nama_toko?:      string | null;
+    cabang?:         string | null;
+    kategori_dokumen?: string | null;
+    source_timestamp?: string | null;
+    source_last_edit?: string | null;
+    migrated_at?:    string | null;
     created_at:      string;
 };
 
 export type PenyimpananDokumenListFilters = {
     id_toko?:       number;
     nama_dokumen?:  string;
+    kode_toko?:     string;
+    nama_toko?:     string;
+    cabang?:        string;
+};
+
+export type PenyimpananDokumenMigrationResult = {
+    totalRows: number;
+    rowsWithFiles: number;
+    emptyFileRows: number;
+    parsedDocuments: number;
+    inserted?: number;
+    skippedDuplicates?: number;
+    unparsedRows: Array<{ rowNumber: number; kode_toko: string | null; reason: string }>;
+    categoryCounts: Record<string, number>;
+    sourceCategoryCounts: Record<string, number>;
+    sample: Array<Partial<PenyimpananDokumenItem> & {
+        kategori_dokumen: string;
+        nama_dokumen: string;
+        link_dokumen: string;
+    }>;
 };
 
 // --- Fungsi ---
@@ -2118,9 +2145,38 @@ export const fetchPenyimpananDokumenList = async (
     const params = new URLSearchParams();
     if (filters?.id_toko) params.append("id_toko", filters.id_toko.toString());
     if (filters?.nama_dokumen) params.append("nama_dokumen", filters.nama_dokumen);
+    if (filters?.kode_toko) params.append("kode_toko", filters.kode_toko);
+    if (filters?.nama_toko) params.append("nama_toko", filters.nama_toko);
+    if (filters?.cabang) params.append("cabang", filters.cabang);
     const url = `${base}/api/doc/penyimpanan-dokumen${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url);
 };
+
+const postPenyimpananDokumenMigration = async (
+    endpoint: "migration-preview" | "migration-commit",
+    file: File,
+    actorRole: string
+): Promise<{ status: string; message: string; data: PenyimpananDokumenMigrationResult }> => {
+    const form = new FormData();
+    form.append("actor_role", actorRole);
+    form.append("excel", file);
+
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/${endpoint}`, {
+        method: "POST",
+        body: form,
+    });
+    const result = await res.json();
+    if (res.status === 403) throw new Error(result.message || "Hanya Super Human yang bisa migrasi dokumen.");
+    if (res.status === 400) throw new Error(result.message || "File Excel tidak valid.");
+    if (!res.ok) throw new Error(result.message || "Gagal memproses migrasi dokumen.");
+    return result;
+};
+
+export const previewPenyimpananDokumenMigration = async (file: File, actorRole: string) =>
+    postPenyimpananDokumenMigration("migration-preview", file, actorRole);
+
+export const commitPenyimpananDokumenMigration = async (file: File, actorRole: string) =>
+    postPenyimpananDokumenMigration("migration-commit", file, actorRole);
 
 /** Detail dokumen penyimpanan (GET /api/doc/penyimpanan-dokumen/:id) */
 export const fetchPenyimpananDokumenDetail = async (
