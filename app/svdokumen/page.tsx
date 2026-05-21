@@ -106,6 +106,7 @@ export default function PenyimpananDokumenPage() {
 
   // Data
   const [tokoList, setTokoList] = useState<RABDetailToko[]>([]);
+  const [archiveTokoList, setArchiveTokoList] = useState<RABDetailToko[]>([]);
   const [documents, setDocuments] = useState<PenyimpananDokumenItem[]>([]);
   const [selectedToko, setSelectedToko] = useState<RABDetailToko | null>(null);
 
@@ -136,6 +137,10 @@ export default function PenyimpananDokumenPage() {
     return isViewOnlyUser(userInfo.role, user?.isSuperHuman ?? false);
   }, [userInfo.role, user?.isSuperHuman]);
 
+  const visibleBranches = useMemo(() => {
+    return getVisibleBranches(userInfo.cabang, canViewAllBranches(user?.roles, user?.isSuperHuman ?? false));
+  }, [user?.isSuperHuman, user?.roles, userInfo.cabang]);
+
   // ==========================================
   // INIT
   // ==========================================
@@ -161,19 +166,6 @@ export default function PenyimpananDokumenPage() {
         ? res.data.filter(t => visible.includes((t.cabang || '').toUpperCase()))
         : res.data;
       setTokoList(filtered);
-      setIsLoading(false);
-
-      try {
-        const archiveRes = await fetchPenyimpananDokumenArchiveStores();
-        const archiveStores = (archiveRes.data || [])
-          .filter(store => store.kode_toko || store.nama_toko)
-          .filter(store => !visible || visible.includes((store.cabang || '').toUpperCase()))
-          .map(toArchiveToko);
-        setTokoList([...archiveStores, ...filtered]);
-      } catch (archiveErr) {
-        console.error(archiveErr);
-        showToast("Data toko tampil, tapi arsip migrasi belum bisa dimuat", "info");
-      }
     } catch (err: any) {
       console.error(err);
       showToast("Gagal memuat data toko", "error");
@@ -181,6 +173,35 @@ export default function PenyimpananDokumenPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const keyword = searchToko.trim();
+    if (keyword.length < 2) {
+      setArchiveTokoList([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const archiveRes = await fetchPenyimpananDokumenArchiveStores(keyword);
+        if (isCancelled) return;
+        const archiveStores = (archiveRes.data || [])
+          .filter(store => store.kode_toko || store.nama_toko)
+          .filter(store => !visibleBranches || visibleBranches.includes((store.cabang || '').toUpperCase()))
+          .map(toArchiveToko);
+        setArchiveTokoList(archiveStores);
+      } catch (err) {
+        console.error(err);
+        if (!isCancelled) setArchiveTokoList([]);
+      }
+    }, 450);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [searchToko, visibleBranches]);
 
   const loadDocuments = useCallback(async (toko: RABDetailToko) => {
     setIsLoadingDocs(true);
@@ -296,11 +317,12 @@ export default function PenyimpananDokumenPage() {
   // ==========================================
 
   const cabangOptions = useMemo(() => {
-    return Array.from(new Set(tokoList.map(t => t.cabang))).sort();
-  }, [tokoList]);
+    return Array.from(new Set([...archiveTokoList, ...tokoList].map(t => t.cabang))).sort();
+  }, [archiveTokoList, tokoList]);
 
   const filteredToko = useMemo(() => {
-    return tokoList.filter(t => {
+    const combined = [...archiveTokoList, ...tokoList];
+    return combined.filter(t => {
       const q = searchToko.toLowerCase();
       const matchSearch = !q || (t.nama_toko || '').toLowerCase().includes(q)
         || (t.nomor_ulok || '').toLowerCase().includes(q)

@@ -2160,8 +2160,11 @@ export const fetchPenyimpananDokumenList = async (
     return safeFetchJSON(url);
 };
 
-export const fetchPenyimpananDokumenArchiveStores = async (): Promise<{ status: string; data: PenyimpananDokumenArchiveStore[] }> => {
-    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/archive-stores`);
+export const fetchPenyimpananDokumenArchiveStores = async (search: string): Promise<{ status: string; data: PenyimpananDokumenArchiveStore[] }> => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.append("search", search.trim());
+    const suffix = params.toString() ? `?${params}` : "";
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/archive-stores${suffix}`);
 };
 
 const postPenyimpananDokumenMigration = async (

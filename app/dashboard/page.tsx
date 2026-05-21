@@ -13,7 +13,7 @@ import {
 import AppNavbar from '@/components/AppNavbar';
 import { ALL_MENUS, ROLE_CONFIG, canAccessProjectPlanningByCabang, canViewAllBranches } from '@/lib/constants';
 import { formatRupiah, parseCurrency } from '@/lib/utils';
-import { checkRevisionStatus, fetchDashboardAll, fetchRABDetail, fetchOpnameList } from '@/lib/api';
+import { checkRevisionStatus, fetchDashboardAll, fetchOpnameList } from '@/lib/api';
 import {
     EMPTY_APPROVAL_COUNTS,
     fetchApprovalNotificationCounts,
@@ -64,7 +64,6 @@ export default function DashboardPage() {
 
     // RAB items map keyed by rab.id — populated once after dashboard load
     const [rabItemsMap, setRabItemsMap] = useState<Record<number, any[]>>({});
-    const rabFetched = useRef(false);
 
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
     const [featureAlertOpen, setFeatureAlertOpen] = useState(false);
@@ -164,29 +163,6 @@ export default function DashboardPage() {
 
             setProjects(data);
 
-            // Fetch semua RAB items sekaligus (background) untuk Cost/m2 & Beanspot
-            if (!rabFetched.current) {
-                rabFetched.current = true;
-                const rabIds: number[] = [];
-                data.forEach((p: any) => {
-                    const rabs = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
-                    rabs.forEach((r: any) => { if (r?.id) rabIds.push(r.id); });
-                });
-                if (rabIds.length > 0) {
-                    const BATCH = 20;
-                    const newMap: Record<number, any[]> = {};
-                    for (let i = 0; i < rabIds.length; i += BATCH) {
-                        const batch = rabIds.slice(i, i + BATCH);
-                        await Promise.all(batch.map(async (id) => {
-                            try {
-                                const res = await fetchRABDetail(id);
-                                newMap[id] = res?.data?.items || [];
-                            } catch { newMap[id] = []; }
-                        }));
-                        setRabItemsMap(prev => ({ ...prev, ...newMap }));
-                    }
-                }
-            }
         } catch (err) {
             console.error('Gagal memuat data dashboard:', err);
             setProjects([]);
