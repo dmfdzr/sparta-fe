@@ -7,7 +7,7 @@ import {
   Search, ExternalLink, PlusCircle, X, File,
   CheckCircle, AlertCircle, AlertTriangle, Loader2, ArrowLeft, FolderOpen,
   Trash2, Upload, ChevronLeft, ChevronRight, Eye, FolderArchive,
-  FileText, RefreshCw, Edit, Save, MoreVertical
+  FileText, RefreshCw, Edit, Save, MoreVertical, Download
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -120,6 +120,46 @@ function getStatusMeta(toko: PenyimpananDokumenToko) {
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : "bg-amber-50 text-amber-700 border-amber-200",
   };
+}
+
+const exportHeaders = ["No", "ULOK", "Kode Toko", "Nama Toko", "Cabang", "Proyek", "Status", "Jumlah Dokumen"];
+
+function buildExportRows(rows: PenyimpananDokumenToko[]) {
+  return rows.map((toko, index) => [
+    index + 1,
+    toko.nomor_ulok || "-",
+    toko.kode_toko || "-",
+    toko.nama_toko || "-",
+    getBranchLocationName(toko.cabang),
+    toko.proyek || "-",
+    getStatusMeta(toko).label,
+    Number(toko.jumlah_dokumen ?? 0),
+  ]);
+}
+
+function downloadBlob(content: BlobPart, filename: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function escapeCsv(value: unknown) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ==========================================
@@ -367,6 +407,68 @@ export default function PenyimpananDokumenPage() {
     }
   };
 
+  const handleExport = async (format: "csv" | "excel" | "pdf") => {
+    const rows = buildExportRows(filteredToko);
+    if (rows.length === 0) {
+      showToast("Tidak ada data untuk diexport", "info");
+      return;
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+    const filenameBase = `penyimpanan-dokumen-toko-${date}`;
+
+    if (format === "csv") {
+      const csv = [exportHeaders, ...rows].map(row => row.map(escapeCsv).join(",")).join("\r\n");
+      downloadBlob(`\uFEFF${csv}`, `${filenameBase}.csv`, "text/csv;charset=utf-8");
+      return;
+    }
+
+    if (format === "excel") {
+      const htmlRows = [exportHeaders, ...rows]
+        .map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+        .join("");
+      const html = `
+        <html>
+          <head><meta charset="utf-8" /></head>
+          <body>
+            <table border="1">${htmlRows}</table>
+          </body>
+        </html>
+      `;
+      downloadBlob(html, `${filenameBase}.xls`, "application/vnd.ms-excel;charset=utf-8");
+      return;
+    }
+
+    const [{ default: jsPDF }, autoTableModule] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+    const autoTable = (autoTableModule as any).default;
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Penyimpanan Dokumen Toko", 40, 40);
+    doc.setFontSize(9);
+    doc.text(`Export: ${new Date().toLocaleString("id-ID")} | Data: ${rows.length}`, 40, 58);
+    autoTable(doc, {
+      head: [exportHeaders],
+      body: rows,
+      startY: 76,
+      styles: { fontSize: 7, cellPadding: 4 },
+      headStyles: { fillColor: [220, 38, 38] },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 82 },
+        2: { cellWidth: 64 },
+        3: { cellWidth: 150 },
+        4: { cellWidth: 86 },
+        5: { cellWidth: 110 },
+        6: { cellWidth: 78 },
+        7: { cellWidth: 64 },
+      },
+    });
+    doc.save(`${filenameBase}.pdf`);
+  };
+
   // ==========================================
   // FILTERED DATA
   // ==========================================
@@ -433,32 +535,32 @@ export default function PenyimpananDokumenPage() {
   const renderList = () => (
     <div className="space-y-6">
       {/* Target Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Target Reguler</div>
-            <div className="text-3xl font-bold text-slate-900 mt-2">{TARGET_REGULER.toLocaleString('id-ID')}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Target Reguler</div>
+            <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{TARGET_REGULER.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Target Franchise</div>
-            <div className="text-3xl font-bold text-slate-900 mt-2">{TARGET_FRANCHISE.toLocaleString('id-ID')}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Target Franchise</div>
+            <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{TARGET_FRANCHISE.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
         <Card className="bg-red-50 shadow-sm border-red-100 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-bold text-red-600 uppercase tracking-wider">Target Total</div>
-            <div className="text-3xl font-extrabold text-red-700 mt-2">{TARGET_TOTAL.toLocaleString('id-ID')}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-bold text-red-600 uppercase tracking-wider leading-tight">Target Total</div>
+            <div className="text-xl sm:text-3xl font-extrabold text-red-700 mt-1 sm:mt-2">{TARGET_TOTAL.toLocaleString('id-ID')}</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Progress Input Data</div>
-            <div className="text-xl font-extrabold text-slate-900 mt-2">
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Progress Input Data</div>
+            <div className="text-sm sm:text-xl font-extrabold text-slate-900 mt-1 sm:mt-2 leading-snug">
               {totalCombinedToko.toLocaleString('id-ID')} / {TARGET_TOTAL.toLocaleString('id-ID')} Toko ({progressPercent}%)
             </div>
-            <div className="h-3 bg-slate-200 rounded-full mt-3 overflow-hidden">
+            <div className="h-2 sm:h-3 bg-slate-200 rounded-full mt-2 sm:mt-3 overflow-hidden">
               <div className="h-full bg-red-500 rounded-full" style={{ width: `${Math.min(progressPercent, 100)}%` }} />
             </div>
           </CardContent>
@@ -466,35 +568,35 @@ export default function PenyimpananDokumenPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Toko</div>
-            <div className="text-3xl font-bold text-slate-900 mt-1">{totalCombinedToko}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Total Toko</div>
+            <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">{totalCombinedToko}</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-wider">Hasil Filter</div>
-            <div className="text-3xl font-bold text-slate-900 mt-1">{filteredToko.length}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Hasil Filter</div>
+            <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">{filteredToko.length}</div>
           </CardContent>
         </Card>
         <Card className="bg-emerald-50 shadow-sm border-emerald-100 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-emerald-700 uppercase tracking-wider">Sudah Lengkap</div>
-            <div className="text-3xl font-bold text-emerald-800 mt-1">{totalLengkap}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-emerald-700 uppercase tracking-wider leading-tight">Sudah Lengkap</div>
+            <div className="text-xl sm:text-3xl font-bold text-emerald-800 mt-1">{totalLengkap}</div>
           </CardContent>
         </Card>
         <Card className="bg-amber-50 shadow-sm border-amber-100 rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-amber-700 uppercase tracking-wider">Belum Lengkap</div>
-            <div className="text-3xl font-bold text-amber-800 mt-1">{totalBelumLengkap}</div>
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-amber-700 uppercase tracking-wider leading-tight">Belum Lengkap</div>
+            <div className="text-xl sm:text-3xl font-bold text-amber-800 mt-1">{totalBelumLengkap}</div>
           </CardContent>
         </Card>
-        <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl">
-          <CardContent className="p-5">
-            <div className="text-sm font-medium text-red-100 uppercase tracking-wider">Cabang</div>
-            <div className="text-3xl font-extrabold mt-1">{cabangOptions.length}</div>
+        <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl col-span-2 xl:col-span-1">
+          <CardContent className="p-3 sm:p-5">
+            <div className="text-[10px] sm:text-sm font-medium text-red-100 uppercase tracking-wider leading-tight">Cabang</div>
+            <div className="text-xl sm:text-3xl font-extrabold mt-1">{cabangOptions.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -537,11 +639,24 @@ export default function PenyimpananDokumenPage() {
               </Select>
             )}
             </div>
-          {!isReadOnly && (
-            <Button className="rounded-xl bg-red-600 hover:bg-red-700 text-white gap-2 h-10 shrink-0" onClick={() => setIsCreateStoreOpen(true)}>
-              <PlusCircle className="w-4 h-4" /> Tambah Data
-            </Button>
-          )}
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+              <div className="grid grid-cols-3 gap-2 sm:flex">
+                <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs sm:text-sm" onClick={() => handleExport("csv")}>
+                  <Download className="w-3.5 h-3.5" /> CSV
+                </Button>
+                <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs sm:text-sm" onClick={() => handleExport("excel")}>
+                  <Download className="w-3.5 h-3.5" /> Excel
+                </Button>
+                <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs sm:text-sm" onClick={() => handleExport("pdf")}>
+                  <Download className="w-3.5 h-3.5" /> PDF
+                </Button>
+              </div>
+              {!isReadOnly && (
+                <Button className="rounded-xl bg-red-600 hover:bg-red-700 text-white gap-2 h-10 shrink-0" onClick={() => setIsCreateStoreOpen(true)}>
+                  <PlusCircle className="w-4 h-4" /> Tambah Data
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
