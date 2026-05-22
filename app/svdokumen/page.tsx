@@ -189,20 +189,46 @@ function escapeHtml(value: unknown) {
     .replace(/"/g, "&quot;");
 }
 
-async function loadImageAsDataUrl(src: string): Promise<string | null> {
+type PdfImageAsset = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
+
+async function loadImageAsDataUrl(src: string): Promise<PdfImageAsset | null> {
   try {
     const response = await fetch(src);
     if (!response.ok) return null;
     const blob = await response.blob();
-    return await new Promise((resolve) => {
+    const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
+    if (!dataUrl) return null;
+
+    return await new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve({ dataUrl, width: image.naturalWidth || 1, height: image.naturalHeight || 1 });
+      image.onerror = () => resolve({ dataUrl, width: 1, height: 1 });
+      image.src = dataUrl;
+    });
   } catch {
     return null;
   }
+}
+
+function containImageSize(asset: PdfImageAsset, maxWidth: number, maxHeight: number) {
+  const scale = Math.min(maxWidth / asset.width, maxHeight / asset.height);
+  return {
+    width: asset.width * scale,
+    height: asset.height * scale,
+  };
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 // ==========================================
@@ -303,7 +329,7 @@ export default function PenyimpananDokumenPage() {
         setArchiveLoadFailed(true);
         showToast("Data migrasi belum termuat. Cek backend atau struktur DB penyimpanan dokumen.", "error");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       showToast("Gagal memuat data toko", "error");
     } finally {
@@ -321,7 +347,7 @@ export default function PenyimpananDokumenPage() {
         cabang: toko.cabang,
       });
       setDocuments(res.data || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       showToast("Gagal memuat dokumen", "error");
       setDocuments([]);
@@ -369,8 +395,8 @@ export default function PenyimpananDokumenPage() {
       );
       showToast(`${files.length} file berhasil diupload`, "success");
       loadDocuments(selectedToko);
-    } catch (err: any) {
-      showToast(err.message || "Gagal upload", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Gagal upload"), "error");
     } finally {
       setIsSyncing(false);
       setUploadingCategory(null);
@@ -403,8 +429,8 @@ export default function PenyimpananDokumenPage() {
       setIsCreateStoreOpen(false);
       setNewStoreForm({ nomor_ulok: '', kode_toko: '', nama_toko: '', cabang: '', proyek: '' });
       await loadTokoList(userInfo.cabang, canViewAllBranches(user?.roles ?? [], user?.isSuperHuman ?? false));
-    } catch (err: any) {
-      showToast(err.message || "Gagal menyimpan data toko", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Gagal menyimpan data toko"), "error");
     } finally {
       setIsCreatingStore(false);
     }
@@ -423,8 +449,8 @@ export default function PenyimpananDokumenPage() {
       setEditingDoc(null);
       setNewFile(null);
       loadDocuments(selectedToko);
-    } catch (err: any) {
-      showToast(err.message || "Gagal memperbarui dokumen", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Gagal memperbarui dokumen"), "error");
     } finally {
       setIsUpdating(false);
     }
@@ -446,8 +472,8 @@ export default function PenyimpananDokumenPage() {
       showToast("Dokumen berhasil dihapus", "success");
       setDeleteModal(null);
       if (selectedToko) loadDocuments(selectedToko);
-    } catch (err: any) {
-      showToast(err.message || "Gagal menghapus", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Gagal menghapus"), "error");
     } finally {
       setIsDeleting(false);
     }
@@ -489,7 +515,7 @@ export default function PenyimpananDokumenPage() {
       import("jspdf"),
       import("jspdf-autotable"),
     ]);
-    const autoTable = (autoTableModule as any).default;
+    const autoTable = autoTableModule.default;
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -498,24 +524,34 @@ export default function PenyimpananDokumenPage() {
       loadImageAsDataUrl("/assets/Building-Logo.png"),
     ]);
 
+    const headerX = 32;
+    const headerY = 24;
+    const headerWidth = pageWidth - 64;
+    const headerHeight = 68;
+    const headerCenterY = headerY + headerHeight / 2;
+
     doc.setFillColor(220, 38, 38);
-    doc.roundedRect(32, 24, pageWidth - 64, 68, 4, 4, "F");
+    doc.roundedRect(headerX, headerY, headerWidth, headerHeight, 4, 4, "F");
     if (logo) {
-      doc.addImage(logo, "PNG", 48, 43, 68, 27);
+      const logoSize = containImageSize(logo, 70, 30);
+      doc.addImage(logo.dataUrl, "PNG", 48, headerCenterY - logoSize.height / 2, logoSize.width, logoSize.height);
       doc.setDrawColor(255, 255, 255);
       doc.setLineWidth(1.2);
-      doc.line(132, 36, 132, 80);
+      doc.line(132, headerY + 12, 132, headerY + headerHeight - 12);
     }
+    const brandStartX = logo ? 150 : 48;
     if (spartaLogo) {
-      doc.addImage(spartaLogo, "PNG", 150, 41, 26, 34);
+      const spartaLogoSize = containImageSize(spartaLogo, 28, 34);
+      doc.addImage(spartaLogo.dataUrl, "PNG", brandStartX, headerCenterY - spartaLogoSize.height / 2, spartaLogoSize.width, spartaLogoSize.height);
     }
+    const brandTextX = spartaLogo ? brandStartX + 34 : brandStartX;
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("SPARTA", spartaLogo ? 184 : 150, 54);
+    doc.text("SPARTA", brandTextX, headerCenterY - 5);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("Building", spartaLogo ? 185 : 150, 68);
+    doc.text("Building", brandTextX + 1, headerCenterY + 10);
 
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
@@ -678,7 +714,7 @@ export default function PenyimpananDokumenPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
           <CardContent className="p-3 sm:p-5">
             <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Total Toko</div>
@@ -689,15 +725,6 @@ export default function PenyimpananDokumenPage() {
           <CardContent className="p-3 sm:p-5">
             <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Hasil Filter</div>
             <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">{filteredToko.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white shadow-sm border-slate-200 rounded-2xl">
-          <CardContent className="p-3 sm:p-5">
-            <div className="text-[10px] sm:text-sm font-medium text-slate-500 uppercase tracking-wider leading-tight">Dokumen Terisi</div>
-            <div className="flex items-end gap-2 mt-1">
-              <div className="text-xl sm:text-3xl font-bold text-slate-900">{totalLengkap}</div>
-              <div className="text-xs sm:text-sm text-slate-500 pb-0.5">toko</div>
-            </div>
           </CardContent>
         </Card>
         <Card className="bg-red-600 text-white shadow-md border-none rounded-2xl">
