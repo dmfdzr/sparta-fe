@@ -943,7 +943,7 @@ export const fetchPengawasanDetail = async (id: number): Promise<any> => {
 // =============================================================================
 
 export const submitInstruksiLapangan = async (
-    fields: Record<string, string>,
+    fields: Record<string, string | number | undefined>,
     detailItems: any[],
     lampiranFile?: File | null
 ) => {
@@ -954,7 +954,7 @@ export const submitInstruksiLapangan = async (
     if (lampiranFile) {
         const form = new FormData();
         Object.entries(fields).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) form.append(key, value);
+            if (value !== undefined && value !== null) form.append(key, String(value));
         });
         form.append("detail_items", JSON.stringify(detailItems));
         form.append("lampiran", lampiranFile);

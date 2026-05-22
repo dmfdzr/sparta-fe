@@ -24,6 +24,8 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
     const [selectedToko, setSelectedToko] = useState<any>(null);
     const [prices, setPrices] = useState<any>({});
     const [tableRows, setTableRows] = useState<any[]>([]);
+    const [rejectedInstruksiList, setRejectedInstruksiList] = useState<any[]>([]);
+    const [selectedRevisionId, setSelectedRevisionId] = useState<string>('new');
 
     const [lampiranFile, setLampiranFile] = useState<File | null>(null);
     const [lampiranFileName, setLampiranFileName] = useState<string | null>(null);
@@ -81,6 +83,10 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
 
             setSelectedToko(toko || null);
             setTableRows([]);
+            setRejectedInstruksiList([]);
+            setSelectedRevisionId('new');
+            setLampiranFileName(null);
+            setLampiranFile(null);
             setTanggalMulai('');
             setTanggalSelesai('');
             
@@ -91,46 +97,60 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
                 const priceData = await fetchPricesData(cabang, scope);
                 setPrices(priceData);
 
-                // Cek apakah ada IL yang ditolak untuk revisi
                 const listRes = await fetchInstruksiLapanganList({ nomor_ulok: toko.nomor_ulok });
-                const rejectedIL = listRes.data?.find((il: any) => il.status.toUpperCase().includes('DITOLAK'));
-                
-                if (rejectedIL) {
-                    const detailRes = await fetchInstruksiLapanganDetail(rejectedIL.id);
-                    const items = detailRes.data?.items || [];
-                    setTanggalMulai(detailRes.data?.tanggal_mulai || '');
-                    setTanggalSelesai(detailRes.data?.tanggal_selesai || '');
-                    
-                    const newTableRows = items.map((it: any) => {
-                        const itemPriceData = priceData[it.kategori_pekerjaan]?.find((p: any) => p["Jenis Pekerjaan"] === it.jenis_pekerjaan);
-                        let isMatCond = false, isUpahCond = false;
-                        if (itemPriceData) {
-                            isMatCond = itemPriceData["Harga Material"] === "Kondisional";
-                            isUpahCond = itemPriceData["Harga Upah"] === "Kondisional";
-                        }
-                        
-                        return {
-                            id: Date.now() + Math.random(),
-                            category: it.kategori_pekerjaan,
-                            jenisPekerjaan: it.jenis_pekerjaan,
-                            satuan: it.satuan,
-                            volume: Number(it.volume),
-                            hargaMaterial: isMatCond ? 0 : Number(it.harga_material),
-                            hargaUpah: (isMatCond || isUpahCond) ? 0 : Number(it.harga_upah),
-                            isKondisional: isMatCond || isUpahCond,
-                            catatan: it.catatan || '',
-                        };
-                    });
-                    
-                    setTableRows(newTableRows);
-                    
-                    if (detailRes.data?.link_lampiran) {
-                        setLampiranFileName("File Lampiran (dari revisi)");
-                    }
-                    
-                    showAlert("Info", "Memuat data Instruksi Lapangan yang ditolak sebelumnya untuk revisi.", "info");
+                const rejected = (listRes.data || []).filter((il: any) => il.status?.toUpperCase().includes('DITOLAK'));
+                setRejectedInstruksiList(rejected);
+
+                if (rejected.length > 0) {
+                    showAlert("Info", "Ada Instruksi Lapangan yang ditolak. Pilih mode revisi jika ingin memperbaiki dokumen lama, atau tetap buat IL baru.", "info");
                 }
             }
+        } catch (error: any) {
+            showAlert("Error", error.message, "error");
+        } finally {
+            setIsTokoLoading(false);
+        }
+    };
+
+    const loadRejectedInstruksi = async (revisionId: string) => {
+        setSelectedRevisionId(revisionId);
+        setLampiranFile(null);
+        if (lampiranFileRef.current) lampiranFileRef.current.value = "";
+
+        if (revisionId === 'new') {
+            setTableRows([]);
+            setTanggalMulai('');
+            setTanggalSelesai('');
+            setLampiranFileName(null);
+            return;
+        }
+
+        setIsTokoLoading(true);
+        try {
+            const detailRes = await fetchInstruksiLapanganDetail(Number(revisionId));
+            const items = detailRes.data?.items || [];
+            setTanggalMulai(detailRes.data?.tanggal_mulai || '');
+            setTanggalSelesai(detailRes.data?.tanggal_selesai || '');
+
+            setTableRows(items.map((it: any) => {
+                const itemPriceData = prices[it.kategori_pekerjaan]?.find((p: any) => p["Jenis Pekerjaan"] === it.jenis_pekerjaan);
+                const isMatCond = itemPriceData?.["Harga Material"] === "Kondisional";
+                const isUpahCond = itemPriceData?.["Harga Upah"] === "Kondisional";
+
+                return {
+                    id: Date.now() + Math.random(),
+                    category: it.kategori_pekerjaan,
+                    jenisPekerjaan: it.jenis_pekerjaan,
+                    satuan: it.satuan,
+                    volume: Number(it.volume),
+                    hargaMaterial: isMatCond ? 0 : Number(it.harga_material),
+                    hargaUpah: (isMatCond || isUpahCond) ? 0 : Number(it.harga_upah),
+                    isKondisional: isMatCond || isUpahCond,
+                    catatan: it.catatan || '',
+                };
+            }));
+
+            setLampiranFileName(detailRes.data?.link_lampiran ? "File Lampiran (dari revisi)" : null);
         } catch (error: any) {
             showAlert("Error", error.message, "error");
         } finally {
@@ -224,11 +244,12 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
 
         setIsLoading(true);
 
-        const fields = {
+        const fields: Record<string, string | number | undefined> = {
             nomor_ulok: selectedToko.nomor_ulok,
             email_pembuat: sessionStorage.getItem("loggedInUserEmail") || "",
             tanggal_mulai: tanggalMulai,
             tanggal_selesai: tanggalSelesai,
+            id_instruksi_lapangan_revisi: selectedRevisionId !== 'new' ? Number(selectedRevisionId) : undefined,
         };
 
         try {
@@ -305,6 +326,24 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
                                             onChange={(val) => setTanggalSelesai(val)}
                                         />
                                     </div>
+                                    {rejectedInstruksiList.length > 0 && (
+                                        <div className="space-y-2">
+                                            <Label>Mode Pengajuan</Label>
+                                            <Select value={selectedRevisionId} onValueChange={loadRejectedInstruksi} disabled={!selectedToko}>
+                                                <SelectTrigger className="bg-white">
+                                                    <SelectValue placeholder="Pilih mode pengajuan" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="new">Buat Instruksi Lapangan Baru</SelectItem>
+                                                    {rejectedInstruksiList.map((il: any) => (
+                                                        <SelectItem key={il.id} value={String(il.id)}>
+                                                            Revisi IL #{il.id} - {new Date(il.created_at).toLocaleDateString('id-ID')}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <Label>Lampiran Pendukung (Opsional)</Label>
                                         {lampiranFileName ? (
