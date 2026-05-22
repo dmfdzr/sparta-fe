@@ -1227,29 +1227,34 @@ export default function ApprovalPage() {
 
     const isSuperHuman = user?.isSuperHuman ?? false;
     const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHuman);
-    const isHeadGroup = useMemo(() => {
-        if (!userInfo.cabang) return false;
-        const upper = userInfo.cabang.toUpperCase();
-        return Object.values(BRANCH_GROUPS).some(grp => grp.includes(upper));
+    const branchGroupForUser = useMemo(() => {
+        const upper = normalizeBranch(userInfo.cabang);
+        if (!upper) return null;
+        const entry = Object.entries(BRANCH_GROUPS).find(([, group]) => group.includes(upper));
+        return entry ? { name: entry[0], branches: entry[1] } : null;
     }, [userInfo.cabang]);
-    const showCabangFilter = canSeeAllBranches || isHeadGroup;
+    const isBranchGroupUser = !!branchGroupForUser;
+    const showCabangFilter = canSeeAllBranches || isBranchGroupUser;
 
     // Static cabang options based on user role/group
     const cabangOptions = useMemo(() => {
-        const upper = userInfo.cabang?.toUpperCase();
-        if (!upper) return [];
         if (canSeeAllBranches) {
             return Object.keys(BRANCH_TO_ULOK).sort();
         }
-        let userGroup: string[] | null = null;
-        for (const grp of Object.values(BRANCH_GROUPS)) {
-            if (grp.includes(upper)) {
-                userGroup = grp;
-                break;
-            }
-        }
-        return userGroup ? [...userGroup].sort() : [];
-    }, [userInfo.cabang, canSeeAllBranches]);
+        return branchGroupForUser ? [...branchGroupForUser.branches].sort() : [];
+    }, [branchGroupForUser, canSeeAllBranches]);
+
+    const cabangFilterDefaultLabel = canSeeAllBranches
+        ? 'Semua Cabang'
+        : branchGroupForUser
+            ? `Semua Cabang Group ${branchGroupForUser.name}`
+            : 'Semua Cabang';
+
+    useEffect(() => {
+        if (!cabangFilter) return;
+        const selectedStillAvailable = cabangOptions.some(c => c.toUpperCase() === cabangFilter.toUpperCase());
+        if (!selectedStillAvailable) setCabangFilter('');
+    }, [cabangFilter, cabangOptions]);
 
     const filteredList = useMemo(() => {
         const q = searchQuery.toLowerCase();
@@ -1415,7 +1420,7 @@ export default function ApprovalPage() {
                                             onChange={e => setCabangFilter(e.target.value)}
                                             className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white appearance-none cursor-pointer"
                                         >
-                                            <option value="">Semua Cabang</option>
+                                            <option value="">{cabangFilterDefaultLabel}</option>
                                             {cabangOptions.map(c => (
                                                 <option key={c} value={c}>{c}</option>
                                             ))}
