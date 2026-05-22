@@ -785,7 +785,7 @@ export default function RABPage() {
                       <div className="p-2 bg-slate-100 text-slate-500 text-sm border rounded-lg">Belum diunggah</div>
                     )
                   )}
-                  <p className="text-[10px] text-slate-400">Format: PDF (Maks. 5MB)</p>
+                  <p className="text-[10px] text-slate-400">Format: PDF (Maks. 10MB)</p>
                 </div>
               </div>
             </CardContent>
