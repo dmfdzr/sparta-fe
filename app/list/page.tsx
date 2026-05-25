@@ -20,15 +20,15 @@ import {
     type RABListItem, type RABDetailItem, type RABDetailResponse,
     fetchSPKList, fetchSPKDetail, downloadSPKPdf,
     type SPKListItem, type SPKDetailResponse,
-    fetchPertambahanSPKList, fetchPertambahanSPKDetail,
+    fetchPertambahanSPKList, fetchPertambahanSPKDetail, downloadPertambahanSPKPdf,
     type PertambahanSPKListItem,
     fetchOpnameFinalList, fetchOpnameFinalDetail, downloadOpnameFinalPdf,
-    fetchPengawasanList, fetchPengawasanDetail,
+    fetchPengawasanList, fetchPengawasanDetail, downloadPengawasanPdf,
     fetchGanttList, fetchGanttDetail,
     updateRABStatus, fetchBerkasSerahTerimaList, interveneSPKStatus,
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
     fetchProjekPlanningList, fetchProjekPlanningDetail, downloadProjekPlanningPdf, proxyProjekPlanningFile,
-    fetchDokumentasiBangunanList, fetchDokumentasiBangunanDetail, downloadSerahTerimaPdf, viewGeneratedPdfOnline,
+    fetchDokumentasiBangunanList, fetchDokumentasiBangunanDetail, downloadSerahTerimaPdf, downloadDokumentasiBangunanPdf, viewGeneratedPdfOnline,
     type ProjekPlanningItem,
 } from '@/lib/api';
 import { parseCurrency, formatRupiah } from '@/lib/utils';
@@ -1098,14 +1098,20 @@ export default function DaftarDokumenPage() {
                 await downloadRABPdf(id);
             } else if (tipe === 'SPK') {
                 await downloadSPKPdf(id);
+            } else if (tipe === 'PERTAMBAHAN_SPK') {
+                await downloadPertambahanSPKPdf(id);
             } else if (tipe === 'OPNAME_FINAL') {
                 await downloadOpnameFinalPdf(id);
+            } else if (tipe === 'PENGAWASAN') {
+                await downloadPengawasanPdf(id);
             } else if (tipe === 'INSTRUKSI_LAPANGAN') {
                 await downloadInstruksiLapanganPdf(id);
             } else if (tipe === 'PROJECT_PLANNING') {
                 await downloadProjekPlanningPdf(id);
             } else if (tipe === 'BERKAS_SERAH_TERIMA') {
                 await downloadSerahTerimaPdf(id);
+            } else if (tipe === 'DOKUMENTASI_BANGUNAN') {
+                await downloadDokumentasiBangunanPdf(id);
             }
             showToast('PDF berhasil diunduh.', 'success');
         } catch (err: any) {
@@ -1117,7 +1123,7 @@ export default function DaftarDokumenPage() {
 
     const handleViewPDFOnline = useCallback(async (detail: NormalizedDetail) => {
         try {
-            if ((detail.tipe === 'RAB' || detail.tipe === 'SPK' || detail.tipe === 'PENGAWASAN') && detail.link_pdf) {
+            if ((detail.tipe === 'RAB' || detail.tipe === 'SPK') && detail.link_pdf) {
                 window.open(detail.link_pdf, '_blank', 'noopener,noreferrer');
                 return;
             }
@@ -1127,7 +1133,9 @@ export default function DaftarDokumenPage() {
                 detail.tipe === 'INSTRUKSI_LAPANGAN' ||
                 detail.tipe === 'PROJECT_PLANNING' ||
                 detail.tipe === 'BERKAS_SERAH_TERIMA' ||
-                detail.tipe === 'DOKUMENTASI_BANGUNAN'
+                detail.tipe === 'DOKUMENTASI_BANGUNAN' ||
+                detail.tipe === 'PENGAWASAN' ||
+                detail.tipe === 'PERTAMBAHAN_SPK'
             ) {
                 await viewGeneratedPdfOnline(detail.id, detail.tipe);
                 return;
@@ -2364,14 +2372,17 @@ export default function DaftarDokumenPage() {
                                         Unduh Dokumen
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
-                                        {/* Download button for RAB, SPK, OPNAME_FINAL, INSTRUKSI_LAPANGAN */}
+                                        {/* Download button for generated/stored PDFs */}
                                         {(
                                             (selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_gabungan) ||
                                             (selectedDetail.tipe === 'SPK' && selectedDetail.link_pdf) ||
-                                            (selectedDetail.tipe === 'OPNAME_FINAL' && selectedDetail.link_pdf) ||
-                                            (selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' && selectedDetail.link_pdf_gabungan) ||
+                                            selectedDetail.tipe === 'PERTAMBAHAN_SPK' ||
+                                            selectedDetail.tipe === 'OPNAME_FINAL' ||
+                                            selectedDetail.tipe === 'PENGAWASAN' ||
+                                            selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ||
                                             (selectedDetail.tipe === 'PROJECT_PLANNING') ||
-                                            (selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' && selectedDetail.link_pdf)
+                                            selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ||
+                                            selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN'
                                         ) && (
                                             <Button
                                                 className="bg-red-600 hover:bg-red-700 text-white"
@@ -2411,12 +2422,14 @@ export default function DaftarDokumenPage() {
                                         )}
 
                                         {(
-                                            ((selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK' || selectedDetail.tipe === 'PENGAWASAN') && selectedDetail.link_pdf) ||
+                                            ((selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'SPK') && selectedDetail.link_pdf) ||
                                             selectedDetail.tipe === 'OPNAME_FINAL' ||
                                             selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ||
                                             selectedDetail.tipe === 'PROJECT_PLANNING' ||
                                             selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ||
-                                            selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN'
+                                            selectedDetail.tipe === 'DOKUMENTASI_BANGUNAN' ||
+                                            selectedDetail.tipe === 'PENGAWASAN' ||
+                                            selectedDetail.tipe === 'PERTAMBAHAN_SPK'
                                         ) && (
                                             <Button
                                                 variant="outline"

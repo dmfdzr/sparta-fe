@@ -1714,6 +1714,33 @@ export const downloadPertambahanSPKLampiran = async (id: number): Promise<boolea
     return true;
 };
 
+/** Download PDF pertambahan SPK. */
+export const downloadPertambahanSPKPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pertambahan-spk/${id}/pdf`);
+    if (res.status === 404) throw new Error("Data Pertambahan SPK atau PDF tidak ditemukan.");
+    if (res.status === 502) throw new Error("Gagal mengambil PDF dari penyimpanan.");
+    if (!res.ok) throw new Error(`Gagal mengunduh PDF Pertambahan SPK (${res.status}).`);
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `PERTAMBAHAN_SPK_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
 /** Hapus data pertambahan SPK. */
 export const deletePertambahanSPK = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pertambahan-spk/${id}`, {
@@ -1939,9 +1966,59 @@ export const downloadSerahTerimaPdf = async (id: number): Promise<boolean> => {
     return true;
 };
 
+export const downloadPengawasanPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/pengawasan/${id}/pdf`);
+    if (res.status === 404) throw new Error("Data Pengawasan atau itemnya tidak ditemukan.");
+    if (!res.ok) throw new Error(`Gagal mengunduh PDF Pengawasan (${res.status}).`);
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `PENGAWASAN_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
+export const downloadDokumentasiBangunanPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/dok/bangunan/${id}/pdf/download`);
+    if (res.status === 404) throw new Error("Data Dokumentasi Bangunan tidak ditemukan.");
+    if (!res.ok) throw new Error(`Gagal mengunduh PDF Dokumentasi Bangunan (${res.status}).`);
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `DOKUMENTASI_BANGUNAN_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
 export const viewGeneratedPdfOnline = async (
     id: number,
-    tipe: "OPNAME_FINAL" | "INSTRUKSI_LAPANGAN" | "PROJECT_PLANNING" | "BERKAS_SERAH_TERIMA" | "DOKUMENTASI_BANGUNAN"
+    tipe: "OPNAME_FINAL" | "INSTRUKSI_LAPANGAN" | "PROJECT_PLANNING" | "BERKAS_SERAH_TERIMA" | "DOKUMENTASI_BANGUNAN" | "PENGAWASAN" | "PERTAMBAHAN_SPK"
 ): Promise<boolean> => {
     const popup = window.open("about:blank", "_blank");
     if (!popup) throw new Error("Browser memblokir tab baru. Izinkan popup untuk membuka PDF online.");
@@ -1963,6 +2040,8 @@ export const viewGeneratedPdfOnline = async (
         INSTRUKSI_LAPANGAN: `/api/instruksi-lapangan/${id}/pdf`,
         PROJECT_PLANNING: `/api/projek-planning/${id}/pdf`,
         BERKAS_SERAH_TERIMA: `/api/berkas_serah_terima/${id}/pdf`,
+        PENGAWASAN: `/api/pengawasan/${id}/pdf`,
+        PERTAMBAHAN_SPK: `/api/pertambahan-spk/${id}/pdf`,
     } as const;
 
     const endpoint = endpointByType[tipe];
