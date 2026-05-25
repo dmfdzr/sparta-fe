@@ -719,7 +719,20 @@ export default function ApprovalPage() {
 
                 if (type === 'RAB' && jabatan === 'DIREKTUR') {
                     if (upperUserCabang && !isHOUser && item.cabang && item.cabang !== '-') {
-                        if (normalizeBranch(item.cabang) !== upperUserCabang) return false;
+                        let userGroup: string[] | null = null;
+                        for (const grp of Object.values(BRANCH_GROUPS)) {
+                            if (grp.includes(upperUserCabang)) {
+                                userGroup = grp;
+                                break;
+                            }
+                        }
+
+                        const itemCabangUpper = normalizeBranch(item.cabang);
+                        if (userGroup) {
+                            if (!userGroup.includes(itemCabangUpper)) return false;
+                        } else if (itemCabangUpper !== upperUserCabang) {
+                            return false;
+                        }
                     }
 
                     return (upper.includes('MENUNGGU') || upper.startsWith('PENDING'))
