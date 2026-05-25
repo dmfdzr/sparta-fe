@@ -25,6 +25,7 @@ import {
   GENERAL_MANAGER_ROLE,
   REGIONAL_MANAGER_ROLE,
   STORE_BRANCH_CONTROLLING_ROLE,
+  DIRECTOR_CONTRACTOR_ROLE,
 } from '@/lib/constants';
 import { fetchUserCabangList } from '@/lib/api';
 
@@ -88,9 +89,9 @@ export default function LoginPage() {
     if (upper.includes("DOKUMENTASI") || upper === "BBSD") return "BRANCH BUILDING SUPPORT DOKUMENTASI";
     if (upper.includes("COORDINATOR") || upper === "BBC") return "BRANCH BUILDING COORDINATOR";
     if (upper.includes("SUPPORT") || upper === "BBS") return "BRANCH BUILDING SUPPORT";
-    if (upper.includes("KONTRAKTOR") && upper.includes("DIREKTUR")) return "DIREKTUR, KONTRAKTOR";
+    if (upper.includes("KONTRAKTOR") && upper.includes("DIREKTUR")) return `${DIRECTOR_CONTRACTOR_ROLE}, KONTRAKTOR`;
     if (upper.includes("KONTRAKTOR")) return "KONTRAKTOR";
-    if (upper.includes("DIREKTUR")) return "DIREKTUR";
+    if (upper.includes("DIREKTUR")) return DIRECTOR_CONTRACTOR_ROLE;
     return upper;
   };
 

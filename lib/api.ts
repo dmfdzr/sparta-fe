@@ -200,8 +200,8 @@ export type RABDetailResponse = {
 export type RABApprovalPayload = {
     approver_email:   string;
     nama_lengkap?:    string;
-    jabatan:          "KOORDINATOR" | "MANAGER" | "DIREKTUR" | string;
-    next_jabatan?:    "KOORDINATOR" | "MANAGER" | "DIREKTUR" | string;
+    jabatan:          "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "DIREKTUR_KONTRAKTOR" | string;
+    next_jabatan?:    "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "DIREKTUR_KONTRAKTOR" | string;
     next_status?:     string;
     tindakan:         "APPROVE" | "REJECT" | string;
     alasan_penolakan?: string | null;
@@ -1831,7 +1831,7 @@ export const fetchInstruksiLapanganDetail = async (id: number): Promise<any> => 
 
 export type InstruksiLapanganApprovalPayload = {
     approver_email: string;
-    jabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR' | string;
+    jabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'DIREKTUR_KONTRAKTOR' | 'KONTRAKTOR' | string;
     tindakan: 'APPROVE' | 'REJECT';
     alasan_penolakan?: string | null;
 };

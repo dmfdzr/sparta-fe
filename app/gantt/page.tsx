@@ -120,7 +120,7 @@ function GanttBoard() {
         setUserRole(role);
         const roles = role.split(',').map(r => r.trim().toUpperCase());
         let currentAppMode: 'kontraktor' | 'pic' = 'kontraktor';
-        const picRoles = ['BUILDING & MAINTENANCE SUPER HUMAN', ...GLOBAL_VIEW_ONLY_ROLES, 'BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT', 'DIREKTUR'];
+        const picRoles = ['BUILDING & MAINTENANCE SUPER HUMAN', ...GLOBAL_VIEW_ONLY_ROLES, 'BRANCH BUILDING & MAINTENANCE MANAGER', 'BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING SUPPORT', 'DIREKTUR KONTRAKTOR', 'DIREKTUR'];
         const canSeeAllBranches = canViewAllBranches(roles, user.isSuperHuman ?? false);
         
         if (roles.includes('KONTRAKTOR')) {

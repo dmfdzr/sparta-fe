@@ -174,6 +174,10 @@ export const ROLE_CONFIG: Record<string, string[]> = {
         "menu-svdokumen", "menu-sp", "menu-daftardokumen", "menu-il"
     ],
 
+    "DIREKTUR KONTRAKTOR": [
+        "menu-approval", "menu-daftardokumen"
+    ],
+
     "DIREKTUR": [
         "menu-approval", "menu-daftardokumen"
     ],
@@ -223,6 +227,7 @@ export const ENERGY_SYSTEM_MANAGER_ROLE = "BUILDING MAINTENANCE & ENERGY SYSTEM 
 export const GENERAL_MANAGER_ROLE = "BUILDING & MAINTENANCE GENERAL MANAGER";
 export const STORE_BRANCH_CONTROLLING_ROLE = "STORE & BRANCH CONTROLLING SPECIALIST";
 export const SUPER_HUMAN_ROLE = "BUILDING & MAINTENANCE SUPER HUMAN";
+export const DIRECTOR_CONTRACTOR_ROLE = "DIREKTUR KONTRAKTOR";
 
 export const GLOBAL_VIEW_ONLY_ROLES = [
     REGIONAL_MANAGER_ROLE,
@@ -233,7 +238,10 @@ export const GLOBAL_VIEW_ONLY_ROLES = [
 
 export const normalizeRoles = (role: string | string[] | undefined | null): string[] => {
     const roles = Array.isArray(role) ? role : String(role ?? "").split(",");
-    return roles.map(r => r.trim().toUpperCase()).filter(Boolean);
+    return roles.map(r => {
+        const normalized = r.trim().toUpperCase();
+        return normalized === "DIREKTUR" ? DIRECTOR_CONTRACTOR_ROLE : normalized;
+    }).filter(Boolean);
 };
 
 export const hasRegionalManagerRole = (role: string | string[] | undefined | null): boolean =>

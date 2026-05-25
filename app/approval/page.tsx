@@ -171,10 +171,10 @@ const getOpnameFinalItems = (payload: unknown) => {
 // ROLE CONFIG
 // =============================================
 const ROLE_ACCESS: Record<ApprovalType, string[]> = {
-    RAB: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
+    RAB: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR KONTRAKTOR', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
     SPK: ['BRANCH MANAGER', 'MANAGER'],
     PERTAMBAHAN_SPK: ['BRANCH MANAGER', 'MANAGER'],
-    OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
+    OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR KONTRAKTOR', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
     INSTRUKSI_LAPANGAN: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'COORDINATOR', 'MANAGER'],
     PROJECT_PLANNING: ['BRANCH BUILDING & MAINTENANCE MANAGER', 'PROJECT PLANNING & DEVELOPMENT SPECIALIST', 'PROJECT PLANNING & DEVELOPMENT MANAGER'],
 };
@@ -182,6 +182,7 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
 const ROLE_TO_JABATAN: Record<string, 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR'> = {
     'BRANCH BUILDING COORDINATOR':           'KOORDINATOR',
     'BRANCH BUILDING & MAINTENANCE MANAGER': 'MANAGER',
+    'DIREKTUR KONTRAKTOR':                   'DIREKTUR',
     'DIREKTUR':                              'DIREKTUR',
     'KONTRAKTOR':                            'KONTRAKTOR',
 };
@@ -269,10 +270,12 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
     // Opname Final Specific
     'MENUNGGU PERSETUJUAN KOORDINATOR': 'bg-yellow-100 text-yellow-700 border-yellow-200',
     'MENUNGGU PERSETUJUAN MANAJER':     'bg-orange-100 text-orange-700 border-orange-200',
+    'MENUNGGU PERSETUJUAN DIREKTUR KONTRAKTOR': 'bg-red-100 text-red-700 border-red-200',
     'MENUNGGU PERSETUJUAN DIREKTUR':    'bg-red-100 text-red-700 border-red-200',
     'DISETUJUI':                        'bg-green-100 text-green-700 border-green-200',
     'DITOLAK OLEH KOORDINATOR':         'bg-red-100 text-red-700 border-red-200',
     'DITOLAK OLEH MANAJER':             'bg-red-100 text-red-700 border-red-200',
+    'DITOLAK OLEH DIREKTUR KONTRAKTOR': 'bg-red-100 text-red-700 border-red-200',
     'DITOLAK OLEH DIREKTUR':            'bg-red-100 text-red-700 border-red-200',
     // Project Planning
     WAITING_BM_APPROVAL:                'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -302,10 +305,12 @@ const STATUS_LABEL: Record<string, string> = {
     // Opname Final Specific
     'MENUNGGU PERSETUJUAN KOORDINATOR': 'PENDING (KOORD.)',
     'MENUNGGU PERSETUJUAN MANAJER':     'PENDING (MGR.)',
+    'MENUNGGU PERSETUJUAN DIREKTUR KONTRAKTOR': 'PENDING (DIR. KONTRAKTOR)',
     'MENUNGGU PERSETUJUAN DIREKTUR':    'PENDING (DIR.)',
     'DISETUJUI':                        'APPROVED',
     'DITOLAK OLEH KOORDINATOR':         'REJECTED (KOORD.)',
     'DITOLAK OLEH MANAJER':             'REJECTED (MGR.)',
+    'DITOLAK OLEH DIREKTUR KONTRAKTOR': 'REJECTED (DIR. KONTRAKTOR)',
     'DITOLAK OLEH DIREKTUR':            'REJECTED (DIR.)',
     // Instruksi Lapangan
     // Project Planning
@@ -532,12 +537,12 @@ export default function ApprovalPage() {
             return;
         }
 
-        // Prioritas Jabatan: DIREKTUR > MANAGER > KOORDINATOR
+        // Prioritas Jabatan: DIREKTUR KONTRAKTOR > MANAGER > KOORDINATOR
         // Super Human mendapat jabatan MANAGER untuk bisa approve semua level
         let currentJabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'KONTRAKTOR' | null = null;
         if (isSuperHuman) {
             currentJabatan = 'MANAGER';
-        } else if (roles.includes('DIREKTUR')) {
+        } else if (roles.some(r => r.includes('DIREKTUR'))) {
             currentJabatan = 'DIREKTUR';
         } else if (roles.includes('BRANCH BUILDING & MAINTENANCE MANAGER') || roles.includes('MANAGER')) {
             currentJabatan = 'MANAGER';
@@ -941,7 +946,7 @@ export default function ApprovalPage() {
     };
 
     // ==========================================
-    // HELPER: Ambil nama Direktur berdasarkan email
+    // HELPER: Ambil nama Direktur Kontraktor berdasarkan email
     // (email bisa shared dengan Kontraktor, jadi cari yg jabatan-nya mengandung 'DIREKTUR')
     // ==========================================
     const fetchDirekturName = async (email: string): Promise<string | null> => {
@@ -986,7 +991,7 @@ export default function ApprovalPage() {
         try {
             if (item.tipe === 'RAB') {
                 let currentName = userInfo.name;
-                if (jabatan === 'DIREKTUR' && item.status.toUpperCase() === 'MENUNGGU PERSETUJUAN DIREKTUR') {
+                if (jabatan === 'DIREKTUR' && item.status.toUpperCase().includes('MENUNGGU PERSETUJUAN DIREKTUR')) {
                     const direkturName = await fetchDirekturName(userInfo.email);
                     if (direkturName) currentName = direkturName;
                 }
@@ -1065,7 +1070,7 @@ export default function ApprovalPage() {
         try {
             if (item.tipe === 'RAB') {
                 let currentName = userInfo.name;
-                if (jabatan === 'DIREKTUR' && item.status.toUpperCase() === 'MENUNGGU PERSETUJUAN DIREKTUR') {
+                if (jabatan === 'DIREKTUR' && item.status.toUpperCase().includes('MENUNGGU PERSETUJUAN DIREKTUR')) {
                     const direkturName = await fetchDirekturName(userInfo.email);
                     if (direkturName) currentName = direkturName;
                 }
@@ -1698,7 +1703,7 @@ export default function ApprovalPage() {
                                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Riwayat Persetujuan</p>
                                                         <ApprovalHistoryRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
                                                         <ApprovalHistoryRow label="Manager" pemberi={selectedDetail.approval_manager?.pemberi} waktu={selectedDetail.approval_manager?.waktu} />
-                                                        <ApprovalHistoryRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
+                                                        <ApprovalHistoryRow label="Direktur Kontraktor" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
                                                     </div>
                                                 )}
                                             </div>

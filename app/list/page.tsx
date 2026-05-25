@@ -321,11 +321,14 @@ const STATUS_BADGE: Record<string, string> = {
     'MENUNGGU PERSETUJUAN MANAGER':     'bg-orange-100 text-orange-700 border-orange-200',
     'MENUNGGU PERSETUJUAN MANAJER':     'bg-orange-100 text-orange-700 border-orange-200',
     'PENDING_DIREKTUR':                 'bg-red-100 text-red-700 border-red-200',
+    'MENUNGGU PERSETUJUAN DIREKTUR KONTRAKTOR': 'bg-red-100 text-red-700 border-red-200',
     'MENUNGGU PERSETUJUAN DIREKTUR':    'bg-red-100 text-red-700 border-red-200',
     'APPROVED':                         'bg-green-100 text-green-700 border-green-200',
     'DISETUJUI':                        'bg-green-100 text-green-700 border-green-200',
     'REJECTED':                         'bg-red-100 text-red-700 border-red-200',
     'DITOLAK':                          'bg-red-100 text-red-700 border-red-200',
+    'DITOLAK OLEH DIREKTUR KONTRAKTOR': 'bg-red-100 text-red-700 border-red-200',
+    'DITOLAK OLEH DIREKTUR':            'bg-red-100 text-red-700 border-red-200',
     'WAITING_FOR_BM_APPROVAL':          'bg-yellow-100 text-yellow-700 border-yellow-200',
     'SPK_APPROVED':                     'bg-green-100 text-green-700 border-green-200',
     'SPK_REJECTED':                     'bg-red-100 text-red-700 border-red-200',
@@ -390,7 +393,7 @@ const getStatusLabel = (status: string) => {
     if (upper.includes('TOLAK') || upper === 'REJECTED' || upper === 'SPK_REJECTED') {
         if (upper.includes('KOORDINATOR')) return 'Ditolak Koord.';
         if (upper.includes('MANAGER') || upper.includes('MANAJER')) return 'Ditolak Mgr.';
-        if (upper.includes('DIREKTUR')) return 'Ditolak Dir.';
+        if (upper.includes('DIREKTUR')) return 'Ditolak Dir. Kontraktor';
         return 'Rejected';
     }
 
@@ -408,7 +411,7 @@ const getStatusLabel = (status: string) => {
 
     if (upper.includes('KOORDINATOR')) return 'Pending Koord.';
     if (upper.includes('MANAGER') || upper.includes('MANAJER')) return 'Pending Mgr.';
-    if (upper.includes('DIREKTUR')) return 'Pending Dir.';
+    if (upper.includes('DIREKTUR')) return 'Pending Dir. Kontraktor';
     if (upper === 'WAITING_FOR_BM_APPROVAL' || upper === 'MENUNGGU PERSETUJUAN') return 'Pending BM';
     if (upper.includes('PENDING')) return 'Pending';
 
@@ -1162,7 +1165,8 @@ export default function DaftarDokumenPage() {
         { value: 'Menunggu Gantt Chart', label: 'Menunggu Gantt Chart' },
         { value: 'Ditolak oleh Koordinator', label: 'Ditolak oleh Koordinator' },
         { value: 'Ditolak oleh Manajer', label: 'Ditolak oleh Manajer' },
-        { value: 'Ditolak oleh Direktur', label: 'Ditolak oleh Direktur' },
+        { value: 'Ditolak oleh Direktur Kontraktor', label: 'Ditolak oleh Direktur Kontraktor' },
+        { value: 'Ditolak oleh Direktur', label: 'Ditolak oleh Direktur (lama)' },
     ];
 
     const SPK_STATUS_OPTIONS: Array<{ value: 'WAITING_FOR_BM_APPROVAL' | 'SPK_APPROVED' | 'SPK_REJECTED'; label: string }> = [
@@ -2035,7 +2039,7 @@ export default function DaftarDokumenPage() {
                                             <ApprovalRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
                                             <ApprovalRow label="Manager" pemberi={selectedDetail.approval_manager?.pemberi} waktu={selectedDetail.approval_manager?.waktu} />
                                             {selectedDetail.tipe === 'RAB' && (
-                                                <ApprovalRow label="Direktur" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
+                                                <ApprovalRow label="Direktur Kontraktor" pemberi={selectedDetail.approval_direktur?.pemberi} waktu={selectedDetail.approval_direktur?.waktu} />
                                             )}
                                             {selectedDetail.alasan_penolakan && (
                                                 <div className="flex items-start gap-3 text-sm mt-2 bg-red-50 rounded-lg p-3 border border-red-100">
