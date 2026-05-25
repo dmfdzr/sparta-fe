@@ -920,11 +920,14 @@ export default function InputPICPage() {
             isHO ||
             isRegional ||
             roleUpper === 'BRANCH BUILDING COORDINATOR' ||
-            (cabangUpper === 'MANADO' && roleUpper === 'BRANCH BUILDING & MAINTENANCE MANAGER');
+            (
+                ['MANADO', 'BOGOR'].includes(cabangUpper) &&
+                roleUpper === 'BRANCH BUILDING & MAINTENANCE MANAGER'
+            );
 
         if (!isAllowed) {
             showAlert({
-                message: "Hanya Branch Building Coordinator yang dapat mengakses halaman ini.",
+                message: "Hanya Branch Building Coordinator atau manager cabang tertentu yang dapat mengakses halaman ini.",
                 type: "warning",
                 onConfirm: () => router.push('/dashboard')
             });

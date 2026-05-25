@@ -135,7 +135,10 @@ export default function DashboardPage() {
             allowedIds.push("menu-users");
         }
 
-        if (userCabang.toUpperCase() === 'MANADO' && roles.includes('BRANCH BUILDING & MAINTENANCE MANAGER')) {
+        if (
+            ['MANADO', 'BOGOR'].includes(userCabang.toUpperCase()) &&
+            roles.includes('BRANCH BUILDING & MAINTENANCE MANAGER')
+        ) {
             allowedIds.push("menu-inputpic");
         }
 
