@@ -189,8 +189,8 @@ const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan
     if (item.tipe === "SPK") return upper === "WAITING_FOR_BM_APPROVAL";
     if (item.tipe === "PERTAMBAHAN_SPK") return upper === "MENUNGGU PERSETUJUAN";
 
-    if (item.tipe === "RAB" && jabatan === "DIREKTUR" && userCabang && !isHOUser) {
-        return normalizeBranch(item.cabang) === userCabang && upper.includes("DIREKTUR");
+    if (item.tipe === "RAB" && jabatan === "DIREKTUR") {
+        return upper.includes("DIREKTUR");
     }
 
     if (jabatan === "KOORDINATOR") return upper.includes("KOORDINATOR");
@@ -212,11 +212,6 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
         try {
             if (type === "RAB") {
                 let filters: RABListFilters | undefined;
-                if (jabatan === "DIREKTUR") {
-                    filters = { status: "Menunggu Persetujuan Direktur Kontraktor" };
-                    const userCabang = normalizeBranch(user.cabang);
-                    if (userCabang && userCabang !== "HEAD OFFICE") filters.cabang = user.cabang;
-                }
                 const res = await fetchRABList(filters, { suppressGlobalError: true });
                 counts.RAB = countItems((res.data ?? []).map(item => ({
                     tipe: "RAB",

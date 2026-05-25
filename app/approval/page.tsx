@@ -603,15 +603,6 @@ export default function ApprovalPage() {
             let normalized: NormalizedListItem[] = [];
             if (type === 'RAB') {
                 let filters: RABListFilters | undefined = undefined;
-                if (jabatan === 'DIREKTUR') {
-                    const userCabang = normalizeBranch(userInfo.cabang);
-                    filters = {
-                        status: 'Menunggu Persetujuan Direktur Kontraktor',
-                    };
-                    if (userCabang && userCabang !== 'HEAD OFFICE') {
-                        filters.cabang = userInfo.cabang;
-                    }
-                }
                 const res = await fetchRABList(filters);
                 normalized = normalizeRABList(res.data ?? []);
             } else if (type === 'SPK') {
@@ -726,9 +717,8 @@ export default function ApprovalPage() {
                     return upper === 'MENUNGGU PERSETUJUAN';
                 }
 
-                if (type === 'RAB' && jabatan === 'DIREKTUR' && upperUserCabang && !isHOUser) {
-                    return normalizeBranch(item.cabang) === upperUserCabang
-                        && (upper.includes('MENUNGGU') || upper.startsWith('PENDING'))
+                if (type === 'RAB' && jabatan === 'DIREKTUR') {
+                    return (upper.includes('MENUNGGU') || upper.startsWith('PENDING'))
                         && upper.includes('DIREKTUR');
                 }
 

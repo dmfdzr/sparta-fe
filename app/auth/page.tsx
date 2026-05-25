@@ -89,7 +89,7 @@ export default function LoginPage() {
     if (upper.includes("DOKUMENTASI") || upper === "BBSD") return "BRANCH BUILDING SUPPORT DOKUMENTASI";
     if (upper.includes("COORDINATOR") || upper === "BBC") return "BRANCH BUILDING COORDINATOR";
     if (upper.includes("SUPPORT") || upper === "BBS") return "BRANCH BUILDING SUPPORT";
-    if (upper.includes("KONTRAKTOR") && upper.includes("DIREKTUR")) return `${DIRECTOR_CONTRACTOR_ROLE}, KONTRAKTOR`;
+    if (upper.includes("KONTRAKTOR") && upper.includes("DIREKTUR")) return DIRECTOR_CONTRACTOR_ROLE;
     if (upper.includes("KONTRAKTOR")) return "KONTRAKTOR";
     if (upper.includes("DIREKTUR")) return DIRECTOR_CONTRACTOR_ROLE;
     return upper;
@@ -103,6 +103,9 @@ export default function LoginPage() {
     const namaPtFromAPI = (result?.data?.nama_pt || "").trim();
 
     let mappedRole = normalizeJabatanRole(jabatanFromAPI);
+    let sessionCabang = cabangFromAPI;
+    let sessionNamaPt = namaPtFromAPI;
+    let sessionAlamatCabang = result?.data?.alamat_cabang || "";
 
     try {
       const userList = await fetchUserCabangList({ email_sat: emailFromAPI });
@@ -119,14 +122,18 @@ export default function LoginPage() {
         setRoleSelectOpen(true);
         return;
       } else if (filteredUsers.length === 1) {
-        const realName = filteredUsers[0].nama_lengkap;
-        const realJabatan = filteredUsers[0].jabatan;
+        const selectedUser = filteredUsers[0];
+        const realName = selectedUser.nama_lengkap;
+        const realJabatan = selectedUser.jabatan;
         sessionStorage.setItem("nama_lengkap", realName);
 
         let realMappedRole = normalizeJabatanRole(realJabatan);
 
         sessionStorage.setItem("userRole", realMappedRole);
         mappedRole = realMappedRole;
+        sessionCabang = (selectedUser.cabang || cabangFromAPI).trim();
+        sessionNamaPt = (selectedUser.nama_pt || namaPtFromAPI || "").trim();
+        sessionAlamatCabang = selectedUser.alamat_cabang || sessionAlamatCabang;
       } else {
         sessionStorage.setItem("nama_lengkap", namaLengkapFromAPI);
         sessionStorage.setItem("userRole", mappedRole);
@@ -141,9 +148,9 @@ export default function LoginPage() {
 
     sessionStorage.setItem("authenticated", "true");
     sessionStorage.setItem("loggedInUserEmail", emailFromAPI);
-    sessionStorage.setItem("loggedInUserCabang", cabangFromAPI);
-    sessionStorage.setItem("nama_pt", namaPtFromAPI);
-    sessionStorage.setItem("alamat_cabang", result?.data?.alamat_cabang || "");
+    sessionStorage.setItem("loggedInUserCabang", sessionCabang);
+    sessionStorage.setItem("nama_pt", sessionNamaPt);
+    sessionStorage.setItem("alamat_cabang", sessionAlamatCabang);
 
     setIsLoading(false);
     setTimeout(() => {
@@ -433,10 +440,10 @@ export default function LoginPage() {
                   let realMappedRole = normalizeJabatanRole(role.jabatan);
 
                   sessionStorage.setItem("authenticated", "true");
-                  sessionStorage.setItem("loggedInUserEmail", pendingLoginData.emailFromAPI);
-                  sessionStorage.setItem("loggedInUserCabang", pendingLoginData.cabangFromAPI); 
-                  sessionStorage.setItem("nama_pt", pendingLoginData.namaPtFromAPI);
-                  sessionStorage.setItem("alamat_cabang", pendingLoginData.result?.data?.alamat_cabang || "");
+                  sessionStorage.setItem("loggedInUserEmail", role.email_sat || pendingLoginData.emailFromAPI);
+                  sessionStorage.setItem("loggedInUserCabang", (role.cabang || pendingLoginData.cabangFromAPI || "").trim()); 
+                  sessionStorage.setItem("nama_pt", (role.nama_pt || "").trim());
+                  sessionStorage.setItem("alamat_cabang", role.alamat_cabang || pendingLoginData.result?.data?.alamat_cabang || "");
                   
                   // Set nama dan role yang dipilih
                   sessionStorage.setItem("nama_lengkap", role.nama_lengkap);
