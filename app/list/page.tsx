@@ -26,6 +26,7 @@ import {
     fetchPengawasanList, fetchPengawasanDetail, downloadPengawasanPdf,
     fetchGanttList, fetchGanttDetail,
     updateRABStatus, fetchBerkasSerahTerimaList, interveneSPKStatus,
+    fetchActivityLogs, type ActivityLog,
     fetchInstruksiLapanganList, fetchInstruksiLapanganDetail, downloadInstruksiLapanganPdf,
     fetchProjekPlanningList, fetchProjekPlanningDetail, downloadProjekPlanningPdf, proxyProjekPlanningFile,
     fetchDokumentasiBangunanList, fetchDokumentasiBangunanDetail, downloadSerahTerimaPdf, downloadDokumentasiBangunanPdf, viewGeneratedPdfOnline,
@@ -196,6 +197,7 @@ interface NormalizedDetail {
     alasan_revisi?: string;
     pic_dokumentasi?: string;
     dokumentasi_items?: any[];
+    activity_logs?: ActivityLog[];
 }
 
 // =============================================================================
@@ -668,11 +670,13 @@ export default function DaftarDokumenPage() {
     // --- RAB Status Update (HO only) ---
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [selectedNewStatus, setSelectedNewStatus] = useState('');
+    const [rabInterventionReason, setRabInterventionReason] = useState('');
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     // --- SPK Intervention (Super Human only) ---
     const [showSpkInterventionModal, setShowSpkInterventionModal] = useState(false);
     const [spkInterventionStatus, setSpkInterventionStatus] = useState<'WAITING_FOR_BM_APPROVAL' | 'SPK_APPROVED' | 'SPK_REJECTED'>('SPK_REJECTED');
+    const [spkInterventionReason, setSpkInterventionReason] = useState('');
     const [isInterveningSPK, setIsInterveningSPK] = useState(false);
 
     // =========================================================================
@@ -1079,6 +1083,13 @@ export default function DaftarDokumenPage() {
                 };
             }
 
+            if (detail) {
+                const logs = await fetchActivityLogs(detail.tipe, detail.id)
+                    .then(res => res.data)
+                    .catch(() => []);
+                detail = { ...detail, activity_logs: logs };
+            }
+
             setSelectedDetail(detail);
         } catch (err: any) {
             showToast(err.message || 'Gagal memuat detail.', 'error');
@@ -1217,21 +1228,26 @@ export default function DaftarDokumenPage() {
                 id_toko: selectedDetail.id_toko,
                 id_rab: selectedDetail.id,
                 status: selectedNewStatus,
+                actor_email: userInfo.email || undefined,
+                actor_role: userInfo.role || undefined,
+                alasan_intervensi: isSuperHuman ? rabInterventionReason.trim() || undefined : undefined,
             });
+            const freshLogs = await fetchActivityLogs('RAB', selectedDetail.id).then(res => res.data).catch(() => []);
             showToast(`Status RAB berhasil diubah menjadi "${selectedNewStatus}".`, 'success');
             // Update local state
-            setSelectedDetail(prev => prev ? { ...prev, status: selectedNewStatus } : null);
+            setSelectedDetail(prev => prev ? { ...prev, status: selectedNewStatus, activity_logs: freshLogs } : null);
             setListData(prev => prev.map(d =>
                 d.id === selectedDetail.id && d.tipe === 'RAB' ? { ...d, status: selectedNewStatus } : d
             ));
             setShowStatusModal(false);
             setSelectedNewStatus('');
+            setRabInterventionReason('');
         } catch (err: any) {
             showToast(err.message || 'Gagal memperbarui status RAB.', 'error');
         } finally {
             setIsUpdatingStatus(false);
         }
-    }, [selectedDetail, selectedNewStatus, showToast]);
+    }, [fetchActivityLogs, isSuperHuman, rabInterventionReason, selectedDetail, selectedNewStatus, showToast, userInfo.email, userInfo.role]);
 
     const handleInterveneSPKStatus = useCallback(async () => {
         if (!selectedDetail || selectedDetail.tipe !== 'SPK') return;
@@ -1243,18 +1259,23 @@ export default function DaftarDokumenPage() {
         setIsInterveningSPK(true);
         const oldStatus = selectedDetail.status;
         const targetStatus = spkInterventionStatus;
-        const logReason = `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}`;
+        const reason = spkInterventionReason.trim();
+        const logReason = reason
+            ? `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${reason}`
+            : `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}`;
 
         try {
             await interveneSPKStatus(selectedDetail.id, {
                 actor_email: userInfo.email,
                 actor_role: userInfo.role,
                 target_status: targetStatus,
+                alasan_intervensi: reason || undefined,
             });
 
             const fresh = await fetchSPKDetail(selectedDetail.id).catch(() => null);
             const freshPengajuan = fresh?.data?.pengajuan;
             const freshLogs = fresh?.data?.approvalLogs;
+            const freshActivityLogs = await fetchActivityLogs('SPK', selectedDetail.id).then(res => res.data).catch(() => []);
 
             setSelectedDetail(prev => prev ? {
                 ...prev,
@@ -1277,6 +1298,7 @@ export default function DaftarDokumenPage() {
                         waktu_tindakan: new Date().toISOString(),
                     },
                 ],
+                activity_logs: freshActivityLogs,
             } : null);
 
             setListData(prev => prev.map(d =>
@@ -1284,6 +1306,7 @@ export default function DaftarDokumenPage() {
                     ? { ...d, status: targetStatus, link_pdf: targetStatus === 'SPK_APPROVED' ? d.link_pdf : null }
                     : d
             ));
+            setSpkInterventionReason('');
             setShowSpkInterventionModal(false);
             showToast(`Intervensi SPK berhasil: ${oldStatus} menjadi ${targetStatus}.`, 'success');
         } catch (err: any) {
@@ -1291,7 +1314,7 @@ export default function DaftarDokumenPage() {
         } finally {
             setIsInterveningSPK(false);
         }
-    }, [selectedDetail, spkInterventionStatus, showToast, userInfo.email, userInfo.role]);
+    }, [fetchActivityLogs, selectedDetail, spkInterventionReason, spkInterventionStatus, showToast, userInfo.email, userInfo.role]);
 
     // =========================================================================
     // FILTERED LIST
@@ -1364,7 +1387,7 @@ export default function DaftarDokumenPage() {
 
 
 
-            {/* STATUS UPDATE MODAL (HO ONLY) */}
+            {/* STATUS UPDATE MODAL (HO / SUPER HUMAN) */}
             {showStatusModal && selectedDetail && selectedDetail.tipe === 'RAB' && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-300">
@@ -1409,11 +1432,22 @@ export default function DaftarDokumenPage() {
                                     ))}
                                 </div>
                             </div>
+                            {isSuperHuman && (
+                                <div>
+                                    <label className="text-sm font-medium text-slate-600 mb-2 block">Alasan Intervensi</label>
+                                    <textarea
+                                        value={rabInterventionReason}
+                                        onChange={(event) => setRabInterventionReason(event.target.value)}
+                                        placeholder="Tulis alasan perubahan status oleh Super Human..."
+                                        className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                                    />
+                                </div>
+                            )}
                             <div className="flex gap-3 pt-2">
                                 <Button
                                     variant="outline"
                                     className="flex-1"
-                                    onClick={() => { setShowStatusModal(false); setSelectedNewStatus(''); }}
+                                    onClick={() => { setShowStatusModal(false); setSelectedNewStatus(''); setRabInterventionReason(''); }}
                                     disabled={isUpdatingStatus}
                                 >
                                     Batal
@@ -1831,12 +1865,12 @@ export default function DaftarDokumenPage() {
                                                         {getStatusLabel(selectedDetail.status)}
                                                     </Badge>
                                                 )}
-                                                {isHO && !isGlobalViewOnly && selectedDetail.tipe === 'RAB' && (
+                                                {(isHO || isSuperHuman) && !isGlobalViewOnly && selectedDetail.tipe === 'RAB' && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
                                                         className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-7"
-                                                        onClick={() => { setShowStatusModal(true); setSelectedNewStatus(''); }}
+                                                        onClick={() => { setShowStatusModal(true); setSelectedNewStatus(''); setRabInterventionReason(''); }}
                                                     >
                                                         <AlertTriangle className="w-3 h-3 mr-1" /> Ubah Status
                                                     </Button>
@@ -1849,6 +1883,7 @@ export default function DaftarDokumenPage() {
                                                         onClick={() => {
                                                             const nextStatus = selectedDetail.status === 'SPK_REJECTED' ? 'WAITING_FOR_BM_APPROVAL' : 'SPK_REJECTED';
                                                             setSpkInterventionStatus(nextStatus);
+                                                            setSpkInterventionReason('');
                                                             setShowSpkInterventionModal(true);
                                                         }}
                                                     >
@@ -2128,6 +2163,39 @@ export default function DaftarDokumenPage() {
                                                 <p className="text-sm font-bold text-red-700">Alasan Penolakan</p>
                                                 <p className="text-sm text-red-600 mt-1">{selectedDetail.alasan_penolakan}</p>
                                             </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedDetail.activity_logs && selectedDetail.activity_logs.length > 0 && (
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                                        <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                                            <div className="w-1.5 h-5 bg-amber-500 rounded-full" />
+                                            Log Aktivitas
+                                        </h4>
+                                        <div className="space-y-3">
+                                            {selectedDetail.activity_logs.map((log) => (
+                                                <div key={log.id} className="flex items-start gap-3 text-sm">
+                                                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="text-slate-700 font-semibold">{log.actor_email || '-'}</span>
+                                                            <Badge className="bg-amber-100 text-amber-700 text-[10px] font-semibold border-0">
+                                                                {log.action.replaceAll('_', ' ')}
+                                                            </Badge>
+                                                            <span className="text-slate-400 text-xs">{formatDateFull(log.created_at)}</span>
+                                                        </div>
+                                                        {(log.status_before || log.status_after) && (
+                                                            <p className="text-xs text-slate-500 mt-1">
+                                                                {log.status_before || '-'} &rarr; {log.status_after || '-'}
+                                                            </p>
+                                                        )}
+                                                        {log.reason && (
+                                                            <p className="text-red-500 text-xs mt-1 italic">{log.reason}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}

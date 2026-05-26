@@ -532,6 +532,9 @@ export const updateRABStatus = async (payload: {
     id_toko: number;
     id_rab: number;
     status: string;
+    actor_email?: string;
+    actor_role?: string;
+    alasan_intervensi?: string;
 }): Promise<any> => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/rab/update-status`, {
         method: "PUT",
@@ -544,6 +547,31 @@ export const updateRABStatus = async (payload: {
     if (res.status === 409) throw new Error(result.message || "id_toko tidak cocok dengan data RAB.");
     if (!res.ok) throw new Error(result.message || "Gagal memperbarui status RAB.");
     return result;
+};
+
+export type ActivityLog = {
+    id: number;
+    entity_type: string;
+    entity_id: number;
+    actor_email: string | null;
+    actor_role: string | null;
+    action: string;
+    status_before: string | null;
+    status_after: string | null;
+    reason: string | null;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+};
+
+export const fetchActivityLogs = async (
+    entityType: string,
+    entityId: number
+): Promise<{ status: string; data: ActivityLog[] }> => {
+    const params = new URLSearchParams({
+        entity_type: entityType,
+        entity_id: String(entityId)
+    });
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/activity-log?${params}`);
 };
 /** Proses approval atau reject RAB. */
 export const processRABApproval = async (
@@ -2405,10 +2433,12 @@ export const createPenyimpananDokumenArchiveStore = async (payload: {
 const postPenyimpananDokumenMigration = async (
     endpoint: "migration-preview" | "migration-commit",
     file: File,
-    actorRole: string
+    actorRole: string,
+    actorEmail?: string
 ): Promise<{ status: string; message: string; data: PenyimpananDokumenMigrationResult }> => {
     const form = new FormData();
     form.append("actor_role", actorRole);
+    if (actorEmail) form.append("actor_email", actorEmail);
     form.append("excel", file);
 
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/doc/penyimpanan-dokumen/${endpoint}`, {
@@ -2422,11 +2452,11 @@ const postPenyimpananDokumenMigration = async (
     return result;
 };
 
-export const previewPenyimpananDokumenMigration = async (file: File, actorRole: string) =>
-    postPenyimpananDokumenMigration("migration-preview", file, actorRole);
+export const previewPenyimpananDokumenMigration = async (file: File, actorRole: string, actorEmail?: string) =>
+    postPenyimpananDokumenMigration("migration-preview", file, actorRole, actorEmail);
 
-export const commitPenyimpananDokumenMigration = async (file: File, actorRole: string) =>
-    postPenyimpananDokumenMigration("migration-commit", file, actorRole);
+export const commitPenyimpananDokumenMigration = async (file: File, actorRole: string, actorEmail?: string) =>
+    postPenyimpananDokumenMigration("migration-commit", file, actorRole, actorEmail);
 
 /** Detail dokumen penyimpanan (GET /api/doc/penyimpanan-dokumen/:id) */
 export const fetchPenyimpananDokumenDetail = async (

@@ -62,7 +62,7 @@ export default function MigrasiPenyimpananDokumenPage() {
     setIsPreviewing(true);
     setMessage(null);
     try {
-      const res = await previewPenyimpananDokumenMigration(file, actorRole);
+      const res = await previewPenyimpananDokumenMigration(file, actorRole, user?.email);
       setResult(res.data);
       setMessage({ type: "success", text: "Preview berhasil dibuat. Cek ringkasan sebelum proses migrasi." });
     } catch (err: unknown) {
@@ -80,7 +80,7 @@ export default function MigrasiPenyimpananDokumenPage() {
     setIsCommitting(true);
     setMessage(null);
     try {
-      const res = await commitPenyimpananDokumenMigration(file, actorRole);
+      const res = await commitPenyimpananDokumenMigration(file, actorRole, user?.email);
       setResult(res.data);
       setMessage({ type: "success", text: "Migrasi selesai diproses." });
     } catch (err: unknown) {
