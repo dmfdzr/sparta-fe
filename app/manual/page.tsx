@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useEffect, useRef, useState } from 'react';
 import AppNavbar from '@/components/AppNavbar'; // Menggunakan AppNavbar
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
+  AlertCircle,
   BookOpen, 
   HardHat, 
   UserCheck, 
@@ -15,7 +15,6 @@ import {
   Camera,
   ClipboardList,
   CalendarDays,
-  FileCheck2,
   FileUp,
   LineChart,
   ClipboardCheck,
@@ -25,6 +24,105 @@ import {
   ExternalLink,
   Sparkles
 } from 'lucide-react';
+
+function PdfCanvasPreview({ src }: { src: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    let renderGeneration = 0;
+
+    const renderPdf = async () => {
+      const generation = ++renderGeneration;
+      setStatus('loading');
+      setErrorMessage('');
+
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url,
+        ).toString();
+
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.innerHTML = '';
+        const loadingTask = pdfjsLib.getDocument(src);
+        const pdf = await loadingTask.promise;
+        const deviceScale = window.devicePixelRatio || 1;
+        const targetWidth = Math.min(container.clientWidth || 820, 980);
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          if (cancelled || generation !== renderGeneration) {
+            await loadingTask.destroy();
+            return;
+          }
+
+          const page = await pdf.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const scale = targetWidth / baseViewport.width;
+          const viewport = page.getViewport({ scale });
+          const pageShell = document.createElement('div');
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          if (!context) {
+            throw new Error('Canvas browser tidak tersedia.');
+          }
+
+          canvas.width = Math.floor(viewport.width * deviceScale);
+          canvas.height = Math.floor(viewport.height * deviceScale);
+          canvas.style.width = `${Math.floor(viewport.width)}px`;
+          canvas.style.height = `${Math.floor(viewport.height)}px`;
+          context.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+
+          pageShell.className = 'mx-auto mb-4 flex w-fit max-w-full justify-center rounded-lg bg-white shadow-sm ring-1 ring-slate-200';
+          canvas.className = 'block max-w-full rounded-lg';
+          pageShell.appendChild(canvas);
+          container.appendChild(pageShell);
+
+          await page.render({ canvasContext: context, viewport }).promise;
+        }
+
+        if (!cancelled && generation === renderGeneration) {
+          setStatus('ready');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setStatus('error');
+          setErrorMessage(error instanceof Error ? error.message : 'Preview PDF gagal dimuat.');
+        }
+      }
+    };
+
+    renderPdf();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <div className="relative h-[72vh] min-h-[520px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-100 p-3 shadow-inner">
+      {status === 'loading' && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-100/90 text-sm font-semibold text-slate-600">
+          Memuat preview PDF...
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-100 p-8 text-center">
+          <AlertCircle className="h-10 w-10 text-red-500" />
+          <p className="max-w-md text-sm font-semibold text-slate-700">Preview PDF belum bisa dimuat.</p>
+          <p className="max-w-md text-xs text-slate-500">{errorMessage}</p>
+        </div>
+      )}
+      <div ref={containerRef} className="mx-auto w-full max-w-[980px]" />
+    </div>
+  );
+}
 
 export default function UserManualPage() {
   const [activeMenu, setActiveMenu] = useState('pengenalan');
@@ -154,25 +252,7 @@ export default function UserManualPage() {
                   </p>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-inner">
-                  <object
-                    data={`${pembaruanPdfHref}#toolbar=1&navpanes=0`}
-                    type="application/pdf"
-                    className="h-[72vh] min-h-[520px] w-full"
-                  >
-                    <embed
-                      src={`${pembaruanPdfHref}#toolbar=1&navpanes=0`}
-                      type="application/pdf"
-                      className="h-[72vh] min-h-[520px] w-full"
-                    />
-                    <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center">
-                      <FileCheck2 className="h-12 w-12 text-slate-400" />
-                      <p className="max-w-md text-sm text-slate-600">
-                        Preview PDF tidak tersedia di browser ini. Silakan buka dokumen melalui tombol Lihat PDF.
-                      </p>
-                    </div>
-                  </object>
-                </div>
+                <PdfCanvasPreview src={pembaruanPdfHref} />
               </CardContent>
             </Card>
           )}
