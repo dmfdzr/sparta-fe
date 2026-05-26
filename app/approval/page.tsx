@@ -701,10 +701,6 @@ export default function ApprovalPage() {
                     return true;
                 }
 
-                if (isHOUser && !isDirectorHOUser) {
-                    return false;
-                }
-
                 // 1. FILTER CABANG (Wajib sesuai cabang user)
                 // Jika item.cabang adalah '-' atau empty, kita loloskan agar tidak tersembunyi karena data kurang
                 if (jabatan !== 'DIREKTUR' && type !== 'PERTAMBAHAN_SPK' && upperUserCabang && item.cabang && item.cabang !== '-') {

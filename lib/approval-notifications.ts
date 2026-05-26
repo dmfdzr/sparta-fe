@@ -187,8 +187,6 @@ const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan
     const isDirectorHOUser = isHeadOfficeDirector(user);
     const canSeeAll = canViewAllBranches(user.roles, user.isSuperHuman);
 
-    if (isHOUser && !isDirectorHOUser) return false;
-
     if (!canSeeAll && !user.isRegionalManager && jabatan !== "DIREKTUR" && item.tipe !== "PERTAMBAHAN_SPK") {
         if (!isSameBranchScope(item.cabang, userCabang)) return false;
     }
