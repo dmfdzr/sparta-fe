@@ -78,6 +78,17 @@ interface NormalizedDoc {
     grouped_items?: any[];
 }
 
+interface PengawasanDocGroup {
+    key: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    cabang: string;
+    proyek: string;
+    status: string;
+    latest_created_at: string;
+    docs: NormalizedDoc[];
+}
+
 interface NormalizedDetail {
     id: number;
     tipe: DokumenKategori;
@@ -668,6 +679,7 @@ export default function DaftarDokumenPage() {
     // --- Navigation ---
     const [activeView, setActiveView] = useState<ActiveView>('menu');
     const [selectedKategori, setSelectedKategori] = useState<DokumenKategori | null>(null);
+    const [selectedPengawasanGroupKey, setSelectedPengawasanGroupKey] = useState<string | null>(null);
 
     // --- Data ---
     const [listData, setListData] = useState<NormalizedDoc[]>([]);
@@ -738,6 +750,7 @@ export default function DaftarDokumenPage() {
         const sessionRoles = sessionRoleRaw.split(',').map(r => r.trim().toUpperCase()).filter(Boolean);
         const sessionIsSuperHuman = hasSuperHumanRole(sessionRoles);
         const sessionCanViewAllBranches = canViewAllBranches(sessionRoles, sessionIsSuperHuman);
+        setSelectedPengawasanGroupKey(null);
         if (kategori === 'PROJECT_PLANNING' && !sessionCanViewAllBranches && !canAccessProjectPlanningByCabang(sessionStorage.getItem('loggedInUserCabang') || '')) {
             showToast('Project Planning sementara hanya dapat diakses oleh user cabang HEAD OFFICE.', 'error');
             return;
@@ -1201,6 +1214,7 @@ export default function DaftarDokumenPage() {
     const handleSelectKategori = (kat: DokumenKategori) => {
         setSelectedKategori(kat);
         setSelectedDetail(null);
+        setSelectedPengawasanGroupKey(null);
         setActiveView('list');
         loadList(kat);
     };
@@ -1210,6 +1224,7 @@ export default function DaftarDokumenPage() {
         setSelectedKategori(null);
         setListData([]);
         setSelectedDetail(null);
+        setSelectedPengawasanGroupKey(null);
         setSearchQuery('');
         setStatusFilter('');
     };
@@ -1394,6 +1409,56 @@ export default function DaftarDokumenPage() {
             return true;
         });
     }, [listData, searchQuery, statusFilter, cabangFilter]);
+
+    const pengawasanGroups = useMemo<PengawasanDocGroup[]>(() => {
+        if (selectedKategori !== 'PENGAWASAN') return [];
+
+        const groups = new Map<string, NormalizedDoc[]>();
+        filteredList.forEach((doc) => {
+            const key = (doc.nomor_ulok || doc.nama_toko || String(doc.id)).trim().toUpperCase();
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(doc);
+        });
+
+        return Array.from(groups.entries()).map(([key, docs]) => {
+            const sortedDocs = [...docs].sort((a, b) => {
+                const da = parseDateValue(a.created_at)?.getTime() ?? 0;
+                const db = parseDateValue(b.created_at)?.getTime() ?? 0;
+                return db - da;
+            });
+            const first = sortedDocs[0];
+            const statuses = sortedDocs.map(doc => (doc.status ?? '').toUpperCase());
+            const status = statuses.some(statusValue => statusValue.includes('PROGRESS'))
+                ? 'PROGRESS'
+                : statuses.some(statusValue => statusValue.includes('TERLAMBAT'))
+                    ? 'TERLAMBAT'
+                    : 'SELESAI';
+
+            return {
+                key,
+                nomor_ulok: first?.nomor_ulok ?? '-',
+                nama_toko: first?.nama_toko ?? '-',
+                cabang: first?.cabang ?? '-',
+                proyek: first?.proyek ?? '-',
+                status,
+                latest_created_at: first?.created_at ?? '',
+                docs: sortedDocs
+            };
+        }).sort((a, b) => {
+            const da = parseDateValue(a.latest_created_at)?.getTime() ?? 0;
+            const db = parseDateValue(b.latest_created_at)?.getTime() ?? 0;
+            return db - da;
+        });
+    }, [filteredList, selectedKategori]);
+
+    const selectedPengawasanGroup = useMemo(
+        () => pengawasanGroups.find(group => group.key === selectedPengawasanGroupKey) ?? null,
+        [pengawasanGroups, selectedPengawasanGroupKey]
+    );
+
+    const visibleList = selectedKategori === 'PENGAWASAN' && selectedPengawasanGroup
+        ? selectedPengawasanGroup.docs
+        : filteredList;
 
     // =========================================================================
     // RENDER
@@ -1635,7 +1700,11 @@ export default function DaftarDokumenPage() {
                                         Dokumen {KATEGORI_CONFIG[selectedKategori].fullLabel}
                                     </h2>
                                     <p className="text-sm text-slate-500">
-                                        Menampilkan {filteredList.length} dari {listData.length} dokumen
+                                        {selectedKategori === 'PENGAWASAN' && selectedPengawasanGroup
+                                            ? `Menampilkan ${visibleList.length} dokumen untuk ${selectedPengawasanGroup.nomor_ulok}`
+                                            : selectedKategori === 'PENGAWASAN'
+                                                ? `Menampilkan ${pengawasanGroups.length} ULOK dari ${filteredList.length} dokumen`
+                                                : `Menampilkan ${filteredList.length} dari ${listData.length} dokumen`}
                                     </p>
                                 </div>
                             </div>
@@ -1700,7 +1769,7 @@ export default function DaftarDokumenPage() {
                                 <Loader2 className="w-8 h-8 text-red-500 animate-spin mb-3" />
                                 <p className="text-sm text-slate-500 font-medium">Memuat data dokumen...</p>
                             </div>
-                        ) : filteredList.length === 0 ? (
+                        ) : (selectedKategori === 'PENGAWASAN' && !selectedPengawasanGroup ? pengawasanGroups.length === 0 : visibleList.length === 0) ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200">
                                 <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                                     <FileText className="w-8 h-8 text-slate-300" />
@@ -1710,8 +1779,72 @@ export default function DaftarDokumenPage() {
                             </div>
                         ) : (
                             <>
+                            {selectedKategori === 'PENGAWASAN' && selectedPengawasanGroup && (
+                                <div className="mb-3">
+                                    <Button
+                                        variant="outline"
+                                        className="h-9"
+                                        onClick={() => setSelectedPengawasanGroupKey(null)}
+                                    >
+                                        <ArrowLeft className="w-4 h-4 mr-2" /> Kembali ke Grup ULOK
+                                    </Button>
+                                </div>
+                            )}
                             <div className="grid gap-3">
-                                {filteredList.map(doc => (
+                                {selectedKategori === 'PENGAWASAN' && !selectedPengawasanGroup ? pengawasanGroups.map(group => (
+                                    <div
+                                        key={group.key}
+                                        className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                                        onClick={() => setSelectedPengawasanGroupKey(group.key)}
+                                    >
+                                        <div className="p-4 md:p-5">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                    <div className={`w-10 h-10 rounded-xl ${KATEGORI_CONFIG[selectedKategori].bgColor} flex items-center justify-center shrink-0 mt-0.5`}>
+                                                        <div className={`${KATEGORI_CONFIG[selectedKategori].color}`}>
+                                                            <FilePlus className="w-5 h-5" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-bold text-slate-800 text-sm">{group.nomor_ulok}</span>
+                                                            <Badge className={`${getStatusBadgeClass(group.status)} text-[10px] font-semibold border px-2 py-0`}>
+                                                                {getStatusLabel(group.status)}
+                                                            </Badge>
+                                                            <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-semibold border px-2 py-0">
+                                                                {group.docs.length} memo
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-sm text-slate-600 truncate mt-0.5">{group.nama_toko}</p>
+                                                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                            <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                                                <CalendarDays className="w-3 h-3" /> Terakhir {formatDate(group.latest_created_at)}
+                                                            </span>
+                                                            {group.proyek && group.proyek !== '-' && (
+                                                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                                                    <Building2 className="w-3 h-3" /> {group.proyek}
+                                                                </span>
+                                                            )}
+                                                            {group.cabang && group.cabang !== '-' && (
+                                                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                                                    <Building2 className="w-3 h-3" /> {group.cabang}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 shrink-0 md:pl-4">
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-bold text-slate-800">{group.docs.length} Dokumen</p>
+                                                        <p className="text-[11px] text-slate-400 mt-0.5">Klik untuk melihat detail</p>
+                                                    </div>
+                                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )) : visibleList.map(doc => (
                                     <div
                                         key={doc.id}
                                         className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
