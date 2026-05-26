@@ -909,25 +909,6 @@ function GanttBoard() {
                                         <SelectValue placeholder="-- Pilih Proyek / RAB Anda --" />
                                     </SelectTrigger>
                                     <SelectContent position="popper" side="bottom" className="w-(--radix-select-trigger-width) max-h-75">
-                                        <div className="px-2 pb-2 pt-2 sticky top-0 bg-white z-10 border-b border-slate-100 mb-1">
-                                            <div className="relative">
-                                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                                                <Input
-                                                    placeholder="Cari Nomor / Toko / Cabang..."
-                                                    className="pl-8 h-9 text-sm focus-visible:ring-blue-500"
-                                                    value={searchUlokInput}
-                                                    onPointerDownCapture={(e) => e.stopPropagation()}
-                                                    onTouchStartCapture={(e) => e.stopPropagation()}
-                                                    onMouseDownCapture={(e) => e.stopPropagation()}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        e.currentTarget.focus();
-                                                    }}
-                                                    onChange={(e) => setSearchUlokInput(e.target.value)}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                />
-                                            </div>
-                                        </div>
                                         {(() => {
                                             const uniqueMap = new Map();
                                             filteredTokoList.forEach((toko) => {
@@ -970,6 +951,17 @@ function GanttBoard() {
                                         })()}
                                     </SelectContent>
                                 </Select>
+                            )}
+                            {!((urlIdToko || urlUlok) && !isDirectAccess) && (
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                                    <Input
+                                        placeholder="Cari Nomor / Toko / Cabang..."
+                                        className="pl-9 h-11 text-sm focus-visible:ring-blue-500 bg-white"
+                                        value={searchUlokInput}
+                                        onChange={(e) => setSearchUlokInput(e.target.value)}
+                                    />
+                                </div>
                             )}
                         </div>
                     </CardContent>
