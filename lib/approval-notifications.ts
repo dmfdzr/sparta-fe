@@ -27,7 +27,7 @@ export type ApprovalCounts = Record<ApprovalType, number>;
 type ApprovalJabatan = "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "KONTRAKTOR" | null;
 
 type CountableApprovalItem = {
-    tipe: ApprovalType;:
+    tipe: ApprovalType;
     status: string;
     cabang?: string | null;
     raw?: any;

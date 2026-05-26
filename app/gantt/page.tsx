@@ -916,6 +916,13 @@ function GanttBoard() {
                                                     placeholder="Cari Nomor / Toko / Cabang..."
                                                     className="pl-8 h-9 text-sm focus-visible:ring-blue-500"
                                                     value={searchUlokInput}
+                                                    onPointerDownCapture={(e) => e.stopPropagation()}
+                                                    onTouchStartCapture={(e) => e.stopPropagation()}
+                                                    onMouseDownCapture={(e) => e.stopPropagation()}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.currentTarget.focus();
+                                                    }}
                                                     onChange={(e) => setSearchUlokInput(e.target.value)}
                                                     onKeyDown={(e) => e.stopPropagation()}
                                                 />
