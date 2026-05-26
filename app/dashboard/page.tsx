@@ -163,10 +163,21 @@ const calculateProjectPenalty = (lateDays: number) => {
     return Math.min((hariPertama * 1000000) + (hariBerikutnya * 500000), 10000000);
 };
 
+const normalizeStorePenaltyKeyPart = (value: unknown) => {
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+};
+
 const getProjectStorePenaltyKey = (project: any) => {
-    const nomorUlok = String(project?.toko?.nomor_ulok || '').trim().toUpperCase();
-    const cabang = String(project?.toko?.cabang || '').trim().toUpperCase();
-    if (nomorUlok) return `${cabang || 'NO_CABANG'}|${nomorUlok}`;
+    const nomorUlok = normalizeStorePenaltyKeyPart(project?.toko?.nomor_ulok);
+    if (nomorUlok) return `ULOK|${nomorUlok}`;
+
+    const kodeToko = normalizeStorePenaltyKeyPart(project?.toko?.kode_toko);
+    if (kodeToko) return `KODE|${kodeToko}`;
+
+    const cabang = normalizeStorePenaltyKeyPart(project?.toko?.cabang);
+    const namaToko = normalizeStorePenaltyKeyPart(project?.toko?.nama_toko);
+    if (namaToko) return `NAMA|${cabang}|${namaToko}`;
+
     return `TOKO_ID|${project?.toko?.id || 'UNKNOWN'}`;
 };
 
@@ -187,6 +198,24 @@ const getProjectPenaltyAmount = (project: any, lateDays?: number) => {
     }
 
     return calculateProjectPenalty(lateDays ?? calculateProjectLateDays(project));
+};
+
+const getUniquePenaltyProjects = (projects: any[]) => {
+    const byStore = new Map<string, { project: any; penalty: number; createdAt: number }>();
+
+    projects.forEach((project) => {
+        const key = getProjectStorePenaltyKey(project);
+        const latestOpnameFinal = getLatestProjectOpnameFinal(project);
+        const penalty = getProjectPenaltyAmount(project);
+        const createdAt = new Date(latestOpnameFinal?.created_at || project?.toko?.created_at || 0).getTime() || 0;
+        const existing = byStore.get(key);
+
+        if (!existing || penalty > existing.penalty || (penalty === existing.penalty && createdAt > existing.createdAt)) {
+            byStore.set(key, { project, penalty, createdAt });
+        }
+    });
+
+    return Array.from(byStore.values()).map((entry) => entry.project);
 };
 
 export default function DashboardPage() {
@@ -1333,13 +1362,7 @@ export default function DashboardPage() {
                             }
 
                             if (detailModal.context === 'DENDA') {
-                                const seenPenaltyKeys = new Set<string>();
-                                modalData = modalData.filter((project: any) => {
-                                    const key = getProjectStorePenaltyKey(project);
-                                    if (seenPenaltyKeys.has(key)) return false;
-                                    seenPenaltyKeys.add(key);
-                                    return true;
-                                });
+                                modalData = getUniquePenaltyProjects(modalData);
                             }
 
                             const totalPages = Math.ceil(modalData.length / itemsPerPage);
