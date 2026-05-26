@@ -409,16 +409,26 @@ export default function PenyimpananDokumenPage() {
       return;
     }
 
-    const payload = {
-      nomor_ulok: newStoreForm.nomor_ulok.trim(),
+    const nomorUlok = newStoreForm.nomor_ulok.trim();
+    const payload: {
+      nomor_ulok?: string;
+      kode_toko: string;
+      nama_toko: string;
+      cabang: string;
+      proyek: string;
+    } = {
       kode_toko: newStoreForm.kode_toko.trim(),
       nama_toko: newStoreForm.nama_toko.trim(),
       cabang: newStoreForm.cabang.trim().toUpperCase(),
       proyek: newStoreForm.proyek.trim(),
     };
 
-    if (!payload.nomor_ulok || !payload.kode_toko || !payload.nama_toko || !payload.cabang || !payload.proyek) {
-      showToast("ULOK, kode toko, nama toko, cabang, dan proyek wajib diisi", "error");
+    if (nomorUlok) {
+      payload.nomor_ulok = nomorUlok;
+    }
+
+    if (!payload.kode_toko || !payload.nama_toko || !payload.cabang || !payload.proyek) {
+      showToast("Kode toko, nama toko, cabang, dan proyek wajib diisi", "error");
       return;
     }
 
@@ -829,7 +839,7 @@ export default function PenyimpananDokumenPage() {
                 return (
                   <tr key={toko.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-4 text-slate-500">{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900 tracking-tight">{toko.nomor_ulok}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900 tracking-tight">{toko.nomor_ulok || '-'}</td>
                     <td className="px-6 py-4 font-semibold text-slate-700">{toko.kode_toko || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{toko.nama_toko}</td>
                     <td className="px-6 py-4 text-slate-600">{getBranchLocationName(toko.cabang)}</td>
@@ -895,7 +905,7 @@ export default function PenyimpananDokumenPage() {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-slate-900">{selectedToko.nama_toko}</h2>
             <div className="flex flex-wrap items-center gap-2 mt-1">
-              <Badge className="bg-red-100 text-red-700 border-red-200">{selectedToko.nomor_ulok}</Badge>
+              <Badge className="bg-red-100 text-red-700 border-red-200">{selectedToko.nomor_ulok || 'ULOK kosong'}</Badge>
               <Badge variant="secondary">{selectedToko.cabang}</Badge>
               {selectedToko.proyek && <Badge variant="secondary">{selectedToko.proyek}</Badge>}
             </div>
@@ -1121,7 +1131,7 @@ export default function PenyimpananDokumenPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>ULOK</Label>
+              <Label>ULOK <span className="text-xs font-normal text-slate-400">(opsional)</span></Label>
               <Input
                 value={newStoreForm.nomor_ulok}
                 onChange={e => setNewStoreForm(prev => ({ ...prev, nomor_ulok: e.target.value }))}

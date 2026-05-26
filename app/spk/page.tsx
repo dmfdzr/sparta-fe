@@ -39,6 +39,8 @@ const getTodayDateString = () => {
     return `${year}-${month}-${day}`;
 };
 
+const BACKDATE_ALLOWED_BRANCHES = ['LAMPUNG', 'LUWU', 'JEMBER', 'CILACAP'];
+
 // Tipe untuk data form yang dimuat saat revisi
 type RevisiFormSnapshot = {
     kode_toko: string;
@@ -83,6 +85,7 @@ export default function SPKPage() {
     // State Form & Revisi
     const [selectedRabObj, setSelectedRabObj] = useState<any>(null);
     const [revisiData, setRevisiData] = useState({ isRevisi: false, sequence: '', rowIndex: null });
+    const [revisiMinStartDate, setRevisiMinStartDate] = useState('');
 
     const [form, setForm] = useState({
         nomor_ulok: '',
@@ -185,6 +188,8 @@ export default function SPKPage() {
         
         if (selected) {
             setSelectedRabObj(selected);
+            setRevisiMinStartDate('');
+            setRevisiData({ isRevisi: false, sequence: '', rowIndex: null });
             setForm(prev => ({ 
                 ...prev, 
                 nomor_ulok: ulokStr, 
@@ -229,10 +234,11 @@ export default function SPKPage() {
                                 }
                             }
 
+                            const rejectedStartDate = latestSpk.waktu_mulai ? latestSpk.waktu_mulai.split("T")[0] : '';
                             const autofilledForm: RevisiFormSnapshot = {
                                 kode_toko: latestSpk.toko?.kode_toko || selected["Kode_Toko"] || selected["kode_toko"] || '',
                                 nama_kontraktor: latestSpk.nama_kontraktor || '',
-                                waktu_mulai: latestSpk.waktu_mulai ? latestSpk.waktu_mulai.split("T")[0] : '',
+                                waktu_mulai: rejectedStartDate,
                                 durasi: latestSpk.durasi?.toString() || '',
                                 spk_bulan: latestSpk.spk_manual_1 || '',
                                 spk_tahun: latestSpk.spk_manual_2 || new Date().getFullYear().toString().slice(-2),
@@ -243,6 +249,7 @@ export default function SPKPage() {
 
                             // Autofill form
                             setRevisiData({ isRevisi: true, sequence: latestSpk.nomor_spk?.split('/')[0] || '', rowIndex: null });
+                            setRevisiMinStartDate(rejectedStartDate);
                             setForm(prev => ({ ...prev, ...autofilledForm }));
 
                             // Tampilkan pesan inline minimal
@@ -493,12 +500,14 @@ export default function SPKPage() {
                                             value={form.waktu_mulai}
                                             onChange={val => setForm({...form, waktu_mulai: val})}
                                             disabled={isReadOnly}
-                                            min={['LAMPUNG', 'LUWU', 'JEMBER', 'CILACAP'].includes(userInfo.cabang?.toUpperCase()) ? undefined : getTodayDateString()}
+                                            min={BACKDATE_ALLOWED_BRANCHES.includes(userInfo.cabang?.toUpperCase()) ? undefined : (revisiData.isRevisi && revisiMinStartDate ? revisiMinStartDate : getTodayDateString())}
                                             className="font-semibold"
                                         />
                                         <p className="text-xs text-slate-500 mt-1">
-                                            {['LAMPUNG', 'LUWU', 'JEMBER', 'CILACAP'].includes(userInfo.cabang?.toUpperCase()) 
+                                            {BACKDATE_ALLOWED_BRANCHES.includes(userInfo.cabang?.toUpperCase()) 
                                                 ? `Cabang ${userInfo.cabang?.toUpperCase()} dapat memilih tanggal sebelum hari ini (backdate).`
+                                                : revisiData.isRevisi && revisiMinStartDate
+                                                    ? `Revisi SPK ditolak dapat memilih tanggal mulai minimal ${revisiMinStartDate.split('-').reverse().join('/')}.`
                                                 : "Tanggal sebelum hari ini tidak bisa dipilih."}
                                         </p>
                                     </div>

@@ -360,17 +360,33 @@ const STATUS_OPTIONS = [
 // =============================================================================
 // UTILS
 // =============================================================================
+const parseDateValue = (dateStr: string) => {
+    if (!dateStr) return null;
+    const trimmed = String(dateStr).trim();
+    const dmy = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(trimmed);
+    if (dmy) {
+        const [, day, month, year] = dmy;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     try {
-        return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        const parsed = parseDateValue(dateStr);
+        return parsed ? parsed.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : dateStr;
     } catch { return dateStr; }
 };
 
 const formatDateFull = (dateStr: string) => {
     if (!dateStr) return '-';
     try {
-        return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        const parsed = parseDateValue(dateStr);
+        return parsed ? parsed.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : dateStr;
     } catch { return dateStr; }
 };
 
@@ -550,7 +566,7 @@ const normalizePengawasanDocs = (items: any[], ganttMap?: Map<number, any>): Nor
         if (groupItems.some(i => i.status?.toLowerCase() === 'progress')) aggStatus = 'PROGRESS';
         else if (groupItems.some(i => i.status?.toLowerCase() === 'terlambat')) aggStatus = 'TERLAMBAT';
 
-        const tanggal = first.tanggal_pengawasan || first.berkas_pengawasan?.created_at || first.created_at;
+        const tanggal = first.created_at || first.berkas_pengawasan?.created_at || first.tanggal_pengawasan;
 
         docs.push({
             id: id_pengawasan_gantt,
@@ -952,7 +968,7 @@ export default function DaftarDokumenPage() {
                     status:            doc.status,
                     email_pembuat:     '-',
                     total_nilai:       0,
-                    created_at:        actualTanggal || doc.created_at,
+                    created_at:        first?.created_at || doc.created_at,
                     tanggal_pengawasan: actualTanggal,
                     link_pdf:          first?.berkas_pengawasan?.link_pdf_pengawasan ?? doc.link_pdf,
                     link_pdf_pengawasan: first?.berkas_pengawasan?.link_pdf_pengawasan ?? doc.link_pdf,
