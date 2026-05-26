@@ -527,6 +527,39 @@ export const downloadRABPdf = async (id: number): Promise<boolean> => {
     return true;
 };
 
+/** Sinkronkan ulang harga item RAB dari master harga cabang dan regenerate PDF. */
+export const syncRABBranchPrices = async (
+    id: number
+): Promise<{
+    status: string;
+    message: string;
+    data: {
+        id_rab: number;
+        cabang: string;
+        lingkup_pekerjaan: string | null;
+        updated_items: number;
+        totals: {
+            grandTotal: number;
+            totalNonSbo: number;
+            finalGrandTotal: number;
+        };
+        links?: {
+            link_pdf_gabungan: string;
+            link_pdf_non_sbo: string;
+            link_pdf_rekapitulasi: string;
+            link_pdf_sph?: string;
+        } | null;
+    };
+}> => {
+    const url = `${API_URL.replace(/\/$/, "")}/api/rab/${id}/sync-branch-prices`;
+    const res = await fetch(url, { method: "POST" });
+    const result = await res.json();
+    if (!res.ok || result.status !== "success") {
+        throw new Error(result.message || "Gagal sinkron harga cabang RAB.");
+    }
+    return result;
+};
+
 /** Update status RAB (penolakan otomatis oleh HEAD OFFICE). */
 export const updateRABStatus = async (payload: {
     id_toko: number;

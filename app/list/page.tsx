@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import {
-    fetchRABList, fetchRABDetail, downloadRABPdf,
+    fetchRABList, fetchRABDetail, downloadRABPdf, syncRABBranchPrices,
     type RABListItem, type RABDetailItem, type RABDetailResponse,
     fetchSPKList, fetchSPKDetail, downloadSPKPdf,
     type SPKListItem, type SPKDetailResponse,
@@ -703,6 +703,7 @@ export default function DaftarDokumenPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
+    const [syncingRabId, setSyncingRabId] = useState<number | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // --- RAB Status Update (HO only) ---
@@ -1174,6 +1175,37 @@ export default function DaftarDokumenPage() {
             setDownloadingId(null);
         }
     }, [showToast]);
+
+    const handleSyncRABBranchPrices = useCallback(async () => {
+        if (!selectedDetail || selectedDetail.tipe !== 'RAB') return;
+
+        setSyncingRabId(selectedDetail.id);
+        try {
+            const result = await syncRABBranchPrices(selectedDetail.id);
+            showToast(
+                `Harga ${result.data.updated_items} item disinkronkan ke master ${result.data.cabang}. PDF sudah dibuat ulang.`,
+                'success'
+            );
+            await loadDetail({
+                id: selectedDetail.id,
+                tipe: selectedDetail.tipe,
+                nomor_ulok: selectedDetail.nomor_ulok,
+                nama_toko: selectedDetail.nama_toko,
+                cabang: selectedDetail.cabang,
+                proyek: selectedDetail.proyek,
+                status: selectedDetail.status,
+                email_pembuat: selectedDetail.email_pembuat,
+                total_nilai: selectedDetail.total_nilai,
+                created_at: selectedDetail.created_at,
+                link_pdf: selectedDetail.link_pdf_gabungan ?? selectedDetail.link_pdf ?? null,
+                lingkup_pekerjaan: selectedDetail.lingkup_pekerjaan,
+            });
+        } catch (err: any) {
+            showToast(err.message || 'Gagal sinkron harga cabang RAB.', 'error');
+        } finally {
+            setSyncingRabId(null);
+        }
+    }, [loadDetail, selectedDetail, showToast]);
 
     const handleViewPDFOnline = useCallback(async (detail: NormalizedDetail) => {
         try {
@@ -2633,7 +2665,7 @@ export default function DaftarDokumenPage() {
                                         ) && (
                                             <Button
                                                 className="bg-red-600 hover:bg-red-700 text-white"
-                                                disabled={downloadingId === selectedDetail.id}
+                                                disabled={downloadingId === selectedDetail.id || syncingRabId === selectedDetail.id}
                                                 onClick={() => handleDownloadPDF(selectedDetail.id, selectedDetail.tipe)}
                                             >
                                                 {downloadingId === selectedDetail.id ? (
@@ -2642,6 +2674,23 @@ export default function DaftarDokumenPage() {
                                                     <Download className="w-4 h-4 mr-2" />
                                                 )}
                                                 Unduh PDF {selectedDetail.tipe}
+                                            </Button>
+                                        )}
+
+                                        {selectedDetail.tipe === 'RAB' && isSuperHuman && (
+                                            <Button
+                                                variant="outline"
+                                                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                disabled={syncingRabId === selectedDetail.id || downloadingId === selectedDetail.id}
+                                                onClick={handleSyncRABBranchPrices}
+                                                title="Sinkronkan harga item dengan master harga cabang, lalu regenerate PDF"
+                                            >
+                                                {syncingRabId === selectedDetail.id ? (
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                                )}
+                                                Sync Harga Cabang
                                             </Button>
                                         )}
 
