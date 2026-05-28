@@ -70,6 +70,7 @@ const TARGET_TOTAL = TARGET_REGULER + TARGET_FRANCHISE;
 const HIDDEN_BRANCHES = new Set(["-", "HEAD OFFICE", "TESTING"]);
 const BRANCH_DISPLAY_OVERRIDES: Record<string, string> = {
   KOTABUMI: "LAMPUNG",
+  MALANB: "MALANG",
 };
 
 const getDocumentCategoryKey = (doc: PenyimpananDokumenItem) => doc.kategori_dokumen || doc.nama_dokumen;
