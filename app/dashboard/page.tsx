@@ -191,30 +191,31 @@ const getLatestProjectOpnameFinal = (project: any) => {
     return getProjectOpnameFinals(project)[0] ?? null;
 };
 
-const getProjectPenaltyAmount = (project: any, lateDays?: number) => {
-    const latestOpnameFinal = getLatestProjectOpnameFinal(project);
-    if (latestOpnameFinal) {
-        return Math.max(0, parseCurrency(latestOpnameFinal.nilai_denda));
-    }
-
-    return 0;
-};
-
 const getProjectPenaltyInfo = (project: any, lateDays?: number) => {
+    const calculatedDays = lateDays ?? calculateProjectLateDays(project);
+    const calculatedAmount = calculateProjectPenalty(calculatedDays);
+
     const latestOpnameFinal = getLatestProjectOpnameFinal(project);
     if (latestOpnameFinal) {
-        return {
-            amount: Math.max(0, parseCurrency(latestOpnameFinal.nilai_denda)),
-            days: Number(latestOpnameFinal.hari_denda ?? 0),
-            source: 'Resmi' as const,
-            targetKategori: 'OPNAME_FINAL',
-        };
+        const dbAmount = Math.max(0, parseCurrency(latestOpnameFinal.nilai_denda));
+        const dbDays = Number(latestOpnameFinal.hari_denda ?? 0);
+        
+        // If the DB has a valid penalty > 0, trust the DB (Opname Final).
+        // Otherwise (DB is 0), fallback to the live calculation based on SPK + ST to bypass the backend bug.
+        if (dbAmount > 0 || dbDays > 0) {
+            return {
+                amount: dbAmount,
+                days: dbDays,
+                source: 'Resmi' as const,
+                targetKategori: 'OPNAME_FINAL',
+            };
+        }
     }
 
     return {
-        amount: 0,
-        days: lateDays ?? calculateProjectLateDays(project),
-        source: 'Resmi' as const,
+        amount: calculatedAmount,
+        days: calculatedDays,
+        source: 'Estimasi' as const,
         targetKategori: 'OPNAME_FINAL',
     };
 };
