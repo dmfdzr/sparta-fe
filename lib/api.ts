@@ -106,6 +106,36 @@ export type DcProject = {
     updated_at: string;
 };
 
+export type DcArchiveProject = {
+    id: number;
+    project_id: number;
+    archive_code: string;
+    archive_name: string;
+    branch_name: string;
+    location_name: string | null;
+    project_type: string;
+    address: string | null;
+    notes: string | null;
+    created_by_email: string | null;
+    created_by_role: string | null;
+    created_at: string;
+    updated_at: string;
+    jumlah_dokumen: number;
+    kategori_counts?: Record<string, number>;
+};
+
+export type CreateDcArchiveProjectPayload = {
+    archive_code: string;
+    archive_name: string;
+    branch_name: string;
+    location_name?: string;
+    project_type: string;
+    address?: string;
+    notes?: string;
+    actor_email: string;
+    actor_role: string;
+};
+
 export type DcVendor = {
     id: number;
     company_name: string;
@@ -157,6 +187,36 @@ export const fetchDcProjects = async (
 
 export const createDcProject = async (payload: CreateDcProjectPayload): Promise<{ status: string; data: DcProject }> => {
     return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/dc-development/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+};
+
+export const fetchDcArchiveProjects = async (
+    filters: {
+        actor_email: string;
+        actor_role: string;
+        search?: string;
+        branch_name?: string;
+        status?: "all" | "lengkap" | "belum";
+    },
+    options?: ApiRequestOptions
+): Promise<{ status: string; data: DcArchiveProject[] }> => {
+    const base = API_URL.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    params.append("actor_email", filters.actor_email);
+    params.append("actor_role", filters.actor_role);
+    if (filters.search) params.append("search", filters.search);
+    if (filters.branch_name && filters.branch_name !== "all") params.append("branch_name", filters.branch_name);
+    if (filters.status && filters.status !== "all") params.append("status", filters.status);
+    return safeFetchJSON(`${base}/api/dc-development/archive-projects?${params}`, options);
+};
+
+export const createDcArchiveProject = async (
+    payload: CreateDcArchiveProjectPayload
+): Promise<{ status: string; message: string; data: DcArchiveProject }> => {
+    return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/dc-development/archive-projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
