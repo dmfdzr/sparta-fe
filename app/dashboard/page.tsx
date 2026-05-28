@@ -1275,7 +1275,7 @@ export default function DashboardPage() {
                                         if (detailModal.context === 'JHK') return true;
 
                                         return detailModal.context === 'DENDA'
-                                            ? getProjectPenaltyAmount(p) > 0
+                                            ? getProjectPenaltyInfo(p).amount > 0
                                             : calculateProjectLateDays(p) > 0;
                                     }
                                     return true;
