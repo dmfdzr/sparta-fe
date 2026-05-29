@@ -98,3 +98,36 @@ export const getYearFromDate = (dateStr: string): string | null => {
     const match = dateStr.match(/\d{4}/);
     return match ? match[0] : null;
 };
+import imageCompression from 'browser-image-compression';
+
+/**
+ * Mengkompres ukuran gambar sebelum diupload.
+ * Default max size: ~1MB, max dimension: 1920px.
+ */
+export const compressImage = async (file: File): Promise<File> => {
+    // Hanya proses file gambar
+    if (!file.type.startsWith('image/')) return file;
+    
+    // Jangan compress SVG atau GIF
+    if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
+
+    const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: 'image/jpeg'
+    };
+
+    try {
+        const compressedBlob = await imageCompression(file, options);
+        // Pertahankan nama file asli, namun extensi mungkin berubah jadi jpeg
+        return new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '') + '.jpeg', {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+        });
+    } catch (error) {
+        console.error('Error compressing image:', error);
+        return file; // fallback ke file asli jika gagal
+    }
+};
+

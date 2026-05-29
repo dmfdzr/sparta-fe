@@ -159,15 +159,23 @@ export default function InstruksiLapanganPage() {
         }
     };
 
-    const handleLampiranChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLampiranChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 10 * 1024 * 1024) {
             showAlert("Peringatan", "Ukuran lampiran maksimal 10MB.", "error");
             return;
         }
-        setLampiranFile(file);
-        setLampiranFileName(file.name);
+        
+        let finalFile = file;
+        // Kompresi otomatis untuk lampiran foto
+        if (file.type.startsWith('image/')) {
+            const { compressImage } = await import('@/lib/utils');
+            finalFile = await compressImage(file);
+        }
+
+        setLampiranFile(finalFile);
+        setLampiranFileName(finalFile.name);
     };
 
     const removeLampiran = () => {

@@ -1348,6 +1348,11 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                     }
                 });
                 setMemoInputs(initial);
+                // Jika sudah ada data dari hari ini (Progress/Terlambat dari sebelumnya),
+                // set isDirty agar form langsung bisa disubmit setelah user mengupdate statusnya
+                if (Object.keys(initial).length > 0) {
+                    setIsDirty(true);
+                }
 
                 const map = new Map<string, string>();
                 const idMap = new Map<string, number>();
@@ -1474,8 +1479,16 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         }));
     };
 
-    const handleSetField = (catName: string, itemJenis: string, field: 'catatan' | 'file', value: any) => {
+    const handleSetField = async (catName: string, itemJenis: string, field: 'catatan' | 'file', value: any) => {
         setIsDirty(true);
+        let finalValue = value;
+        
+        // Kompresi otomatis untuk foto sebelum dimasukkan ke state
+        if (field === 'file' && value instanceof File) {
+            const { compressImage } = await import('@/lib/utils');
+            finalValue = await compressImage(value);
+        }
+
         const key = `${catName.toUpperCase()}|${itemJenis.toUpperCase()}`;
         setMemoInputs(prev => ({
             ...prev,
@@ -1485,7 +1498,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 catatan: prev[key]?.catatan || '',
                 file: prev[key]?.file || null,
                 dokumentasiUrl: prev[key]?.dokumentasiUrl || null,
-                [field]: value
+                [field]: finalValue
             }
         }));
     };
@@ -1497,10 +1510,10 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         for (const cat of memoConfig) {
             if (!cat.items) continue;
             for (const item of cat.items) {
-                const isAlreadySelesai = latestStatusMapState.get(`${cat.category.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`) === 'Selesai';
+                const key = `${cat.category.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`;
+                const isAlreadySelesai = latestStatusMapState.get(key) === 'Selesai';
                 if (isAlreadySelesai) continue;
 
-                const key = `${cat.category.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`;
                 const input = memoInputs[key];
                 
                 if (!input || !input.status) {
@@ -1513,8 +1526,11 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                     }
                 }
 
-                // Dokumentasi/Foto wajib diisi untuk setiap item
-                if (!input.file && !input.dokumentasiUrl) {
+                // Foto/dokumentasi wajib diisi, KECUALI item sudah punya dokumentasiUrl dari history
+                // (item Progress/Terlambat dari hari sebelumnya yang sedang diupdate statusnya)
+                const hasFotoLama = !!(input.dokumentasiUrl);
+                const hasFotoBaru = !!(input.file);
+                if (!hasFotoBaru && !hasFotoLama) {
                     return false;
                 }
             }

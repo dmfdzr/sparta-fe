@@ -290,10 +290,16 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
     };
 
     // Handle input change
-    const handleSetInput = (itemId: number, field: string, value: any) => {
+    const handleSetInput = async (itemId: number, field: string, value: any) => {
+        let finalValue = value;
+        if (field === 'file' && value instanceof File) {
+            const { compressImage } = await import('@/lib/utils');
+            finalValue = await compressImage(value);
+        }
+
         setOpnameInputs(prev => ({
             ...prev,
-            [itemId]: { ...prev[itemId], [field]: value }
+            [itemId]: { ...prev[itemId], [field]: finalValue }
         }));
     };
 
