@@ -1476,32 +1476,66 @@ export default function DashboardPage() {
                                                     if (detailModal.context === 'COST_M2') {
                                                         let costTerbuka = 0; let costBangunan = 0; let costTerbangun = 0;
                                                         let luasTerbuka = 0; let luasBangunan = 0; let luasTerbangun = 0;
+                                                        let dataSource = "Penawaran (RAB)";
+
+                                                        const rabItemCategoryMap = new Map<number, string>();
                                                         const rabArr = Array.isArray(p.rab) ? p.rab : (p.rab ? [p.rab] : []);
+                                                        
                                                         rabArr.forEach((rab: any) => {
-                                                            luasTerbuka = Math.max(luasTerbuka, Number(rab.luas_area_terbuka || 0));
-                                                            luasBangunan = Math.max(luasBangunan, Number(rab.luas_bangunan || 0));
-                                                            luasTerbangun = Math.max(luasTerbangun, Number(rab.luas_terbangun || 0));
-                                                            costTerbangun += Number(rab.grand_total_final || 0);
-                                                            
                                                             const itemsFromCache = rabItemsMap[rab.id] || [];
                                                             const itemsData = typeof rab.items === 'string' ? JSON.parse(rab.items) : (rab.items || []);
                                                             const itemsFromJson = typeof rab.Item_Details_JSON === 'string' ? JSON.parse(rab.Item_Details_JSON) : (rab.Item_Details_JSON || []);
                                                             const finalItems = itemsFromCache.length > 0 ? itemsFromCache : (itemsData.length > 0 ? itemsData : itemsFromJson);
+                                                            finalItems.forEach((item: any) => {
+                                                                if (item.id) rabItemCategoryMap.set(item.id, (item.kategori_pekerjaan || item.Kategori_Pekerjaan || '').toUpperCase());
+                                                            });
+                                                        });
+
+                                                        const latestOpnameFinal = getLatestProjectOpnameFinal(p);
+                                                        const opnameFinalItems = latestOpnameFinal?.items || opnameItemsMap[p.toko?.id] || [];
+                                                        const useOpnameFinal = !!latestOpnameFinal && opnameFinalItems.length > 0;
+
+                                                        rabArr.forEach((rab: any) => {
+                                                            luasTerbuka = Math.max(luasTerbuka, Number(rab.luas_area_terbuka || 0));
+                                                            luasBangunan = Math.max(luasBangunan, Number(rab.luas_bangunan || 0));
+                                                            luasTerbangun = Math.max(luasTerbangun, Number(rab.luas_terbangun || 0));
                                                             
-                                                            if (finalItems.length > 0) {
-                                                                finalItems.forEach((item: any) => {
-                                                                    const itemTotal = Number(item.total_harga || (item.volume * (item.harga_material + item.harga_upah)) || 0);
-                                                                    const kat = (item.kategori_pekerjaan || item.Kategori_Pekerjaan || '').toUpperCase();
-                                                                    if (kat === 'PEKERJAAN AREA TERBUKA') {
-                                                                        costTerbuka += itemTotal;
-                                                                    } else {
-                                                                        costBangunan += itemTotal;
-                                                                    }
-                                                                });
-                                                            } else {
-                                                                costBangunan += Number(rab.grand_total_final || 0);
+                                                            if (!useOpnameFinal) {
+                                                                costTerbangun += Number(rab.grand_total_final || 0);
+                                                                const itemsFromCache = rabItemsMap[rab.id] || [];
+                                                                const itemsData = typeof rab.items === 'string' ? JSON.parse(rab.items) : (rab.items || []);
+                                                                const itemsFromJson = typeof rab.Item_Details_JSON === 'string' ? JSON.parse(rab.Item_Details_JSON) : (rab.Item_Details_JSON || []);
+                                                                const finalItems = itemsFromCache.length > 0 ? itemsFromCache : (itemsData.length > 0 ? itemsData : itemsFromJson);
+                                                                
+                                                                if (finalItems.length > 0) {
+                                                                    finalItems.forEach((item: any) => {
+                                                                        const itemTotal = Number(item.total_harga || (item.volume * (item.harga_material + item.harga_upah)) || 0);
+                                                                        const kat = (item.kategori_pekerjaan || item.Kategori_Pekerjaan || '').toUpperCase();
+                                                                        if (kat === 'PEKERJAAN AREA TERBUKA') {
+                                                                            costTerbuka += itemTotal;
+                                                                        } else {
+                                                                            costBangunan += itemTotal;
+                                                                        }
+                                                                    });
+                                                                } else {
+                                                                    costBangunan += Number(rab.grand_total_final || 0);
+                                                                }
                                                             }
                                                         });
+
+                                                        if (useOpnameFinal) {
+                                                            dataSource = "Opname Final";
+                                                            costTerbangun = Number(latestOpnameFinal.grand_total_opname || 0);
+                                                            opnameFinalItems.forEach((oItem: any) => {
+                                                                const itemTotal = Number(oItem.total_harga_opname || 0);
+                                                                const kat = rabItemCategoryMap.get(oItem.id_rab_item) || '';
+                                                                if (kat === 'PEKERJAAN AREA TERBUKA') {
+                                                                    costTerbuka += itemTotal;
+                                                                } else {
+                                                                    costBangunan += itemTotal;
+                                                                }
+                                                            });
+                                                        }
                                                         
                                                         rTerbuka = luasTerbuka > 0 && costTerbuka > 0 ? Math.round(costTerbuka / luasTerbuka) : 0;
                                                         rBangunan = luasBangunan > 0 && costBangunan > 0 ? Math.round(costBangunan / luasBangunan) : 0;
@@ -1510,12 +1544,17 @@ export default function DashboardPage() {
                                                         return (
                                                             <React.Fragment key={i}>
                                                                 <tr 
-                                                                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                                                    className={`transition-colors group cursor-pointer ${expandedRow === i ? 'bg-purple-50/30' : 'hover:bg-slate-50/50'}`}
                                                                     onClick={() => setExpandedRow(expandedRow === i ? null : i)}
                                                                 >
                                                                     <td className="px-4 py-3 border-r border-slate-300">
                                                                         <div className="font-bold text-slate-700 text-xs wrap-break-word whitespace-normal">{p.toko?.nama_toko}</div>
                                                                         <div className="text-[10px] font-mono text-red-500 bg-red-50 px-1 rounded inline-block mt-0.5">{p.toko?.nomor_ulok}</div>
+                                                                        <div className="mt-1">
+                                                                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${useOpnameFinal ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                                SUMBER: {dataSource}
+                                                                            </span>
+                                                                        </div>
                                                                     </td>
                                                                     <td className="px-4 py-3 text-[10px] font-semibold text-slate-500 border-r border-slate-300">{p.toko?.cabang}</td>
                                                                     <td className="px-4 py-3 text-right">
@@ -1527,23 +1566,61 @@ export default function DashboardPage() {
                                                                     </td>
                                                                 </tr>
                                                                 {expandedRow === i && (
-                                                                    <tr className="bg-slate-50 border-t border-slate-300">
+                                                                    <tr className="bg-slate-50/80 border-t border-slate-300 shadow-inner">
                                                                         <td colSpan={3} className="px-4 py-4">
-                                                                            <div className="grid grid-cols-3 gap-3">
-                                                                                <div className="bg-white rounded-xl p-3 border border-slate-300 text-center shadow-sm">
-                                                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Terbangun</p>
-                                                                                    <p className="text-sm font-black text-slate-800">{formatRupiah(rTerbangun)}</p>
-                                                                                    <p className="text-[9px] text-slate-400 mt-0.5">/ m²</p>
+                                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                                                <div className="bg-white rounded-xl p-4 border border-purple-200 shadow-sm flex flex-col justify-between">
+                                                                                    <div>
+                                                                                        <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider mb-2">Terbangun</p>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                                                                                            <span>Total Biaya</span>
+                                                                                            <span className="font-semibold text-slate-700">{formatRupiah(costTerbangun)}</span>
+                                                                                        </div>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-2 pb-2 border-b border-slate-100">
+                                                                                            <span>Luas Area</span>
+                                                                                            <span className="font-semibold text-slate-700">{luasTerbangun} m²</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="text-right mt-1">
+                                                                                        <p className="text-lg font-black text-purple-700">{formatRupiah(rTerbangun)}</p>
+                                                                                        <p className="text-[9px] text-slate-400">/ m²</p>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="bg-white rounded-xl p-3 border border-slate-300 text-center shadow-sm">
-                                                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Bangunan</p>
-                                                                                    <p className="text-sm font-black text-slate-800">{formatRupiah(rBangunan)}</p>
-                                                                                    <p className="text-[9px] text-slate-400 mt-0.5">/ m²</p>
+                                                                                
+                                                                                <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm flex flex-col justify-between">
+                                                                                    <div>
+                                                                                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider mb-2">Bangunan</p>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                                                                                            <span>Total Biaya</span>
+                                                                                            <span className="font-semibold text-slate-700">{formatRupiah(costBangunan)}</span>
+                                                                                        </div>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-2 pb-2 border-b border-slate-100">
+                                                                                            <span>Luas Area</span>
+                                                                                            <span className="font-semibold text-slate-700">{luasBangunan} m²</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="text-right mt-1">
+                                                                                        <p className="text-lg font-black text-blue-700">{formatRupiah(rBangunan)}</p>
+                                                                                        <p className="text-[9px] text-slate-400">/ m²</p>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="bg-white rounded-xl p-3 border border-slate-300 text-center shadow-sm">
-                                                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Terbuka</p>
-                                                                                    <p className="text-sm font-black text-slate-800">{formatRupiah(rTerbuka)}</p>
-                                                                                    <p className="text-[9px] text-slate-400 mt-0.5">/ m²</p>
+
+                                                                                <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm flex flex-col justify-between">
+                                                                                    <div>
+                                                                                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-2">Terbuka</p>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                                                                                            <span>Total Biaya</span>
+                                                                                            <span className="font-semibold text-slate-700">{formatRupiah(costTerbuka)}</span>
+                                                                                        </div>
+                                                                                        <div className="flex justify-between items-center text-xs text-slate-500 mb-2 pb-2 border-b border-slate-100">
+                                                                                            <span>Luas Area</span>
+                                                                                            <span className="font-semibold text-slate-700">{luasTerbuka} m²</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="text-right mt-1">
+                                                                                        <p className="text-lg font-black text-emerald-700">{formatRupiah(rTerbuka)}</p>
+                                                                                        <p className="text-[9px] text-slate-400">/ m²</p>
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
                                                                         </td>
