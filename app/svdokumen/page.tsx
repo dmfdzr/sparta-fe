@@ -69,8 +69,40 @@ const GLOBAL_TARGET_FRANCHISE = 5798;
 const GLOBAL_TARGET_TOTAL = GLOBAL_TARGET_REGULER + GLOBAL_TARGET_FRANCHISE;
 
 const TARGET_PER_CABANG: Record<string, { reguler: number; franchise: number }> = {
-  // Placeholder mapping target per cabang.
-  // "BEKASI": { reguler: 500, franchise: 200 },
+  "PEKANBARU": { reguler: 365, franchise: 118 },
+  "JAMBI": { reguler: 268, franchise: 32 },
+  "BANJARMASIN": { reguler: 421, franchise: 124 },
+  "KARAWANG": { reguler: 527, franchise: 267 },
+  "PARUNG": { reguler: 489, franchise: 89 },
+  "PONTIANAK": { reguler: 466, franchise: 46 },
+  "LOMBOK": { reguler: 481, franchise: 94 },
+  "MANADO": { reguler: 366, franchise: 22 },
+  "REMBANG": { reguler: 352, franchise: 275 },
+  "BATAM": { reguler: 214, franchise: 3 },
+  "SERANG": { reguler: 487, franchise: 99 },
+  "CIANJUR": { reguler: 344, franchise: 249 },
+  "MADIUN": { reguler: 253, franchise: 406 },
+  "TEGAL": { reguler: 299, franchise: 405 },
+  "GORONTALO": { reguler: 220, franchise: 5 },
+  "LUWU": { reguler: 233, franchise: 14 },
+  "BANDUNG": { reguler: 725, franchise: 627 },
+  "BEKASI": { reguler: 571, franchise: 186 },
+  "SEMARANG": { reguler: 333, franchise: 143 },
+  "CILACAP": { reguler: 234, franchise: 385 },
+  "CILEUNGSI_2": { reguler: 644, franchise: 129 },
+  "CIKOKOL": { reguler: 511, franchise: 40 },
+  "LAMPUNG": { reguler: 641, franchise: 242 },
+  "MALANG": { reguler: 330, franchise: 183 },
+  "KLATEN": { reguler: 395, franchise: 326 },
+  "PALEMBANG": { reguler: 721, franchise: 188 },
+  "BALI": { reguler: 506, franchise: 127 },
+  "MAKASSAR": { reguler: 457, franchise: 57 },
+  "BALARAJA": { reguler: 913, franchise: 173 },
+  "SIDOARJO": { reguler: 850, franchise: 136 },
+  "PLUMBON": { reguler: 259, franchise: 283 },
+  "MEDAN": { reguler: 650, franchise: 77 },
+  "BOGOR": { reguler: 513, franchise: 154 },
+  "JEMBER": { reguler: 284, franchise: 94 },
 };
 
 const HIDDEN_BRANCHES = new Set(["-", "HEAD OFFICE", "TESTING"]);
