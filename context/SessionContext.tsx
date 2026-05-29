@@ -53,8 +53,8 @@ function isWithinOperatingHours(): boolean {
   }
 
   // 2. BATASAN WAKTU: Block akses di luar jam operasional
-  // Contoh: 6 * 60 (06:00) sampai 20 * 60 (19:59)
-  return totalMinutes >= 6 * 60 && totalMinutes < 20 * 60;
+  // Contoh: 6 * 60 (06:00) sampai 24 * 60 (00:00 / midnight)
+  return totalMinutes >= 6 * 60 && totalMinutes < 24 * 60;
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ function TimeBlockedScreen({
               marginBottom: '0.25rem',
             }}
           >
-            06:00 – 20:00
+            06:00 – 00:00
           </p>
           <p style={{ color: '#475569', fontSize: '0.75rem' }}>
             Senin – Jumat &nbsp;|&nbsp; WIB
