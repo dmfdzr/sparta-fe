@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText, Search } from 'lucide-react'; 
+import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText, Search, Download, Clock, Edit2 } from 'lucide-react'; 
 import { 
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
@@ -1308,6 +1308,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
     const [showInstruksiModal, setShowInstruksiModal] = useState(false);
     const [nextHandoverDate, setNextHandoverDate] = useState('');
     const [blockedOpnameRabItemIds, setBlockedOpnameRabItemIds] = useState<Set<number>>(new Set());
+    const [currentPengawasanGanttId, setCurrentPengawasanGanttId] = useState<number | null>(null);
+    const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
     
     useEffect(() => {
         if (!selectedGanttId || !spkInfo || !activeHeaderClick) {
@@ -1331,6 +1333,11 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             ])
             .then(([resLive, resAll, resOpname]) => {
                 const dataLive = resLive.data || [];
+                if (dataLive.length > 0) {
+                    setCurrentPengawasanGanttId(dataLive[0].id_pengawasan_gantt);
+                } else {
+                    setCurrentPengawasanGanttId(null);
+                }
                 const dataAll = resAll.data || [];
                 const dataOpname = resOpname.data || [];
 
@@ -1355,7 +1362,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                 lateDays: p.keterlambatan ? parseInt(p.keterlambatan) : 0,
                                 catatan: p.catatan || '',
                                 file: null, 
-                                dokumentasiUrl: p.dokumentasi || null
+                                dokumentasiUrl: p.dokumentasi || null,
+                                isSaved: true
                             };
                         }
                     }
@@ -1792,6 +1800,16 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {currentPengawasanGanttId && (
+                            <button
+                                onClick={() => window.open(`${API_URL.replace(/\/$/, "")}/api/pengawasan/${currentPengawasanGanttId}/pdf`, "_blank")}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded text-xs font-bold border border-red-200 transition-colors shadow-sm"
+                                title="Download PDF Pengawasan"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                Download PDF
+                            </button>
+                        )}
                         {canCreateInstruksiLapangan && (
                             <button
                                 onClick={() => setShowInstruksiModal(true)}
@@ -1854,6 +1872,38 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                     <div className="flex items-center justify-center p-2.5 rounded-lg bg-green-50 border border-green-200/60 shadow-sm w-full">
                                                                         <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
                                                                         <span className="font-bold text-green-700 text-sm">Telah Selesai</span>
+                                                                    </div>
+                                                                ) : memoInputs[key]?.isSaved && !editingItems.has(key) ? (
+                                                                    <div className="flex flex-col gap-2 animate-in fade-in">
+                                                                        <div className="flex items-start justify-between p-3.5 rounded-xl bg-gradient-to-r from-slate-50 to-white border border-slate-200 shadow-sm w-full">
+                                                                            <div className="flex items-start gap-3">
+                                                                                {currentStatus === 'Terlambat' && <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />}
+                                                                                {currentStatus === 'Progress' && <Clock className="w-5 h-5 text-blue-500 mt-0.5" />}
+                                                                                <div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className={`font-bold text-sm ${currentStatus === 'Terlambat' ? 'text-red-700' : 'text-blue-700'}`}>Telah Disimpan: {currentStatus}</span>
+                                                                                        {currentStatus === 'Terlambat' && lateDays > 0 && (
+                                                                                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2.5 py-0.5 rounded-full shadow-sm">{lateDays} Hari</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    {memoInputs[key]?.catatan ? (
+                                                                                        <p className="text-xs text-slate-600 mt-2 italic bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">"{memoInputs[key].catatan}"</p>
+                                                                                    ) : (
+                                                                                        <p className="text-xs text-slate-400 mt-1 italic">Tidak ada catatan.</p>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="flex flex-col items-end gap-2.5">
+                                                                                <button type="button" onClick={() => setEditingItems(prev => new Set(prev).add(key))} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-700 bg-white hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-slate-300 hover:border-blue-300 transition-all shadow-sm">
+                                                                                    <Edit2 className="w-3.5 h-3.5" /> Ubah
+                                                                                </button>
+                                                                                {memoInputs[key]?.dokumentasiUrl && (
+                                                                                    <a href={memoInputs[key].dokumentasiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 transition-colors">
+                                                                                        <FileText className="w-3.5 h-3.5" /> Lihat Dokumen
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 ) : (
                                                                 <div className="flex flex-col gap-2">
