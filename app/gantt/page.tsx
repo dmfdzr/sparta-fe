@@ -2079,6 +2079,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
     const [isLoading, setIsLoading] = useState(true);
     const [opnameInputs, setOpnameInputs] = useState<Record<string, any>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isLastDay = spkInfo && activeHeaderClick && (activeHeaderClick.dayIndex + 1 >= spkInfo.duration);
 
     useEffect(() => {
         setIsLoading(true);
@@ -2228,7 +2229,7 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
 
     // Tambahan Validasi isSubmitValid
     const isSubmitValid = useMemo(() => {
-        if (completedItems.length === 0) return false;
+        if (completedItems.length === 0) return isLastDay;
         
         for (const item of completedItems) {
             const input = opnameInputs[item.id];
@@ -2305,9 +2306,30 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
             });
             
             if (itemsArray.length === 0) {
-                showAlert({ message: "Tidak ada item untuk di-opname.", type: "warning" });
-                setIsSubmitting(false);
-                return;
+                if (isLastDay) {
+                    try {
+                        const { createPdfSerahTerima } = await import('@/lib/api');
+                        const dDate = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
+                        dDate.setDate(dDate.getDate() + activeHeaderClick.dayIndex);
+                        const formattedDate = `${dDate.getFullYear()}-${String(dDate.getMonth() + 1).padStart(2, '0')}-${String(dDate.getDate()).padStart(2, '0')}`;
+                        await createPdfSerahTerima(Number(id_toko), formattedDate);
+                        showAlert({ 
+                            message: 'Berita Acara Serah Terima berhasil digenerate!', 
+                            type: 'success',
+                            onConfirm: () => onSuccess()
+                        });
+                    } catch (pdfErr: any) {
+                        console.error("Error trigger PDF serah terima:", pdfErr);
+                        showAlert({ message: `Gagal generate PDF: ${pdfErr.message}`, type: "error" });
+                    } finally {
+                        setIsSubmitting(false);
+                    }
+                    return;
+                } else {
+                    showAlert({ message: "Tidak ada item untuk di-opname.", type: "warning" });
+                    setIsSubmitting(false);
+                    return;
+                }
             }
 
             const grandTotalOpname = itemsArray.reduce((acc, item) => {
@@ -2347,7 +2369,6 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
             }
 
             // Trigger API Berkas Serah Terima — HANYA jika ini hari terakhir (serah terima)
-            const isLastDay = spkInfo && activeHeaderClick && (activeHeaderClick.dayIndex + 1 >= spkInfo.duration);
             
             if (isLastDay) {
                 try {
@@ -2396,10 +2417,20 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                             <p>Memuat data pekerjaan...</p>
                         </div>
                     ) : groupedByCategory.length === 0 ? (
-                        <div className="py-20 flex flex-col items-center justify-center text-slate-500 bg-white rounded-lg border border-slate-200">
-                            <Info className="w-12 h-12 mb-3 text-slate-300" />
-                            <p className="font-semibold text-lg">Tidak ada pekerjaan yang selesai</p>
-                            <p className="text-sm">Belum ada item pekerjaan yang telah disubmit sebagai Selesai.</p>
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-500 bg-white rounded-lg border border-slate-200 p-8 text-center">
+                            {isLastDay ? (
+                                <>
+                                    <CheckCircle className="w-12 h-12 mb-3 text-green-500" />
+                                    <p className="font-semibold text-lg text-slate-800">Semua Opname Selesai</p>
+                                    <p className="text-sm mt-2">Seluruh item pekerjaan telah melalui proses opname. Klik <strong>Generate PDF Serah Terima</strong> di bawah untuk menyelesaikan proses Serah Terima.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <Info className="w-12 h-12 mb-3 text-slate-300" />
+                                    <p className="font-semibold text-lg">Tidak ada pekerjaan yang selesai</p>
+                                    <p className="text-sm">Belum ada item pekerjaan yang telah disubmit sebagai Selesai.</p>
+                                </>
+                            )}
                         </div>
                     ) : (
                         groupedByCategory.map((category, i) => (
@@ -2535,11 +2566,11 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     <Button variant="outline" className="font-semibold" onClick={onClose}>Kembali</Button>
                     <Button 
                         onClick={handleSubmit} 
-                        disabled={isSubmitting || !isSubmitValid} 
+                        disabled={isSubmitting || (groupedByCategory.length > 0 && !isSubmitValid)} 
                         className="bg-blue-600 hover:bg-blue-700 px-8 font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                        Submit Opname
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : (isLastDay && groupedByCategory.length === 0 ? <FileText className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />)}
+                        {isLastDay && groupedByCategory.length === 0 ? "Generate PDF Serah Terima" : "Submit Opname"}
                     </Button>
                 </div>
             </div>
