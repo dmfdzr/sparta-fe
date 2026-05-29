@@ -1264,8 +1264,10 @@ function GanttBoard() {
                 id_toko={projectData?.id_toko}
                 onSuccess={(options?: { openOpname?: boolean }) => {
                     setShowMemoModal(false);
+                    // Selalu reload gantt data untuk refresh pengawasanDates, walaupun lanjut ke Opname
+                    if (selectedGanttId) loadGanttDetail(selectedGanttId);
+                    
                     if (options?.openOpname === false) {
-                        if (selectedGanttId) loadGanttDetail(selectedGanttId);
                         return;
                     }
                     setShowOpnameModal(true);
@@ -1767,7 +1769,10 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             if (isLastSupervisionDay && hasLateItems && nextHandoverDate) {
                 const { submitGanttPengawasan } = await import('@/lib/api');
                 try {
-                    await submitGanttPengawasan(Number(selectedGanttId), [nextHandoverDate]);
+                    // Convert YYYY-MM-DD to DD/MM/YYYY
+                    const parts = nextHandoverDate.split('-');
+                    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : nextHandoverDate;
+                    await submitGanttPengawasan(Number(selectedGanttId), [formattedDate]);
                 } catch(e: any) {
                     console.warn("Update next handover date error:", e);
                 }
