@@ -138,7 +138,7 @@ export default function DcTenderDetailPage() {
       await setDcTenderWinner(Number(id), {
         participant_id: participantId,
         actor_email: user?.email || 'system',
-        actor_role: user?.jabatan || 'USER',
+        actor_role: user?.role || 'USER',
       });
       showMessage("Pemenang berhasil ditetapkan", 'success');
       loadData(true);
