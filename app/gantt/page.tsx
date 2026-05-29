@@ -2128,10 +2128,10 @@ function OpnameModal({ activeHeaderClick, rabItems, id_toko, onClose, selectedGa
                     selisih_volume: selisihVol,
                     total_selisih: totalSelisih,
                     total_harga_opname: totalHargaOpname,
-                    desain: input.desain,
-                    kualitas: input.kualitas,
-                    spesifikasi: input.spesifikasi,
-                    catatan: input.catatan || undefined,
+                    desain: input.desain?.trim(),
+                    kualitas: input.kualitas?.trim(),
+                    spesifikasi: input.spesifikasi?.trim(),
+                    catatan: input.catatan?.trim() || undefined,
                 };
 
                 // Include existing opname id for upsert if available

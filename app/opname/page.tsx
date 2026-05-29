@@ -216,8 +216,26 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                 const opnameRes = await fetchOpnameList({ id_toko: rab.id_toko });
                 existingData = opnameRes.data || [];
                 setExistingOpname(existingData);
+
+                // Initialize opnameInputs based on existing opname data (parsial)
+                const initialInputs: any = {};
+                const safeItems = items || [];
+                safeItems.forEach((item: any) => {
+                    const ex = existingData.filter(o => Number(o.id_rab_item) === Number(item.id)).sort((a,b) => Number(b.id) - Number(a.id))[0];
+                    initialInputs[item.id] = {
+                        volume_akhir: ex ? String(ex.volume_akhir) : String(item.volume || 0),
+                        desain: ex?.desain || '',
+                        kualitas: ex?.kualitas || '',
+                        spesifikasi: ex?.spesifikasi || '',
+                        catatan: ex?.catatan || '',
+                        file: null,
+                        existing_foto: ex?.foto || null
+                    };
+                });
+                setOpnameInputs(initialInputs);
             } catch {
                 setExistingOpname([]);
+                setOpnameInputs({});
             }
 
             // Check opname final status
@@ -254,22 +272,8 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
             }
             setIsOpnameFinalLocked(lockedOpnameFinal);
 
-            // Initialize inputs - pre-fill with RAB volume, check existing opname
-            const inputs: typeof opnameInputs = {};
-            (items || []).forEach((item: RABDetailItem) => {
-                // Gunakan Number() untuk menghindari type mismatch string vs number
-                const existing = existingData.find(o => Number(o.id_rab_item) === Number(item.id));
-                inputs[item.id] = {
-                    volume_akhir: existing ? String(existing.volume_akhir) : String(item.volume),
-                    desain: existing?.desain || '',
-                    kualitas: existing?.kualitas || '',
-                    spesifikasi: existing?.spesifikasi || '',
-                    catatan: existing?.catatan || '',
-                    file: null,
-                    existing_foto: existing?.foto || null,
-                };
-            });
-            setOpnameInputs(inputs);
+            // [REMOVED DUPLICATE] opnameInputs sudah diset di blok try atas dengan data existingOpname yang sudah difilter dan disort.
+            // Jangan set ulang di sini karena akan menimpa data yang sudah benar.
 
             // Expand all categories by default
             const cats = new Set<string>();
@@ -483,10 +487,10 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                 selisih_volume: selisihVol,
                 total_selisih: totalSelisih,
                 total_harga_opname: totalHargaOpname,
-                desain: input.desain,
-                kualitas: input.kualitas,
-                spesifikasi: input.spesifikasi,
-                catatan: input.catatan || undefined,
+                desain: input.desain?.trim(),
+                kualitas: input.kualitas?.trim(),
+                spesifikasi: input.spesifikasi?.trim(),
+                catatan: input.catatan?.trim() || undefined,
             };
 
             // Include existing opname id for upsert
@@ -608,10 +612,10 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                 selisih_volume: selisihVol,
                 total_selisih: Math.round(selisihVol * price),
                 total_harga_opname: Math.round(volAkhir * price),
-                desain: input.desain,
-                kualitas: input.kualitas,
-                spesifikasi: input.spesifikasi,
-                catatan: input.catatan || undefined,
+                desain: input.desain?.trim(),
+                kualitas: input.kualitas?.trim(),
+                spesifikasi: input.spesifikasi?.trim(),
+                catatan: input.catatan?.trim() || undefined,
                 foto: (!input.file && input.existing_foto) ? input.existing_foto : undefined,
             });
 
