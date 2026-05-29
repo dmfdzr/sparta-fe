@@ -1303,7 +1303,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
     const canCreateInstruksiLapangan = (user?.isSuperHuman ?? false) || (user?.roles ?? []).includes('BRANCH BUILDING SUPPORT');
     const [liveHistory, setLiveHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-    const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null }>>({});
+    const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null, isSaved?: boolean }>>({});
     const [isDirty, setIsDirty] = useState(false);
     const [showInstruksiModal, setShowInstruksiModal] = useState(false);
     const [nextHandoverDate, setNextHandoverDate] = useState('');
@@ -1873,7 +1873,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                         <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
                                                                         <span className="font-bold text-green-700 text-sm">Telah Selesai</span>
                                                                     </div>
-                                                                ) : memoInputs[key]?.isSaved && !editingItems.has(key) ? (
+                                                                ) : (memoInputs[key] as any)?.isSaved && !editingItems.has(key) ? (
                                                                     <div className="flex flex-col gap-2 animate-in fade-in">
                                                                         <div className="flex items-start justify-between p-3.5 rounded-xl bg-gradient-to-r from-slate-50 to-white border border-slate-200 shadow-sm w-full">
                                                                             <div className="flex items-start gap-3">
