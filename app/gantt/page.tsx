@@ -1363,24 +1363,29 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 setLiveHistory(dataLive);
                 
                 const initial: Record<string, any> = {};
+                const map = new Map<string, string>();
+                const idMap = new Map<string, number>();
+                const getCategoryLateDays = (kategoriPekerjaan: string) => {
+                    const matchedTask = chartData?.processedTasks?.find((t: any) => t.name.toUpperCase() === kategoriPekerjaan.toUpperCase());
+                    let categoryLateDays = 0;
+                    if (matchedTask && matchedTask.ranges) {
+                        matchedTask.ranges.forEach((r: any) => {
+                            if (r.keterlambatan) {
+                                categoryLateDays += parseInt(r.keterlambatan) || 0;
+                            }
+                        });
+                    }
+                    return categoryLateDays;
+                };
+
                 dataLive.forEach((p: any) => {
                     if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
                         const key = `${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`;
+                        if (p.id) idMap.set(key, p.id);
                         if (p.status.toLowerCase() !== 'selesai') {
-                            // Ambil keterlambatan dari chartData (kategori)
-                            const matchedTask = chartData?.processedTasks?.find((t: any) => t.name.toUpperCase() === p.kategori_pekerjaan.toUpperCase());
-                            let categoryLateDays = 0;
-                            if (matchedTask && matchedTask.ranges) {
-                                matchedTask.ranges.forEach((r: any) => {
-                                    if (r.keterlambatan) {
-                                        categoryLateDays += parseInt(r.keterlambatan) || 0;
-                                    }
-                                });
-                            }
-
                             initial[key] = {
                                 status: p.status.charAt(0).toUpperCase() + p.status.slice(1), 
-                                lateDays: categoryLateDays,
+                                lateDays: getCategoryLateDays(p.kategori_pekerjaan),
                                 catatan: p.catatan || '',
                                 file: null, 
                                 dokumentasiUrl: p.dokumentasi || null,
@@ -1389,30 +1394,41 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                         }
                     }
                 });
-                setMemoInputs(initial);
-                // Jika sudah ada data dari hari ini (Progress/Terlambat dari sebelumnya),
-                // set isDirty agar form langsung bisa disubmit setelah user mengupdate statusnya
-                if (Object.keys(initial).length > 0) {
-                    setIsDirty(true);
-                }
-
-                const map = new Map<string, string>();
-                const idMap = new Map<string, number>();
                 
                 dataAll.forEach((p: any) => {
                     if (p.kategori_pekerjaan && p.jenis_pekerjaan && p.status) {
                         const key = `${p.kategori_pekerjaan.toUpperCase()}|${p.jenis_pekerjaan.toUpperCase()}`;
+                        const normalizedStatus = p.status.charAt(0).toUpperCase() + p.status.slice(1);
                         
-                        // Selalu catat ID terbaru dari item tersebut
-                        if (p.id) idMap.set(key, p.id);
+                        // dataAll sudah diurutkan terbaru lebih dulu dari backend.
+                        // Jangan biarkan record lama menimpa status terbaru.
+                        if (!map.has(key)) {
+                            map.set(key, normalizedStatus);
+                        }
 
-                        if (map.get(key) === 'Selesai' && p.status.toLowerCase() !== 'selesai') {
-                            // Pertahankan status Selesai jika sebelumnya sudah pernah Selesai
-                        } else {
-                            map.set(key, p.status.charAt(0).toUpperCase() + p.status.slice(1));
+                        // Jika item Progress/Terlambat dari hari sebelumnya belum punya record hari ini,
+                        // tetap masukkan ke form tanggal pengawasan berikutnya agar bisa diupdate.
+                        if (
+                            !initial[key] &&
+                            p.status.toLowerCase() !== 'selesai'
+                        ) {
+                            initial[key] = {
+                                status: normalizedStatus,
+                                lateDays: getCategoryLateDays(p.kategori_pekerjaan),
+                                catatan: p.catatan || '',
+                                file: null,
+                                dokumentasiUrl: p.dokumentasi || null,
+                                isSaved: true
+                            };
                         }
                     }
                 });
+                setMemoInputs(initial);
+                // Jika sudah ada data hari ini atau item Progress/Terlambat dari hari sebelumnya,
+                // set isDirty agar form bisa disubmit setelah user mengupdate statusnya.
+                if (Object.keys(initial).length > 0) {
+                    setIsDirty(true);
+                }
                 setLatestStatusMapState(map);
                 setLatestIdMapState(idMap);
             })
@@ -1476,9 +1492,12 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
                  const key = `${task.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`;
                  const latestStatus = latestStatusMapState.get(key);
+                 const latestStatusLower = String(latestStatus || '').toLowerCase();
+                 const isUnfinishedFromPreviousPengawasan = ['progress', 'terlambat'].includes(latestStatusLower);
                  
-                 // Hanya tampilkan jika task jadwalnya aktif hari ini (isScheduledToday)
-                 if (!isScheduledToday) return false;
+                 // Tampilkan item jika jadwalnya aktif hari ini, atau jika status terakhirnya
+                 // masih Progress/Terlambat dari tanggal pengawasan sebelumnya.
+                 if (!isScheduledToday && !isUnfinishedFromPreviousPengawasan) return false;
                  
                  // Jika Selesai, tampilkan HANYA JIKA diselesaikan pada tanggal ini (hari yang diklik)
                  const wasFinishedToday = liveHistory.some((lh: any) => lh.kategori_pekerjaan.toUpperCase() === task.name.toUpperCase() && lh.jenis_pekerjaan.toUpperCase() === item.jenis_pekerjaan.toUpperCase() && lh.status.toLowerCase() === 'selesai');
