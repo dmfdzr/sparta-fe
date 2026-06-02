@@ -1413,12 +1413,14 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                             p.status.toLowerCase() !== 'selesai'
                         ) {
                             initial[key] = {
-                                status: normalizedStatus,
-                                lateDays: getCategoryLateDays(p.kategori_pekerjaan),
-                                catatan: p.catatan || '',
+                                status: '',
+                                lateDays: 0,
+                                catatan: '',
                                 file: null,
-                                dokumentasiUrl: p.dokumentasi || null,
-                                isSaved: true
+                                dokumentasiUrl: null,
+                                isSaved: false,
+                                previousStatus: normalizedStatus,
+                                previousLateDays: getCategoryLateDays(p.kategori_pekerjaan)
                             };
                         }
                     }
@@ -1925,27 +1927,17 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex flex-col gap-2">
-                                                                        {latestStatusKey && ['Terlambat', 'Progress'].includes(latestStatusKey) && (
+                                                                        {latestStatusKey && ['Terlambat', 'Progress'].includes(latestStatusKey) && !latestIdMapState.has(key) && (
                                                                             <div className={`rounded-lg border px-3 py-2 text-xs ${latestStatusKey === 'Terlambat' ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
                                                                                 <div className="flex items-center justify-between gap-2">
                                                                                     <div className="flex items-center gap-2 font-bold">
                                                                                         {latestStatusKey === 'Terlambat' ? <AlertCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
                                                                                         <span>
                                                                                             Sebelumnya: {latestStatusKey}
-                                                                                            {latestStatusKey === 'Terlambat' && lateDays > 0 ? ` ${lateDays} Hari` : ''}
+                                                                                            {latestStatusKey === 'Terlambat' && (memoInputs[key] as any)?.previousLateDays > 0 ? ` ${(memoInputs[key] as any).previousLateDays} Hari` : ''}
                                                                                         </span>
                                                                                     </div>
-                                                                                    {memoInputs[key]?.dokumentasiUrl && (
-                                                                                        <a href={memoInputs[key].dokumentasiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800">
-                                                                                            <FileText className="w-3.5 h-3.5" /> Lihat Dokumen
-                                                                                        </a>
-                                                                                    )}
                                                                                 </div>
-                                                                                {memoInputs[key]?.catatan && (
-                                                                                    <p className="mt-1.5 rounded bg-white/70 px-2 py-1 text-slate-600">
-                                                                                        Catatan sebelumnya: {memoInputs[key].catatan}
-                                                                                    </p>
-                                                                                )}
                                                                             </div>
                                                                         )}
                                                                         <div className="flex gap-2">
