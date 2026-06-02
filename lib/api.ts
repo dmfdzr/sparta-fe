@@ -1368,6 +1368,7 @@ export type GanttListItem = {
     email_pembuat:string;
     timestamp:    string;
     nomor_ulok:   string;
+    lingkup_pekerjaan?: string | null;
     nama_toko:    string;
     cabang:       string;
     proyek:       string;

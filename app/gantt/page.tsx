@@ -446,7 +446,12 @@ function GanttBoard() {
 
             try {
                 const spkRes = await fetchSPKList({ nomor_ulok: toko.nomor_ulok, status: 'SPK_APPROVED' });
-                const approvedSpk = (spkRes.data || []).find(s => s.status?.toUpperCase() === 'SPK_APPROVED');
+                const approvedSpks = (spkRes.data || []).filter(s => s.status?.toUpperCase() === 'SPK_APPROVED');
+                const currentLingkup = String(toko.lingkup_pekerjaan || '').trim().toUpperCase();
+                const approvedSpk =
+                    approvedSpks.find((s: any) => Number(s.id_toko) === Number(toko.id)) ||
+                    approvedSpks.find((s: any) => String(s.lingkup_pekerjaan || '').trim().toUpperCase() === currentLingkup) ||
+                    approvedSpks[0];
                 if (approvedSpk && approvedSpk.waktu_mulai && approvedSpk.durasi) {
                     setSpkInfo({ startDate: approvedSpk.waktu_mulai, duration: approvedSpk.durasi });
                 } else {
@@ -896,8 +901,10 @@ function GanttBoard() {
                                                 const newUrl = new URL(window.location.href);
                                                 newUrl.searchParams.set('id_toko', proj.id_toko.toString());
                                                 window.history.pushState({}, '', newUrl.toString());
+                                                loadDataByToko(proj.id_toko);
+                                            } else {
+                                                loadGanttDetail(gId);
                                             }
-                                            loadGanttDetail(gId);
                                         } else if (val.startsWith('toko-')) {
                                             const tId = parseInt(val.replace('toko-', ''));
                                             const newUrl = new URL(window.location.href);
