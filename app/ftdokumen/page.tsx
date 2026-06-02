@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import {
     Camera, ArrowRight, ArrowLeft, FileText, CheckCircle,
@@ -285,6 +284,8 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
     isReadOnly: boolean;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [ulokDropdownOpen, setUlokDropdownOpen] = useState(false);
+    const ulokDropdownRef = useRef<HTMLDivElement | null>(null);
 
     const filteredUlokOptions = useMemo(() => {
         if (!searchQuery) return ulokOptions;
@@ -295,6 +296,22 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
             (u.kodeToko || '').toLowerCase().includes(q)
         );
     }, [ulokOptions, searchQuery]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (!ulokDropdownRef.current?.contains(event.target as Node)) {
+                setUlokDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, []);
 
     const handleUlokSelect = (val: string) => {
         const selected = ulokOptions.find(u => u.nomorUlok === val);
@@ -310,6 +327,8 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                 namaToko: selected.namaToko,
                 cabang: selected.cabang || prev.cabang,
             }));
+            setSearchQuery('');
+            setUlokDropdownOpen(false);
         } else {
             onChange('nomorUlok', val);
         }
@@ -332,39 +351,55 @@ function DataFormView({ formData, onChange, onSubmit, setFormData, ulokOptions, 
                                     <Loader2 className="w-4 h-4 animate-spin" /> Memuat daftar ULOK...
                                 </div>
                             ) : (
-                                <Select onValueChange={handleUlokSelect} value={formData.nomorUlok} disabled={isReadOnly} required>
-                                    <SelectTrigger className="bg-white h-auto min-h-10 whitespace-normal wrap-break-word text-left">
-                                        <SelectValue placeholder="-- Pilih Nomor ULOK --" />
-                                    </SelectTrigger>
-                                    <SelectContent position="popper" side="bottom" className="max-w-[90vw] sm:max-w-100 max-h-75 w-(--radix-select-trigger-width)">
-                                        <div
-                                            className="p-2 sticky top-0 bg-white z-10 border-b border-slate-100"
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onTouchStart={(e) => e.stopPropagation()}
-                                        >
-                                            <div className="relative">
-                                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Cari ULOK / Toko..."
-                                                    className="w-full pl-8 pr-3 py-1.5 border rounded-md text-sm outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400"
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onTouchStart={(e) => e.stopPropagation()}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                />
+                                <div className="relative" ref={ulokDropdownRef}>
+                                    <button
+                                        type="button"
+                                        disabled={isReadOnly}
+                                        onClick={() => setUlokDropdownOpen(open => !open)}
+                                        className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <span className="whitespace-normal wrap-break-word">
+                                            {formData.nomorUlok || '-- Pilih Nomor ULOK --'}
+                                        </span>
+                                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                                    </button>
+
+                                    {ulokDropdownOpen && (
+                                        <div className="absolute z-50 mt-1 w-full max-h-75 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+                                            <div className="sticky top-0 z-10 border-b border-slate-100 bg-white p-2">
+                                                <div className="relative">
+                                                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        inputMode="search"
+                                                        autoComplete="off"
+                                                        placeholder="Cari ULOK / Toko..."
+                                                        className="w-full rounded-md border py-2 pl-8 pr-3 text-sm outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400"
+                                                        value={searchQuery}
+                                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto overscroll-contain">
+                                                {filteredUlokOptions.length > 0 ? (
+                                                    filteredUlokOptions.map(ulok => (
+                                                        <button
+                                                            type="button"
+                                                            key={ulok.nomorUlok}
+                                                            onClick={() => handleUlokSelect(ulok.nomorUlok)}
+                                                            className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 last:border-b-0 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                                                        >
+                                                            <span className="font-semibold">{ulok.nomorUlok}</span>
+                                                            <span className="text-slate-500"> - {ulok.namaToko || ulok.kodeToko}</span>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-3 py-3 text-sm text-slate-500">ULOK / toko tidak ditemukan.</div>
+                                                )}
                                             </div>
                                         </div>
-                                        {filteredUlokOptions.map(ulok => (
-                                            <SelectItem key={ulok.nomorUlok} value={ulok.nomorUlok} className="whitespace-normal wrap-break-word text-left py-2">
-                                                {ulok.nomorUlok} — {ulok.namaToko || ulok.kodeToko}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    )}
+                                </div>
                             )}
                         </div>
                         <div className="space-y-2">
