@@ -1334,6 +1334,39 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         const mm = String(dDate.getMonth() + 1).padStart(2, '0');
         const dd = String(dDate.getDate()).padStart(2, '0');
         const formattedDate = `${yyyy}-${mm}-${dd}`;
+        const currentDateNumeric = parseInt(`${yyyy}${mm}${dd}`, 10);
+
+        const parseDateNumeric = (value: any): number | null => {
+            if (!value) return null;
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                const y = value.getFullYear();
+                const m = String(value.getMonth() + 1).padStart(2, '0');
+                const d = String(value.getDate()).padStart(2, '0');
+                return parseInt(`${y}${m}${d}`, 10);
+            }
+
+            const raw = String(value).trim();
+            const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) return parseInt(`${isoMatch[1]}${isoMatch[2]}${isoMatch[3]}`, 10);
+
+            const slashMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (slashMatch) return parseInt(`${slashMatch[3]}${slashMatch[2]}${slashMatch[1]}`, 10);
+
+            return null;
+        };
+
+        const pengawasanDateNumbers: number[] = Array.from(new Set<number>(
+            (pengawasanHistory || [])
+                .map((p: any) => parseDateNumeric(p.tanggal_pengawasan))
+                .filter((dateNum: number | null): dateNum is number => !!dateNum)
+        )).sort((a, b) => a - b);
+
+        const isNextPengawasanAfter = (sourceDate: any): boolean => {
+            const sourceNumeric = parseDateNumeric(sourceDate);
+            if (!sourceNumeric) return false;
+            const nextPengawasan = pengawasanDateNumbers.find((dateNum) => dateNum > sourceNumeric);
+            return nextPengawasan === currentDateNumeric;
+        };
 
         import('@/lib/api').then(({ fetchPengawasanList, fetchOpnameList }) => {
             Promise.all([
@@ -1410,7 +1443,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                         // tetap masukkan ke form tanggal pengawasan berikutnya agar bisa diupdate.
                         if (
                             !initial[key] &&
-                            p.status.toLowerCase() !== 'selesai'
+                            p.status.toLowerCase() !== 'selesai' &&
+                            isNextPengawasanAfter(p.tanggal_pengawasan)
                         ) {
                             initial[key] = {
                                 status: '',
@@ -1495,7 +1529,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                  const key = `${task.name.toUpperCase()}|${item.jenis_pekerjaan.toUpperCase()}`;
                  const latestStatus = latestStatusMapState.get(key);
                  const latestStatusLower = String(latestStatus || '').toLowerCase();
-                 const isUnfinishedFromPreviousPengawasan = ['progress', 'terlambat'].includes(latestStatusLower);
+                 const memoInput = memoInputs[key] as any;
+                 const isUnfinishedFromPreviousPengawasan = ['progress', 'terlambat'].includes(latestStatusLower) && !!memoInput?.previousStatus;
                  
                  // Tampilkan item jika jadwalnya aktif hari ini, atau jika status terakhirnya
                  // masih Progress/Terlambat dari tanggal pengawasan sebelumnya.
@@ -1513,7 +1548,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 items: filteredItems
             };
         }).filter((d: any) => d.items.length > 0);
-    }, [chartData, activeHeaderClick, rabItems, latestStatusMapState, liveHistory, blockedOpnameRabItemIds]);
+    }, [chartData, activeHeaderClick, rabItems, latestStatusMapState, memoInputs, liveHistory, blockedOpnameRabItemIds]);
     const handleSetStatus = (catName: string, itemJenis: string, status: string) => {
         setIsDirty(true);
         const key = `${catName.toUpperCase()}|${itemJenis.toUpperCase()}`;
