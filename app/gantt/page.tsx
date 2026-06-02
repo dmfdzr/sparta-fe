@@ -1560,7 +1560,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         const key = `${catName.toUpperCase()}|${itemJenis.toUpperCase()}`;
         setMemoInputs(prev => ({
             ...prev,
-            [key]: { 
+            [key]: {
+                ...(prev[key] || {}),
                 status, 
                 lateDays: prev[key]?.lateDays || 0,
                 catatan: prev[key]?.catatan || '',
@@ -1575,7 +1576,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         const key = `${catName.toUpperCase()}|${itemJenis.toUpperCase()}`;
         setMemoInputs(prev => ({
             ...prev,
-            [key]: { 
+            [key]: {
+                ...(prev[key] || {}),
                 status: prev[key]?.status || 'Terlambat', 
                 lateDays: Math.max(0, lateDays),
                 catatan: prev[key]?.catatan || '',
@@ -1599,6 +1601,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         setMemoInputs(prev => ({
             ...prev,
             [key]: {
+                ...(prev[key] || {}),
                 status: prev[key]?.status || '',
                 lateDays: prev[key]?.lateDays || 0,
                 catatan: prev[key]?.catatan || '',
