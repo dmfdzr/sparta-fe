@@ -1923,44 +1923,16 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                                                         <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
                                                                         <span className="font-bold text-green-700 text-sm">Telah Selesai</span>
                                                                     </div>
-                                                                ) : latestStatusKey === 'Terlambat' ? (
-                                                                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/60 shadow-sm w-full">
-                                                                        <div className="flex items-center gap-2.5">
-                                                                            <AlertCircle className="w-5 h-5 text-red-500" />
-                                                                            <span className="font-bold text-red-700 text-sm">Terlambat</span>
-                                                                            {memoInputs[key]?.lateDays > 0 && (
-                                                                                <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2.5 py-0.5 rounded-full shadow-sm">{memoInputs[key].lateDays} Hari</span>
-                                                                            )}
-                                                                        </div>
-                                                                        {memoInputs[key]?.dokumentasiUrl && (
-                                                                            <a href={memoInputs[key].dokumentasiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 transition-colors shrink-0">
-                                                                                <FileText className="w-3.5 h-3.5" /> Lihat Dokumen
-                                                                            </a>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (memoInputs[key] as any)?.isSaved ? (
-                                                                    <div className="flex flex-col gap-2 animate-in fade-in">
-                                                                        <div className="flex items-start justify-between p-3.5 rounded-xl bg-gradient-to-r from-slate-50 to-white border border-slate-200 shadow-sm w-full">
-                                                                            <div className="flex items-start gap-3">
-                                                                                {currentStatus === 'Progress' && <Clock className="w-5 h-5 text-blue-500 mt-0.5" />}
-                                                                                <div>
-                                                                                    <span className="font-bold text-sm text-blue-700">Telah Disimpan: {currentStatus}</span>
-                                                                                    {memoInputs[key]?.catatan ? (
-                                                                                        <p className="text-xs text-slate-600 mt-2 italic bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">"{memoInputs[key].catatan}"</p>
-                                                                                    ) : (
-                                                                                        <p className="text-xs text-slate-400 mt-1 italic">Tidak ada catatan.</p>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                            {memoInputs[key]?.dokumentasiUrl && (
-                                                                                <a href={memoInputs[key].dokumentasiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 transition-colors shrink-0">
-                                                                                    <FileText className="w-3.5 h-3.5" /> Lihat Dokumen
-                                                                                </a>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
                                                                 ) : (
                                                                     <div className="flex flex-col gap-2">
+                                                                        {memoInputs[key]?.dokumentasiUrl && (
+                                                                            <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs">
+                                                                                <span className="font-semibold text-blue-700">Dokumen sebelumnya tersedia</span>
+                                                                                <a href={memoInputs[key].dokumentasiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800">
+                                                                                    <FileText className="w-3.5 h-3.5" /> Lihat Dokumen
+                                                                                </a>
+                                                                            </div>
+                                                                        )}
                                                                         <div className="flex gap-2">
                                                                             <button 
                                                                                 type="button" 
