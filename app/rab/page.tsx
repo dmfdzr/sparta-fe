@@ -188,8 +188,8 @@ export default function RABPage() {
         fetchPricesData(activeCabang, formData.lingkupPekerjaan)
             .then(data => {
                 setPrices(data);
-                setTableRows(prev => repriceRowsWithMaster(prev, data));
-                // Dihapus reset table dari sini karena menyebabkan data auto-load terhapus
+                // Harga master hanya dipakai untuk pilihan item baru.
+                // Jangan otomatis reprice rows revisi karena bisa memindahkan kategori dan menimpa harga input user.
             })
             .catch(err => showAlert("Error", err.message, "error"));
     }
@@ -481,8 +481,8 @@ export default function RABPage() {
                 updatedRow.isKondisional = isMatCond || isUpahCond;
                 updatedRow.isMaterialKondisional = isMatCond;
                 updatedRow.isUpahKondisional = isUpahCond;
-                updatedRow.hargaMaterial = isMatCond ? row.hargaMaterial : parseFloat(itemData["Harga Material"]) || 0;
-                updatedRow.hargaUpah = isUpahCond ? row.hargaUpah : parseFloat(itemData["Harga Upah"]) || 0;
+                updatedRow.hargaMaterial = isMatCond ? row.hargaMaterial : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
+                updatedRow.hargaUpah = isUpahCond ? row.hargaUpah : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
                 if (updatedRow.satuan === 'Ls') updatedRow.volume = 1;
             }
         }
