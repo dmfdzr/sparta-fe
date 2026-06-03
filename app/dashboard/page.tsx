@@ -38,6 +38,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 const normalizeDashboardText = (value: unknown) =>
     String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
+const PAUSED_STORE_DOCUMENT_MESSAGE =
+    "Akses Penyimpanan Dokumen Toko diberhentikan sementara. Penyimpanan dokumen saat ini terpusat di GDrive regional.";
+
 const readDashboardField = (value: unknown, key: string) => {
     if (!value || typeof value !== 'object') return undefined;
     return (value as Record<string, unknown>)[key];
@@ -288,6 +291,15 @@ export default function DashboardPage() {
 
     const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
     const [featureAlertOpen, setFeatureAlertOpen] = useState(false);
+    const [featureAlert, setFeatureAlert] = useState({
+        title: "Fitur Belum Tersedia",
+        description: "Fitur ini belum tersedia saat ini.",
+    });
+
+    const showFeatureAlert = useCallback((title: string, description: string) => {
+        setFeatureAlert({ title, description });
+        setFeatureAlertOpen(true);
+    }, []);
 
     // =========================================================================
     // SESSION
@@ -922,6 +934,8 @@ export default function DashboardPage() {
                             const menuCountClass = menu.id === "menu-rab"
                                 ? "bg-amber-500 text-white"
                                 : "bg-red-600 text-white";
+                            const isPausedStoreDocumentMenu =
+                                menu.id === "menu-svdokumen" && userInfo.cabang !== "HEAD OFFICE";
                             const inner = (
                                 <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-50 hover:border-red-200 border border-transparent transition-all duration-200 group cursor-pointer">
                                     <div className="w-7 h-7 rounded-md bg-slate-100 group-hover:bg-red-100 flex items-center justify-center shrink-0 transition-colors">
@@ -941,8 +955,27 @@ export default function DashboardPage() {
                                     <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-red-400 shrink-0 transition-colors" />
                                 </div>
                             );
+                            if (isPausedStoreDocumentMenu) return (
+                                <div
+                                    key={menu.id}
+                                    onClick={() => {
+                                        showFeatureAlert("Akses Diberhentikan Sementara", PAUSED_STORE_DOCUMENT_MESSAGE);
+                                        if (window.innerWidth <= 768) setSidebarOpen(false);
+                                    }}
+                                >
+                                    {inner}
+                                </div>
+                            );
                             if (menu.isAlert) return (
-                                <div key={menu.id} onClick={() => { setFeatureAlertOpen(true); if (window.innerWidth <= 768) setSidebarOpen(false); }}>{inner}</div>
+                                <div
+                                    key={menu.id}
+                                    onClick={() => {
+                                        showFeatureAlert("Fitur Belum Tersedia", `Halaman ${menu.title} belum tersedia saat ini.`);
+                                        if (window.innerWidth <= 768) setSidebarOpen(false);
+                                    }}
+                                >
+                                    {inner}
+                                </div>
                             );
                             if (menu.external) return (
                                 <a key={menu.id} href={menu.href} target="_blank" rel="noopener noreferrer">{inner}</a>
@@ -1231,6 +1264,20 @@ export default function DashboardPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Batal</AlertDialogCancel>
                         <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700">Ya, Logout</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={featureAlertOpen} onOpenChange={setFeatureAlertOpen}>
+                <AlertDialogContent className="rounded-2xl max-w-md">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{featureAlert.title}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {featureAlert.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction className="bg-red-600 hover:bg-red-700">Mengerti</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -67,6 +67,8 @@ const ITEMS_PER_PAGE = 10;
 const GLOBAL_TARGET_REGULER = 15322;
 const GLOBAL_TARGET_FRANCHISE = 5798;
 const GLOBAL_TARGET_TOTAL = GLOBAL_TARGET_REGULER + GLOBAL_TARGET_FRANCHISE;
+const PAUSED_STORE_DOCUMENT_MESSAGE =
+  "Akses Penyimpanan Dokumen Toko diberhentikan sementara. Penyimpanan dokumen saat ini terpusat di GDrive regional.";
 
 const TARGET_PER_CABANG: Record<string, { reguler: number; franchise: number }> = {
   "PEKANBARU": { reguler: 365, franchise: 118 },
@@ -333,6 +335,7 @@ export default function PenyimpananDokumenPage() {
   const isReadOnly = useMemo(() => {
     return isViewOnlyUser(userInfo.role, user?.isSuperHuman ?? false);
   }, [userInfo.role, user?.isSuperHuman]);
+  const isAccessPaused = Boolean(userInfo.cabang && userInfo.cabang.toUpperCase() !== 'HEAD OFFICE');
 
   // ==========================================
   // INIT
@@ -347,6 +350,13 @@ export default function PenyimpananDokumenPage() {
     if (!user) return;
     const { email, cabang, role } = user;
     setUserInfo({ email, cabang, role });
+    if (cabang.toUpperCase() !== 'HEAD OFFICE') {
+      setTokoList([]);
+      setArchiveTokoList([]);
+      setDocuments([]);
+      setIsLoading(false);
+      return;
+    }
     loadTokoList(cabang, canViewAllBranches(user.roles, user.isSuperHuman ?? false) || cabang.toUpperCase() === 'HEAD OFFICE');
   }, [user]);
 
@@ -1190,7 +1200,23 @@ export default function PenyimpananDokumenPage() {
       <AppNavbar title="Penyimpanan Dokumen Toko" showBackButton={true} backHref="/dashboard" />
 
       <main className="flex-1 container max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-        {isLoading ? (
+        {isAccessPaused ? (
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <Card className="w-full max-w-lg border-red-100 shadow-sm">
+              <CardContent className="p-8 text-center">
+                <div className="w-14 h-14 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-7 h-7" />
+                </div>
+                <h1 className="text-xl font-bold text-slate-900 mb-2">Akses Diberhentikan Sementara</h1>
+                <p className="text-sm leading-6 text-slate-600 mb-6">{PAUSED_STORE_DOCUMENT_MESSAGE}</p>
+                <Button onClick={() => router.push('/dashboard')} className="bg-red-600 hover:bg-red-700 text-white rounded-xl">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Kembali ke Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        ) : isLoading ? (
           <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
             <div className="text-slate-500 font-medium tracking-tight animate-pulse">Memuat data toko...</div>
