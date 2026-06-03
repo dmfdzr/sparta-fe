@@ -46,6 +46,7 @@ type FacilityInput = {
 
 type RabReviewItemOption = RABDetailItem & { rabScope?: string | null };
 type RabRejectedRow = { itemId: string; note: string };
+type ReviewDecision = "APPROVE" | "REJECT" | "";
 
 const FACILITY_META: Record<string, { label: string; units: string[]; placeholder: string }> = {
   AIR_BERSIH: { label: "Sumber Air Bersih", units: ["titik", "sumber"], placeholder: "Jumlah titik" },
@@ -264,7 +265,7 @@ function ReviewSelect({
   label, value, onChange,
 }: {
   label: string;
-  value: "APPROVE" | "REJECT";
+  value: ReviewDecision;
   onChange: (value: "APPROVE" | "REJECT") => void;
 }) {
   return (
@@ -462,8 +463,8 @@ export default function DetailProjekPlanning() {
   const [approvedRabs, setApprovedRabs] = useState<any[]>([]);
   const [fasilitasTahap2, setFasilitasTahap2] = useState<FacilityInput[]>(DEFAULT_FASILITAS_TAHAP2);
   const [approvalNote, setApprovalNote] = useState("");
-  const [rabReviewAction, setRabReviewAction] = useState<"APPROVE" | "REJECT">("APPROVE");
-  const [gambarReviewAction, setGambarReviewAction] = useState<"APPROVE" | "REJECT">("APPROVE");
+  const [rabReviewAction, setRabReviewAction] = useState<ReviewDecision>("");
+  const [gambarReviewAction, setGambarReviewAction] = useState<ReviewDecision>("");
   const [rabRejectedItemNotes, setRabRejectedItemNotes] = useState("");
   const [rabReviewItems, setRabReviewItems] = useState<RabReviewItemOption[]>([]);
   const [rabRejectedRows, setRabRejectedRows] = useState<RabRejectedRow[]>([]);
@@ -614,6 +615,10 @@ export default function DetailProjekPlanning() {
   };
 
   const handleFinalReview = async (type: "pp2" | "pp_mgr") => {
+    if (!rabReviewAction || !gambarReviewAction) {
+      showAlert("Peringatan", "Pilih keputusan Review RAB dan Review Gambar Final terlebih dahulu.");
+      return;
+    }
     const rejectedIds = rabRejectedRows
       .map(row => Number(row.itemId))
       .filter(item => Number.isFinite(item) && item > 0);
@@ -1315,8 +1320,15 @@ export default function DetailProjekPlanning() {
           <Card className="border-cyan-200 bg-cyan-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-cyan-800">Approval PP Specialist</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-3">
-              <div className="grid grid-cols-1 gap-3">
-                <ReviewSelect label="Review RAB" value={rabReviewAction} onChange={(value) => {
+              <div className="rounded-lg border border-cyan-100 bg-white p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-cyan-900">Review RAB</p>
+                    <p className="text-xs text-slate-500">Pilih keputusan untuk dokumen RAB.</p>
+                  </div>
+                  {!rabReviewAction && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Belum dipilih</span>}
+                </div>
+                <ReviewSelect label="Keputusan RAB" value={rabReviewAction} onChange={(value) => {
                   setRabReviewAction(value);
                   if (value === "REJECT" && rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
                   if (value === "APPROVE") {
@@ -1324,33 +1336,43 @@ export default function DetailProjekPlanning() {
                     setRabRejectedItemNotes("");
                   }
                 }} />
+                {rabReviewAction === "REJECT" && (
+                  <RabRejectEditor
+                    rabItems={rabReviewItems}
+                    rows={rabRejectedRows}
+                    onRowsChange={setRabRejectedRows}
+                    generalNote={rabRejectedItemNotes}
+                    onGeneralNoteChange={setRabRejectedItemNotes}
+                  />
+                )}
+              </div>
+
+              <div className="rounded-lg border border-cyan-100 bg-white p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-cyan-900">Review Gambar Final</p>
+                    <p className="text-xs text-slate-500">Pilih keputusan untuk gambar final.</p>
+                  </div>
+                  {!gambarReviewAction && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Belum dipilih</span>}
+                </div>
                 <ReviewSelect label="Review Gambar Final" value={gambarReviewAction} onChange={(value) => {
                   setGambarReviewAction(value);
                   if (value === "APPROVE") setGambarRejectReason("");
                 }} />
+                {gambarReviewAction === "REJECT" && (
+                  <div className="rounded-lg border border-red-100 bg-red-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-red-700">Alasan Reject Gambar Final</Label>
+                    <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
-              {rabReviewAction === "REJECT" && (
-                <RabRejectEditor
-                  rabItems={rabReviewItems}
-                  rows={rabRejectedRows}
-                  onRowsChange={setRabRejectedRows}
-                  generalNote={rabRejectedItemNotes}
-                  onGeneralNoteChange={setRabRejectedItemNotes}
-                />
-              )}
-              {gambarReviewAction === "REJECT" && (
-                <div className="rounded-lg border border-red-100 bg-white p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-red-700">Alasan Reject Gambar Final</Label>
-                  <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
-                </div>
-              )}
               {rabReviewAction === "APPROVE" && gambarReviewAction === "APPROVE" && (
                 <div className="rounded-lg border border-green-100 bg-white p-3 space-y-1.5">
                   <Label className="text-xs font-semibold text-green-700">Catatan Approval</Label>
                   <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} placeholder="Opsional, untuk catatan internal approval/review..." rows={2} className="bg-white" />
                 </div>
               )}
-              <Button onClick={() => handleApprove("pp2")} className="flex-1 bg-cyan-600 hover:bg-cyan-700 shadow-sm" disabled={actionLoading || !allLinksOpened}>
+              <Button onClick={() => handleApprove("pp2")} className="flex-1 bg-cyan-600 hover:bg-cyan-700 shadow-sm" disabled={actionLoading || !allLinksOpened || !rabReviewAction || !gambarReviewAction}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Simpan Review
               </Button>
             </CardContent>
@@ -1362,8 +1384,15 @@ export default function DetailProjekPlanning() {
           <Card className="border-indigo-200 bg-indigo-50/50">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-indigo-800">Approval PP Manager (Final)</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-3">
-              <div className="grid grid-cols-1 gap-3">
-                <ReviewSelect label="Review RAB" value={rabReviewAction} onChange={(value) => {
+              <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-indigo-900">Review RAB</p>
+                    <p className="text-xs text-slate-500">Pilih keputusan final untuk dokumen RAB.</p>
+                  </div>
+                  {!rabReviewAction && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Belum dipilih</span>}
+                </div>
+                <ReviewSelect label="Keputusan RAB" value={rabReviewAction} onChange={(value) => {
                   setRabReviewAction(value);
                   if (value === "REJECT" && rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
                   if (value === "APPROVE") {
@@ -1371,33 +1400,43 @@ export default function DetailProjekPlanning() {
                     setRabRejectedItemNotes("");
                   }
                 }} />
+                {rabReviewAction === "REJECT" && (
+                  <RabRejectEditor
+                    rabItems={rabReviewItems}
+                    rows={rabRejectedRows}
+                    onRowsChange={setRabRejectedRows}
+                    generalNote={rabRejectedItemNotes}
+                    onGeneralNoteChange={setRabRejectedItemNotes}
+                  />
+                )}
+              </div>
+
+              <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-indigo-900">Review Gambar Final</p>
+                    <p className="text-xs text-slate-500">Pilih keputusan final untuk gambar final.</p>
+                  </div>
+                  {!gambarReviewAction && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Belum dipilih</span>}
+                </div>
                 <ReviewSelect label="Review Gambar Final" value={gambarReviewAction} onChange={(value) => {
                   setGambarReviewAction(value);
                   if (value === "APPROVE") setGambarRejectReason("");
                 }} />
+                {gambarReviewAction === "REJECT" && (
+                  <div className="rounded-lg border border-red-100 bg-red-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-red-700">Alasan Reject Gambar Final</Label>
+                    <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
-              {rabReviewAction === "REJECT" && (
-                <RabRejectEditor
-                  rabItems={rabReviewItems}
-                  rows={rabRejectedRows}
-                  onRowsChange={setRabRejectedRows}
-                  generalNote={rabRejectedItemNotes}
-                  onGeneralNoteChange={setRabRejectedItemNotes}
-                />
-              )}
-              {gambarReviewAction === "REJECT" && (
-                <div className="rounded-lg border border-red-100 bg-white p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-red-700">Alasan Reject Gambar Final</Label>
-                  <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
-                </div>
-              )}
               {rabReviewAction === "APPROVE" && gambarReviewAction === "APPROVE" && (
                 <div className="rounded-lg border border-green-100 bg-white p-3 space-y-1.5">
                   <Label className="text-xs font-semibold text-green-700">Catatan Approval</Label>
                   <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} placeholder="Opsional, untuk catatan internal approval/review..." rows={2} className="bg-white" />
                 </div>
               )}
-              <Button onClick={() => handleApprove("pp_mgr")} className="flex-1 bg-indigo-600 hover:bg-indigo-700 shadow-sm" disabled={actionLoading || !allLinksOpened}>
+              <Button onClick={() => handleApprove("pp_mgr")} className="flex-1 bg-indigo-600 hover:bg-indigo-700 shadow-sm" disabled={actionLoading || !allLinksOpened || !rabReviewAction || !gambarReviewAction}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Simpan Review Final
               </Button>
             </CardContent>
