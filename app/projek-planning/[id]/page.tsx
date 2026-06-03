@@ -97,6 +97,11 @@ const isDirectUserLink = (url?: string | null) => {
   return !!first && !shouldUseDriveProxy(first);
 };
 
+const shouldOpenFileDirectly = (field: string, url?: string | null) => {
+  if (field === "rab_sipil_final" || field === "rab_me_final") return true;
+  return isDirectUserLink(url);
+};
+
 function FpdTimeline({ currentStatus }: { currentStatus: string }) {
   const isRejected = currentStatus === "REJECTED";
 
@@ -159,7 +164,8 @@ function FileProxyRow({
 }) {
   const [loading, setLoading] = React.useState<"view" | "download" | null>(null);
   const [viewed, setViewed] = React.useState(false);
-  const showDownload = !isDirectUserLink(fileUrl);
+  const openDirectly = shouldOpenFileDirectly(field, fileUrl);
+  const showDownload = !openDirectly;
 
   React.useEffect(() => {
     const userEmail = sessionStorage.getItem('loggedInUserEmail') || 'unknown';
@@ -202,7 +208,7 @@ function FileProxyRow({
     setLoading(mode);
     try {
       const directUrl = firstFileUrl(fileUrl);
-      if (directUrl && !shouldUseDriveProxy(directUrl)) {
+      if (directUrl && openDirectly) {
         window.open(directUrl, "_blank", "noopener,noreferrer");
       } else {
         await proxyProjekPlanningFile(projektId, field, mode);
