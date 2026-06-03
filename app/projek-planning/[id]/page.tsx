@@ -469,6 +469,8 @@ export default function DetailProjekPlanning() {
   const [rabReviewItems, setRabReviewItems] = useState<RabReviewItemOption[]>([]);
   const [rabRejectedRows, setRabRejectedRows] = useState<RabRejectedRow[]>([]);
   const [gambarRejectReason, setGambarRejectReason] = useState("");
+  const [rabApprovalNote, setRabApprovalNote] = useState("");
+  const [gambarApprovalNote, setGambarApprovalNote] = useState("");
 
   const markFieldViewed = React.useCallback((field: string) => {
     setOpenedLinks(prev => {
@@ -643,11 +645,15 @@ export default function DetailProjekPlanning() {
       return;
     }
     const isFullApprove = rabReviewAction === "APPROVE" && gambarReviewAction === "APPROVE";
+    const combinedApprovalNotes = [
+      rabReviewAction === "APPROVE" && rabApprovalNote.trim() ? `Catatan approval RAB: ${rabApprovalNote.trim()}` : "",
+      gambarReviewAction === "APPROVE" && gambarApprovalNote.trim() ? `Catatan approval gambar final: ${gambarApprovalNote.trim()}` : "",
+    ].filter(Boolean).join("\n");
     const payload = {
       approver_email: userEmail,
       rab_tindakan: rabReviewAction,
       gambar_tindakan: gambarReviewAction,
-      catatan: isFullApprove ? approvalNote : undefined,
+      catatan: isFullApprove ? combinedApprovalNotes : undefined,
       alasan_penolakan: gambarReviewAction === "REJECT" ? gambarRejectReason : undefined,
       rab_rejected_item_ids: rejectedIds,
       rab_rejected_item_notes: combinedRabNotes,
@@ -657,6 +663,8 @@ export default function DetailProjekPlanning() {
     setRabRejectedItemNotes("");
     setRabRejectedRows([]);
     setGambarRejectReason("");
+    setRabApprovalNote("");
+    setGambarApprovalNote("");
   };
 
   const handleReject = async () => {
@@ -1330,7 +1338,10 @@ export default function DetailProjekPlanning() {
                 </div>
                 <ReviewSelect label="Keputusan RAB" value={rabReviewAction} onChange={(value) => {
                   setRabReviewAction(value);
-                  if (value === "REJECT" && rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
+                  if (value === "REJECT") {
+                    setRabApprovalNote("");
+                    if (rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
+                  }
                   if (value === "APPROVE") {
                     setRabRejectedRows([]);
                     setRabRejectedItemNotes("");
@@ -1345,6 +1356,12 @@ export default function DetailProjekPlanning() {
                     onGeneralNoteChange={setRabRejectedItemNotes}
                   />
                 )}
+                {rabReviewAction === "APPROVE" && (
+                  <div className="rounded-lg border border-green-100 bg-green-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-green-700">Catatan Approval RAB</Label>
+                    <Textarea value={rabApprovalNote} onChange={e => setRabApprovalNote(e.target.value)} placeholder="Opsional, catatan khusus approval RAB..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg border border-cyan-100 bg-white p-3 space-y-3">
@@ -1358,6 +1375,7 @@ export default function DetailProjekPlanning() {
                 <ReviewSelect label="Review Gambar Final" value={gambarReviewAction} onChange={(value) => {
                   setGambarReviewAction(value);
                   if (value === "APPROVE") setGambarRejectReason("");
+                  if (value === "REJECT") setGambarApprovalNote("");
                 }} />
                 {gambarReviewAction === "REJECT" && (
                   <div className="rounded-lg border border-red-100 bg-red-50/40 p-3 space-y-1.5">
@@ -1365,13 +1383,13 @@ export default function DetailProjekPlanning() {
                     <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
                   </div>
                 )}
+                {gambarReviewAction === "APPROVE" && (
+                  <div className="rounded-lg border border-green-100 bg-green-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-green-700">Catatan Approval Gambar Final</Label>
+                    <Textarea value={gambarApprovalNote} onChange={e => setGambarApprovalNote(e.target.value)} placeholder="Opsional, catatan khusus approval gambar final..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
-              {rabReviewAction === "APPROVE" && gambarReviewAction === "APPROVE" && (
-                <div className="rounded-lg border border-green-100 bg-white p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-green-700">Catatan Approval</Label>
-                  <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} placeholder="Opsional, untuk catatan internal approval/review..." rows={2} className="bg-white" />
-                </div>
-              )}
               <Button onClick={() => handleApprove("pp2")} className="flex-1 bg-cyan-600 hover:bg-cyan-700 shadow-sm" disabled={actionLoading || !allLinksOpened || !rabReviewAction || !gambarReviewAction}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Simpan Review
               </Button>
@@ -1394,7 +1412,10 @@ export default function DetailProjekPlanning() {
                 </div>
                 <ReviewSelect label="Keputusan RAB" value={rabReviewAction} onChange={(value) => {
                   setRabReviewAction(value);
-                  if (value === "REJECT" && rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
+                  if (value === "REJECT") {
+                    setRabApprovalNote("");
+                    if (rabRejectedRows.length === 0) setRabRejectedRows([{ itemId: "", note: "" }]);
+                  }
                   if (value === "APPROVE") {
                     setRabRejectedRows([]);
                     setRabRejectedItemNotes("");
@@ -1409,6 +1430,12 @@ export default function DetailProjekPlanning() {
                     onGeneralNoteChange={setRabRejectedItemNotes}
                   />
                 )}
+                {rabReviewAction === "APPROVE" && (
+                  <div className="rounded-lg border border-green-100 bg-green-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-green-700">Catatan Approval RAB</Label>
+                    <Textarea value={rabApprovalNote} onChange={e => setRabApprovalNote(e.target.value)} placeholder="Opsional, catatan khusus approval RAB..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg border border-indigo-100 bg-white p-3 space-y-3">
@@ -1422,6 +1449,7 @@ export default function DetailProjekPlanning() {
                 <ReviewSelect label="Review Gambar Final" value={gambarReviewAction} onChange={(value) => {
                   setGambarReviewAction(value);
                   if (value === "APPROVE") setGambarRejectReason("");
+                  if (value === "REJECT") setGambarApprovalNote("");
                 }} />
                 {gambarReviewAction === "REJECT" && (
                   <div className="rounded-lg border border-red-100 bg-red-50/40 p-3 space-y-1.5">
@@ -1429,13 +1457,13 @@ export default function DetailProjekPlanning() {
                     <Textarea value={gambarRejectReason} onChange={e => setGambarRejectReason(e.target.value)} placeholder="Jelaskan revisi gambar final yang diperlukan..." rows={2} className="bg-white" />
                   </div>
                 )}
+                {gambarReviewAction === "APPROVE" && (
+                  <div className="rounded-lg border border-green-100 bg-green-50/40 p-3 space-y-1.5">
+                    <Label className="text-xs font-semibold text-green-700">Catatan Approval Gambar Final</Label>
+                    <Textarea value={gambarApprovalNote} onChange={e => setGambarApprovalNote(e.target.value)} placeholder="Opsional, catatan khusus approval gambar final..." rows={2} className="bg-white" />
+                  </div>
+                )}
               </div>
-              {rabReviewAction === "APPROVE" && gambarReviewAction === "APPROVE" && (
-                <div className="rounded-lg border border-green-100 bg-white p-3 space-y-1.5">
-                  <Label className="text-xs font-semibold text-green-700">Catatan Approval</Label>
-                  <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} placeholder="Opsional, untuk catatan internal approval/review..." rows={2} className="bg-white" />
-                </div>
-              )}
               <Button onClick={() => handleApprove("pp_mgr")} className="flex-1 bg-indigo-600 hover:bg-indigo-700 shadow-sm" disabled={actionLoading || !allLinksOpened || !rabReviewAction || !gambarReviewAction}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Simpan Review Final
               </Button>
