@@ -263,10 +263,8 @@ export const ROLE_CONFIG: Record<string, string[]> = {
     ],
 };
 
-export const canAccessProjectPlanningByCabang = (cabang?: string | null): boolean => {
-    const normalized = String(cabang ?? "").trim().toUpperCase();
-    return normalized === "HEAD OFFICE" || normalized === "HO";
-};
+export const canAccessProjectPlanningByCabang = (cabang?: string | null): boolean =>
+    String(cabang ?? "").trim().toUpperCase() === "HEAD OFFICE";
 
 export const REGIONAL_MANAGER_ROLE = "BUILDING & MAINTENANCE REGIONAL MANAGER";
 export const ENERGY_SYSTEM_MANAGER_ROLE = "BUILDING MAINTENANCE & ENERGY SYSTEM MANAGER";
