@@ -1207,7 +1207,7 @@ function OpnameHistoryView({ opnameList, rabItems }: { opnameList: OpnameItem[];
 // KONTRAKTOR VIEW — Review & Approve/Reject Opname
 // =============================================================================
 
-function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: string; cabang: string; email: string } }) {
+function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: string; cabang: string; email: string; nama_pt?: string } }) {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
 
@@ -1251,18 +1251,26 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
         fetchRABList()
             .then(res => {
                 const data = res.data || [];
-                setRabList(data);
+                const userNamaPt = (userInfo.nama_pt || '').toUpperCase();
+                const filteredRab = data.filter(item => {
+                    if (!userNamaPt) return true;
+                    return (item.nama_pt || '').toUpperCase() === userNamaPt;
+                });
+                
+                setRabList(filteredRab);
 
                 // Load all opnames (backend should filter by user access)
-                return fetchOpnameList();
+                return fetchOpnameList().then(opnameRes => ({ opnameRes, filteredRab }));
             })
-            .then(res => {
-                const allOpname = res.data || [];
-                setOpnameList(allOpname);
+            .then(({ opnameRes, filteredRab }) => {
+                const allOpname = opnameRes.data || [];
+                const validTokoIds = new Set(filteredRab.map(r => r.id_toko));
+                const filteredOpname = allOpname.filter(o => validTokoIds.has(o.id_toko));
+                setOpnameList(filteredOpname);
             })
             .catch(err => console.error("Gagal memuat data:", err))
             .finally(() => setIsLoading(false));
-    }, []);
+    }, [userInfo.nama_pt]);
 
     // Group opname by toko for project selection
     const tokoGroups = useMemo(() => {
@@ -1822,7 +1830,7 @@ export default function OpnamePage() {
     const router = useRouter();
     const { showAlert } = useGlobalAlert();
     const [appMode, setAppMode] = useState<'pic' | 'kontraktor' | null>(null);
-    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '', isSuperHuman: false });
+    const [userInfo, setUserInfo] = useState({ name: '', role: '', cabang: '', email: '', isSuperHuman: false, nama_pt: '' });
 
     const { user } = useSession();
 
@@ -1839,7 +1847,8 @@ export default function OpnamePage() {
         ];
 
         const name = (user.namaLengkap || email.split('@')[0]).toUpperCase();
-        setUserInfo({ name, role, cabang, email, isSuperHuman: user.isSuperHuman ?? false });
+        const sessionNamaPt = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('nama_pt') || '' : '';
+        setUserInfo({ name, role, cabang, email, isSuperHuman: user.isSuperHuman ?? false, nama_pt: user.namaPt || sessionNamaPt });
 
         const isSH = user.isSuperHuman ?? false;
         const isRegional = user.isRegionalManager ?? false;

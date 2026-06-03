@@ -333,11 +333,11 @@ export default function RABPage() {
                       jenisPekerjaan: jobName,
                       satuan: item.satuan || itemPriceRef?.["Satuan"],
                       volume: parseFloat(item.volume) || 0,
-                      hargaMaterial: parseFloat(item.harga_material) || 0,
-                      hargaUpah: parseFloat(item.harga_upah) || 0,
+                      hargaMaterial: isMatCond ? 0 : (parseFloat(item.harga_material) || 0),
+                      hargaUpah: isMatCond ? (parseFloat(item.harga_material) || 0) + (parseFloat(item.harga_upah) || 0) : (parseFloat(item.harga_upah) || 0),
                       isKondisional: isMatCond || isUpahCond,
-                      isMaterialKondisional: isMatCond,
-                      isUpahKondisional: isUpahCond,
+                      isMaterialKondisional: false,
+                      isUpahKondisional: isMatCond || isUpahCond,
                       catatan: item.catatan || ''
                   });
               });
@@ -359,11 +359,11 @@ export default function RABPage() {
                           jenisPekerjaan: jobName,
                           satuan: details[`Satuan_Item_${i}`] || itemPriceRef?.["Satuan"],
                           volume: parseFloat(details[`Volume_Item_${i}`]) || 0,
-                          hargaMaterial: parseFloat(details[`Harga_Material_Item_${i}`]) || 0,
-                          hargaUpah: parseFloat(details[`Harga_Upah_Item_${i}`]) || 0,
+                          hargaMaterial: isMatCond ? 0 : (parseFloat(details[`Harga_Material_Item_${i}`]) || 0),
+                          hargaUpah: isMatCond ? (parseFloat(details[`Harga_Material_Item_${i}`]) || 0) + (parseFloat(details[`Harga_Upah_Item_${i}`]) || 0) : (parseFloat(details[`Harga_Upah_Item_${i}`]) || 0),
                           isKondisional: isMatCond || isUpahCond,
-                          isMaterialKondisional: isMatCond,
-                          isUpahKondisional: isUpahCond,
+                          isMaterialKondisional: false,
+                          isUpahKondisional: isMatCond || isUpahCond,
                           catatan: details[`Catatan_Item_${i}`] || ''
                       });
                   }
@@ -479,10 +479,10 @@ export default function RABPage() {
                 const isUpahCond = itemData["Harga Upah"] === "Kondisional";
                 
                 updatedRow.isKondisional = isMatCond || isUpahCond;
-                updatedRow.isMaterialKondisional = isMatCond;
-                updatedRow.isUpahKondisional = isUpahCond;
-                updatedRow.hargaMaterial = isMatCond ? row.hargaMaterial : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
-                updatedRow.hargaUpah = isUpahCond ? row.hargaUpah : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
+                updatedRow.isMaterialKondisional = false;
+                updatedRow.isUpahKondisional = isMatCond || isUpahCond;
+                updatedRow.hargaMaterial = isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
+                updatedRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
                 if (updatedRow.satuan === 'Ls') updatedRow.volume = 1;
             }
         }
@@ -941,8 +941,8 @@ export default function RABPage() {
                                 </td>
                                 <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium whitespace-nowrap">{row.satuan}</td>
                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs w-24 ${isReadOnly || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isReadOnly || row.satuan === 'Ls'} /></td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !row.isMaterialKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaMaterial)} onChange={(e) => updateRow(row.id, 'hargaMaterial', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !row.isMaterialKondisional} tabIndex={row.isMaterialKondisional ? 0 : -1} /></td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !row.isUpahKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !row.isUpahKondisional} tabIndex={row.isUpahKondisional ? 0 : -1} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className="h-9 px-2 text-right transition-colors text-xs w-28 bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" value={formatAngka(row.hargaMaterial)} readOnly tabIndex={-1} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !row.isKondisional} tabIndex={row.isKondisional ? 0 : -1} /></td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaMaterial)}</td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaUpah)}</td>
                                 <td className="p-2 border-r border-slate-100 text-right font-bold text-slate-800 bg-slate-100 text-xs whitespace-nowrap">{toRupiah(row.volume * (row.hargaMaterial + row.hargaUpah))}</td>
