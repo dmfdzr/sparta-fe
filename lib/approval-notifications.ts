@@ -197,7 +197,12 @@ const canCountProjectPlanningForUser = (item: CountableApprovalItem, user: UserS
 const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan: ApprovalJabatan) => {
     if (!isPendingProcessStatus(item.status, item.tipe)) return false;
     if (isViewOnlyUser(user.roles, user.isSuperHuman)) return false;
-    if (item.tipe === "RAB" && isContractorCompanyScopedRole(user.roles) && !matchesUserCompany(item.raw, user.namaPt)) return false;
+    if (
+        item.tipe === "RAB"
+        && isContractorCompanyScopedRole(user.roles)
+        && user.namaPt
+        && !matchesUserCompany(item.raw, user.namaPt)
+    ) return false;
 
     if (item.tipe === "PROJECT_PLANNING") {
         return canCountProjectPlanningForUser(item, user);

@@ -683,7 +683,12 @@ export default function ApprovalPage() {
                 const canSeeAllBranches = canViewAllBranches(userInfo.role, isSuperHumanUser);
                 const isRegionalManagerUser = user?.isRegionalManager ?? false;
 
-                if (type === 'RAB' && isContractorCompanyScopedRole(userRoles) && !matchesUserCompany(item._raw, userInfo.nama_pt)) {
+                if (
+                    type === 'RAB'
+                    && isContractorCompanyScopedRole(userRoles)
+                    && userInfo.nama_pt
+                    && !matchesUserCompany(item._raw, userInfo.nama_pt)
+                ) {
                     return false;
                 }
 
