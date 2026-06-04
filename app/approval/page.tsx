@@ -205,6 +205,26 @@ const isContractorCompanyScopedRole = (roles: string[]) =>
 const normalizeCompanyName = (value?: string | null) =>
     String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
+const isPendingApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? '').trim().toUpperCase();
+    return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
+};
+
+const isCoordinatorApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? '').trim().toUpperCase();
+    return upper.includes('KOORDINATOR');
+};
+
+const isManagerApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? '').trim().toUpperCase();
+    return upper.includes('MANAGER') || upper.includes('MANAJER');
+};
+
+const isDirectorApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? '').trim().toUpperCase();
+    return upper.includes('DIREKTUR') || upper.includes('DIR.');
+};
+
 const matchesUserCompany = (value: unknown, userCompany?: string | null) => {
     const normalizedUserCompany = normalizeCompanyName(userCompany);
     if (!normalizedUserCompany || !value || typeof value !== 'object') return false;
@@ -787,15 +807,14 @@ export default function ApprovalPage() {
                         }
                     }
 
-                    return (upper.includes('MENUNGGU') || upper.startsWith('PENDING'))
-                        && upper.includes('DIREKTUR');
+                    return isPendingApprovalStatus(upper) && isDirectorApprovalStatus(upper);
                 }
 
                 // Untuk RAB & IL (Multi-level)
-                if (!upper.includes('MENUNGGU') && !upper.startsWith('PENDING')) return false;
-                if (jabatan === 'KOORDINATOR') return upper.includes('KOORDINATOR');
-                if (jabatan === 'MANAGER')     return upper.includes('MANAGER') || upper.includes('MANAJER');
-                if (jabatan === 'DIREKTUR')    return upper.includes('DIREKTUR');
+                if (!isPendingApprovalStatus(upper)) return false;
+                if (jabatan === 'KOORDINATOR') return isCoordinatorApprovalStatus(upper);
+                if (jabatan === 'MANAGER')     return isManagerApprovalStatus(upper);
+                if (jabatan === 'DIREKTUR')    return isDirectorApprovalStatus(upper);
                 return true;
             });
 
@@ -1279,10 +1298,10 @@ export default function ApprovalPage() {
         }
 
         // RAB & IL — multi-level
-        if (jabatan === 'KOORDINATOR') return upper.includes('MENUNGGU') && upper.includes('KOORDINATOR');
-        if (jabatan === 'MANAGER')     return upper.includes('MENUNGGU') && (upper.includes('MANAGER') || upper.includes('MANAJER'));
-        if (jabatan === 'DIREKTUR')    return upper.includes('MENUNGGU') && upper.includes('DIREKTUR');
-        return upper.includes('MENUNGGU') || upper.startsWith('PENDING');
+        if (jabatan === 'KOORDINATOR') return isPendingApprovalStatus(upper) && isCoordinatorApprovalStatus(upper);
+        if (jabatan === 'MANAGER')     return isPendingApprovalStatus(upper) && isManagerApprovalStatus(upper);
+        if (jabatan === 'DIREKTUR')    return isPendingApprovalStatus(upper) && isDirectorApprovalStatus(upper);
+        return isPendingApprovalStatus(upper);
     };
 
     const isApproved = (status: string) => {

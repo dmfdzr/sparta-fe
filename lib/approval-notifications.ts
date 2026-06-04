@@ -65,6 +65,26 @@ const isContractorCompanyScopedRole = (roles: string[]) =>
 const normalizeCompanyName = (value?: string | null) =>
     String(value || "").trim().replace(/\s+/g, " ").toUpperCase();
 
+const isPendingApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? "").trim().toUpperCase();
+    return upper.includes("MENUNGGU") || upper.startsWith("PENDING");
+};
+
+const isCoordinatorApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? "").trim().toUpperCase();
+    return upper.includes("KOORDINATOR");
+};
+
+const isManagerApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? "").trim().toUpperCase();
+    return upper.includes("MANAGER") || upper.includes("MANAJER");
+};
+
+const isDirectorApprovalStatus = (status?: string | null) => {
+    const upper = String(status ?? "").trim().toUpperCase();
+    return upper.includes("DIREKTUR") || upper.includes("DIR.");
+};
+
 const matchesUserCompany = (value: unknown, userCompany?: string | null) => {
     const normalizedUserCompany = normalizeCompanyName(userCompany);
     if (!normalizedUserCompany || !value || typeof value !== "object") return false;
@@ -152,7 +172,7 @@ const isPendingProcessStatus = (status: string, tipe: ApprovalType) => {
     if (tipe === "SPK") return upper === "WAITING_FOR_BM_APPROVAL";
     if (tipe === "PERTAMBAHAN_SPK") return upper === "MENUNGGU PERSETUJUAN";
     if (tipe === "PROJECT_PLANNING") return upper.startsWith("WAITING_") || upper === "PP_DESIGN_3D_REQUIRED";
-    return upper.includes("MENUNGGU") || upper.startsWith("PENDING");
+    return isPendingApprovalStatus(upper);
 };
 
 const canCountProjectPlanningForUser = (item: CountableApprovalItem, user: UserSession) => {
@@ -227,12 +247,12 @@ const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan
             if (!isSameBranchScope(item.cabang, userCabang)) return false;
         }
 
-        return upper.includes("DIREKTUR");
+        return isDirectorApprovalStatus(upper);
     }
 
-    if (jabatan === "KOORDINATOR") return upper.includes("KOORDINATOR");
-    if (jabatan === "MANAGER") return upper.includes("MANAGER") || upper.includes("MANAJER");
-    if (jabatan === "DIREKTUR") return upper.includes("DIREKTUR");
+    if (jabatan === "KOORDINATOR") return isCoordinatorApprovalStatus(upper);
+    if (jabatan === "MANAGER") return isManagerApprovalStatus(upper);
+    if (jabatan === "DIREKTUR") return isDirectorApprovalStatus(upper);
     if (jabatan === "KONTRAKTOR") return upper.includes("KONTRAKTOR");
     return true;
 };
