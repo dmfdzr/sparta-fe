@@ -523,6 +523,17 @@ export default function RABPage() {
     }
 
     const isRevisionSubmit = currentRabId !== null;
+    const sessionNamaPt = (sessionStorage.getItem("nama_pt") || "").trim();
+    const sessionEmail = (sessionStorage.getItem("loggedInUserEmail") || "").trim();
+
+    if (!sessionNamaPt || sessionNamaPt === "-") {
+      setIsLoading(false);
+      return showAlert(
+        "Data PT/CV belum lengkap",
+        "Nama PT/CV akun belum terisi. Silakan periksa mapping user cabang sebelum submit RAB agar kop surat dan approval tidak salah.",
+        "error"
+      );
+    }
 
     // Build payload — gunakan multipart/form-data jika ada file asuransi
     const textFields: Record<string, string> = {
@@ -532,10 +543,10 @@ export default function RABPage() {
       cabang: formData.cabang,
       alamat: formData.alamat,
       alamat_cabang: formData.alamatCabang || '',
-      nama_kontraktor: sessionStorage.getItem("nama_pt") || "-",
+      nama_kontraktor: sessionNamaPt,
       lingkup_pekerjaan: formData.lingkupPekerjaan.toUpperCase(),
-      email_pembuat: sessionStorage.getItem("loggedInUserEmail") || "",
-      nama_pt: sessionStorage.getItem("nama_pt") || "-",
+      email_pembuat: sessionEmail,
+      nama_pt: sessionNamaPt,
       durasi_pekerjaan: String(formData.durasiPekerjaan),
       kategori_lokasi: formData.kategoriLokasi.toUpperCase(),
       luas_bangunan: String(formData.luasBangunan || "0"),

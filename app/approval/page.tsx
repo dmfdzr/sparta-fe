@@ -17,7 +17,7 @@ import GanttViewer from '@/components/GanttViewer';
 import {
     // RAB
     fetchRABList, fetchRABDetail, processRABApproval, downloadRABPdf,
-    type RABListItem, type RABDetailItem, type RABListFilters,
+    type RABListItem, type RABDetailItem,
     fetchUserCabangList,
     // SPK
     fetchSPKList, fetchSPKDetail, processSPKApproval, downloadSPKPdf,
@@ -658,14 +658,9 @@ export default function ApprovalPage() {
         try {
             let normalized: NormalizedListItem[] = [];
             if (type === 'RAB') {
-                const userRoles = userInfo.role
-                    .split(',')
-                    .map(r => r.trim().toUpperCase())
-                    .filter(Boolean);
-                const filters: RABListFilters | undefined = isContractorCompanyScopedRole(userRoles) && userInfo.nama_pt
-                    ? { nama_pt: userInfo.nama_pt }
-                    : undefined;
-                const res = await fetchRABList(filters);
+                // Approval must not rely on nama_pt at API level because older RAB data can
+                // contain the wrong contractor name and would disappear before role filtering.
+                const res = await fetchRABList();
                 normalized = normalizeRABList(res.data ?? []);
             } else if (type === 'SPK') {
                 const res = await fetchSPKList({ status: 'WAITING_FOR_BM_APPROVAL' });

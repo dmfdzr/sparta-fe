@@ -11,7 +11,6 @@ import {
     fetchProjekPlanningList,
     fetchRABList,
     fetchSPKList,
-    type RABListFilters,
 } from "@/lib/api";
 
 export type ApprovalType =
@@ -268,10 +267,9 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
     for (const type of accessibleTypes) {
         try {
             if (type === "RAB") {
-                const filters: RABListFilters | undefined = isContractorCompanyScopedRole(user.roles) && user.namaPt
-                    ? { nama_pt: user.namaPt }
-                    : undefined;
-                const res = await fetchRABList(filters, { suppressGlobalError: true });
+                // Do not filter by nama_pt before counting: legacy RAB rows may have a
+                // wrong contractor value, but directors still need to approve by branch/status.
+                const res = await fetchRABList(undefined, { suppressGlobalError: true });
                 counts.RAB = countItems((res.data ?? []).map(item => ({
                     tipe: "RAB",
                     status: item.status,
