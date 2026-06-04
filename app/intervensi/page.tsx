@@ -29,13 +29,25 @@ import {
 import { useSession } from "@/context/SessionContext";
 import {
     fetchActivityLogs,
+    fetchGanttDetail,
+    fetchGanttList,
+    fetchProjekPlanningDetail,
+    fetchProjekPlanningList,
+    fetchProjekPlanningLogs,
     fetchRABDetail,
     fetchRABList,
     fetchSPKDetail,
     fetchSPKList,
+    interveneGanttStatus,
+    interveneProjekPlanningStatus,
     interveneSPKStatus,
     updateRABStatus,
     type ActivityLog,
+    type GanttDetailData,
+    type GanttListItem,
+    type ProjectPlanningInterventionPayload,
+    type ProjekPlanningItem,
+    type ProjekPlanningLog,
     type RABListItem,
     type SPKApprovalLog,
     type SPKListItem,
@@ -48,8 +60,10 @@ import {
     Clock3,
     FileSignature,
     FileText,
+    GitBranch,
     History,
     Loader2,
+    MapPinned,
     RefreshCw,
     Search,
     ShieldAlert,
@@ -59,9 +73,10 @@ import {
     XCircle,
 } from "lucide-react";
 
-type InterventionDocType = "RAB" | "SPK";
+type InterventionDocType = "RAB" | "SPK" | "PROJECT_PLANNING" | "GANTT";
 type StatusCategory = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 type SpkTargetStatus = "WAITING_FOR_BM_APPROVAL" | "SPK_APPROVED" | "SPK_REJECTED";
+type GanttTargetStatus = "active" | "terkunci";
 
 type StatusOption = {
     value: string;
@@ -97,7 +112,7 @@ type InterventionDocument = {
     updated_at?: string | null;
     email_pembuat?: string | null;
     logs?: InterventionLog[];
-    raw: RABListItem | SPKListItem | Record<string, unknown>;
+    raw: RABListItem | SPKListItem | ProjekPlanningItem | GanttListItem | GanttDetailData | Record<string, unknown>;
 };
 
 type InterventionAdapter = {
@@ -165,10 +180,90 @@ const SPK_STATUS_OPTIONS: StatusOption[] = [
     },
 ];
 
+const PROJECT_PLANNING_STATUS_OPTIONS: StatusOption[] = [
+    {
+        value: "DRAFT",
+        label: "Draft",
+        description: "Kembalikan FPD ke pembuat agar dapat diajukan ulang.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_BM_APPROVAL",
+        label: "Menunggu BM",
+        description: "Arahkan kembali ke approval B&M Manager tahap awal.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_PP_APPROVAL_1",
+        label: "Menunggu PP 1",
+        description: "Arahkan ke approval PP Specialist tahap desain.",
+        tone: "warning",
+    },
+    {
+        value: "PP_DESIGN_3D_REQUIRED",
+        label: "Butuh Desain 3D",
+        description: "Tandai perlu upload desain 3D dari PP Specialist.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_RAB_UPLOAD",
+        label: "Menunggu Upload RAB",
+        description: "Buka tahap upload RAB dan gambar kerja dari cabang.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_BM_APPROVAL_2",
+        label: "Menunggu BM 2",
+        description: "Arahkan ke approval B&M Manager tahap final dokumen.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_PP_MANAGER_APPROVAL",
+        label: "Menunggu PP Manager",
+        description: "Arahkan ke approval final PP Manager.",
+        tone: "warning",
+    },
+    {
+        value: "WAITING_PP_APPROVAL_2",
+        label: "Menunggu PP 2",
+        description: "Arahkan ke review final PP Specialist setelah RAB.",
+        tone: "warning",
+    },
+    {
+        value: "COMPLETED",
+        label: "Selesai",
+        description: "Tandai Project Planning selesai.",
+        tone: "success",
+    },
+    {
+        value: "REJECTED",
+        label: "Ditolak",
+        description: "Tandai Project Planning ditolak untuk revisi.",
+        tone: "danger",
+    },
+];
+
+const GANTT_STATUS_OPTIONS: StatusOption[] = [
+    {
+        value: "active",
+        label: "Aktif",
+        description: "Buka kembali Gantt agar masih dapat diperbarui.",
+        tone: "warning",
+    },
+    {
+        value: "terkunci",
+        label: "Terkunci",
+        description: "Kunci Gantt dan lepaskan antrean RAB yang menunggu Gantt.",
+        tone: "success",
+    },
+];
+
 const TYPE_FILTERS: Array<{ value: InterventionDocType | "ALL"; label: string }> = [
     { value: "ALL", label: "Semua Tipe" },
     { value: "RAB", label: "RAB" },
     { value: "SPK", label: "SPK" },
+    { value: "PROJECT_PLANNING", label: "Project Planning" },
+    { value: "GANTT", label: "Gantt" },
 ];
 
 const STATUS_FILTERS: Array<{ value: StatusCategory; label: string }> = [
@@ -200,6 +295,13 @@ const getStatusLabel = (status: string) => {
     if (upper === "SPK_APPROVED") return "SPK Approved";
     if (upper === "SPK_REJECTED") return "SPK Rejected";
     if (upper === "WAITING_FOR_BM_APPROVAL") return "Pending BM";
+    if (upper === "ACTIVE") return "Aktif";
+    if (upper === "TERKUNCI") return "Terkunci";
+    if (upper === "DRAFT") return "Draft";
+    if (upper === "COMPLETED") return "Selesai";
+    if (upper === "REJECTED") return "Rejected";
+    if (upper.startsWith("WAITING_")) return upper.replaceAll("_", " ");
+    if (upper === "PP_DESIGN_3D_REQUIRED") return "Butuh Desain 3D";
     if (upper.includes("DISETUJUI") || upper === "APPROVED") return "Approved";
     if (upper.includes("TOLAK") || upper.includes("REJECTED")) return "Rejected";
     if (upper.includes("MENUNGGU") || upper.includes("PENDING") || upper.includes("WAITING")) return "Pending";
@@ -211,10 +313,10 @@ const getStatusBadgeClass = (status: string) => {
     if (upper.includes("TOLAK") || upper.includes("REJECTED")) {
         return "border-red-200 bg-red-50 text-red-700";
     }
-    if (upper.includes("DISETUJUI") || upper.includes("APPROVED")) {
+    if (upper.includes("DISETUJUI") || upper.includes("APPROVED") || upper === "COMPLETED" || upper === "TERKUNCI") {
         return "border-emerald-200 bg-emerald-50 text-emerald-700";
     }
-    if (upper.includes("MENUNGGU") || upper.includes("PENDING") || upper.includes("WAITING")) {
+    if (upper.includes("MENUNGGU") || upper.includes("PENDING") || upper.includes("WAITING") || upper === "DRAFT" || upper === "ACTIVE" || upper === "PP_DESIGN_3D_REQUIRED") {
         return "border-amber-200 bg-amber-50 text-amber-700";
     }
     return "border-slate-200 bg-slate-100 text-slate-700";
@@ -223,7 +325,7 @@ const getStatusBadgeClass = (status: string) => {
 const getStatusCategory = (status: string): Exclude<StatusCategory, "ALL"> => {
     const upper = status.toUpperCase();
     if (upper.includes("TOLAK") || upper.includes("REJECTED")) return "REJECTED";
-    if (upper.includes("DISETUJUI") || upper.includes("APPROVED")) return "APPROVED";
+    if (upper.includes("DISETUJUI") || upper.includes("APPROVED") || upper === "COMPLETED" || upper === "TERKUNCI") return "APPROVED";
     return "PENDING";
 };
 
@@ -267,6 +369,37 @@ const normalizeSpk = (spk: SPKListItem): InterventionDocument => ({
     raw: spk,
 });
 
+const normalizeProjectPlanning = (projek: ProjekPlanningItem): InterventionDocument => ({
+    id: projek.id,
+    type: "PROJECT_PLANNING",
+    id_toko: projek.id_toko,
+    nomor_ulok: projek.nomor_ulok,
+    kode_toko: projek.kode_toko,
+    nama_toko: projek.nama_toko || projek.nama_lokasi,
+    cabang: projek.cabang,
+    project: projek.jenis_proyek || projek.proyek || projek.jenis_pengajuan,
+    status: projek.status,
+    total: parseMoney(projek.estimasi_biaya),
+    created_at: projek.created_at,
+    updated_at: projek.updated_at,
+    email_pembuat: projek.email_pembuat,
+    raw: projek,
+});
+
+const normalizeGantt = (gantt: GanttListItem): InterventionDocument => ({
+    id: gantt.id,
+    type: "GANTT",
+    id_toko: gantt.id_toko,
+    nomor_ulok: gantt.nomor_ulok,
+    nama_toko: gantt.nama_toko,
+    cabang: gantt.cabang,
+    project: gantt.proyek || gantt.lingkup_pekerjaan,
+    status: gantt.status,
+    created_at: gantt.timestamp,
+    email_pembuat: gantt.email_pembuat,
+    raw: gantt,
+});
+
 const mapActivityLogs = (logs: ActivityLog[]): InterventionLog[] =>
     logs.map((log) => ({
         id: `activity-${log.id}`,
@@ -285,6 +418,17 @@ const mapSpkLogs = (logs: SPKApprovalLog[]): InterventionLog[] =>
         action: log.tindakan,
         reason: log.alasan_penolakan,
         createdAt: log.waktu_tindakan,
+    }));
+
+const mapProjectPlanningLogs = (logs: ProjekPlanningLog[]): InterventionLog[] =>
+    logs.map((log) => ({
+        id: `pp-${log.id}`,
+        actor: log.actor_email || log.role || "-",
+        action: log.aksi,
+        reason: log.alasan_penolakan || log.keterangan,
+        statusBefore: log.status_sebelum,
+        statusAfter: log.status_sesudah,
+        createdAt: log.created_at,
     }));
 
 const interventionAdapters: Record<InterventionDocType, InterventionAdapter> = {
@@ -358,6 +502,77 @@ const interventionAdapters: Record<InterventionDocType, InterventionAdapter> = {
                 actor_email: user.email,
                 actor_role: user.role,
                 target_status: targetStatus as SpkTargetStatus,
+                alasan_intervensi: reason,
+            });
+        },
+    },
+    PROJECT_PLANNING: {
+        type: "PROJECT_PLANNING",
+        label: "Project Planning",
+        accentClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
+        icon: <MapPinned className="h-4 w-4" />,
+        fetchList: async () => {
+            const response = await fetchProjekPlanningList();
+            return (response.data || []).map(normalizeProjectPlanning);
+        },
+        fetchDetail: async (doc) => {
+            const [detail, logs] = await Promise.all([
+                fetchProjekPlanningDetail(doc.id).catch(() => null),
+                fetchProjekPlanningLogs(doc.id).then((res) => res.data).catch(() => []),
+            ]);
+            if (!detail?.data) return { ...doc, logs: mapProjectPlanningLogs(logs) };
+            return {
+                ...normalizeProjectPlanning(detail.data.projek),
+                logs: mapProjectPlanningLogs(detail.data.logs || logs),
+            };
+        },
+        getStatusOptions: () => PROJECT_PLANNING_STATUS_OPTIONS,
+        submit: async (doc, targetStatus, reason, user) => {
+            await interveneProjekPlanningStatus(doc.id, {
+                actor_email: user.email,
+                actor_role: user.role,
+                target_status: targetStatus as ProjectPlanningInterventionPayload["target_status"],
+                alasan_intervensi: reason,
+            });
+        },
+    },
+    GANTT: {
+        type: "GANTT",
+        label: "Gantt",
+        accentClass: "border-teal-200 bg-teal-50 text-teal-700",
+        icon: <GitBranch className="h-4 w-4" />,
+        fetchList: async () => {
+            const response = await fetchGanttList();
+            return (response.data || []).map(normalizeGantt);
+        },
+        fetchDetail: async (doc) => {
+            const [detail, logs] = await Promise.all([
+                fetchGanttDetail(doc.id).catch(() => null),
+                fetchActivityLogs("GANTT", doc.id).then((res) => res.data).catch(() => []),
+            ]);
+            if (!detail?.data) return { ...doc, logs: mapActivityLogs(logs) };
+            return {
+                ...doc,
+                id_toko: detail.data.gantt.id_toko,
+                nomor_ulok: detail.data.toko.nomor_ulok || doc.nomor_ulok,
+                kode_toko: detail.data.toko.kode_toko,
+                nama_toko: detail.data.toko.nama_toko || doc.nama_toko,
+                cabang: detail.data.toko.cabang || doc.cabang,
+                contractor: detail.data.toko.nama_kontraktor,
+                project: detail.data.toko.proyek || doc.project,
+                status: detail.data.gantt.status || doc.status,
+                created_at: detail.data.gantt.timestamp || doc.created_at,
+                email_pembuat: detail.data.gantt.email_pembuat || doc.email_pembuat,
+                logs: mapActivityLogs(logs),
+                raw: detail.data,
+            };
+        },
+        getStatusOptions: () => GANTT_STATUS_OPTIONS,
+        submit: async (doc, targetStatus, reason, user) => {
+            await interveneGanttStatus(doc.id, {
+                actor_email: user.email,
+                actor_role: user.role,
+                target_status: targetStatus as GanttTargetStatus,
                 alasan_intervensi: reason,
             });
         },

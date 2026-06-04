@@ -1386,6 +1386,13 @@ export type GanttListFilters = {
     email_pembuat?: string;
 };
 
+export type GanttInterventionPayload = {
+    actor_email: string;
+    actor_role: string;
+    target_status: "active" | "terkunci";
+    alasan_intervensi: string;
+};
+
 export type GanttDetailToko = {
     id:               number;
     nomor_ulok:       string;
@@ -1517,6 +1524,23 @@ export const fetchGanttDetail = async (
         throw new Error(`Gagal memuat Gantt Chart (${res.status}): ${text.substring(0, 100)}`);
     }
     return res.json();
+};
+
+export const interveneGanttStatus = async (
+    id: number,
+    payload: GanttInterventionPayload
+): Promise<{ status: string; message: string; data: { id: string; old_status: string; new_status: string } }> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/gantt/${id}/intervention`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 404) throw new Error(result.message || "Gantt Chart tidak ditemukan.");
+    if (res.status === 409) throw new Error(result.message || "Status Gantt sudah sama.");
+    if (res.status === 422) throw new Error(result.message || "Validasi intervensi Gantt gagal.");
+    if (!res.ok) throw new Error(result.message || `Gagal melakukan intervensi Gantt (${res.status}).`);
+    return result;
 };
 
 /** Ambil detail Gantt Chart berdasarkan ID Toko. */
@@ -3440,6 +3464,23 @@ export type ProjekPlanningTaskCounts = {
     total: number;
 };
 
+export type ProjectPlanningInterventionPayload = {
+    actor_email: string;
+    actor_role: string;
+    target_status:
+        | "DRAFT"
+        | "WAITING_BM_APPROVAL"
+        | "WAITING_PP_APPROVAL_1"
+        | "PP_DESIGN_3D_REQUIRED"
+        | "WAITING_RAB_UPLOAD"
+        | "WAITING_BM_APPROVAL_2"
+        | "WAITING_PP_MANAGER_APPROVAL"
+        | "WAITING_PP_APPROVAL_2"
+        | "COMPLETED"
+        | "REJECTED";
+    alasan_intervensi: string;
+};
+
 // --- Fungsi ---
 
 /** Submit FPD baru (Coordinator/Cabang). */
@@ -3613,6 +3654,23 @@ export const fetchProjekPlanningLogs = async (
     id: number
 ): Promise<{ status: string; data: ProjekPlanningLog[] }> => {
     return safeFetchJSON(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/logs`);
+};
+
+export const interveneProjekPlanningStatus = async (
+    id: number,
+    payload: ProjectPlanningInterventionPayload
+): Promise<{ status: string; message: string; data: { id: number; old_status: string; new_status: string } }> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/projek-planning/${id}/intervention`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.status === 404) throw new Error(result.message || "Project Planning tidak ditemukan.");
+    if (res.status === 409) throw new Error(result.message || "Status Project Planning sudah sama.");
+    if (res.status === 422) throw new Error(result.message || "Validasi intervensi Project Planning gagal.");
+    if (!res.ok) throw new Error(result.message || `Gagal melakukan intervensi Project Planning (${res.status}).`);
+    return result;
 };
 
 /**
