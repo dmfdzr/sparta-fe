@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
     ArrowLeft, Loader2, CheckCircle, XCircle,
     Search, FileText, ClipboardList, Eye,
-    AlertTriangle, FileDown, Building2, CalendarDays, User, RefreshCw
+    AlertTriangle, FileDown, Building2, CalendarDays, User, RefreshCw, Plus
 } from 'lucide-react';
 import AppNavbar from '@/components/AppNavbar';
 import GanttViewer from '@/components/GanttViewer';
@@ -530,8 +530,12 @@ export default function ApprovalPage() {
     const [isLoading, setIsLoading]           = useState(false);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [processingId, setProcessingId]     = useState<number | string | null>(null);
-    const [rejectModal, setRejectModal]       = useState<NormalizedListItem | null>(null);
+    const [rejectModal, setRejectModal]       = useState<NormalizedListItem | NormalizedDetail | null>(null);
     const [rejectNote, setRejectNote]         = useState('');
+    const [rejectRabGeneralNote, setRejectRabGeneralNote] = useState('');
+    const [rejectRabRevisionItems, setRejectRabRevisionItems] = useState<Array<{ id: number | null; note: string }>>([]);
+    const [approveModal, setApproveModal]     = useState<NormalizedListItem | NormalizedDetail | null>(null);
+    const [approveNote, setApproveNote]       = useState('');
     const [toast, setToast]                   = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // ==========================================
@@ -1063,9 +1067,24 @@ export default function ApprovalPage() {
     // ==========================================
     // APPROVE
     // ==========================================
-    const handleApprove = async (item: NormalizedListItem | NormalizedDetail) => {
+    const openApproveModal = (item: NormalizedListItem | NormalizedDetail) => {
+        setApproveNote('');
+        setApproveModal(item);
+    };
+
+    const handleConfirmApprove = async () => {
+        if (!approveModal) return;
+        const item = approveModal;
+        const note = approveNote;
+        setApproveModal(null);
+        setApproveNote('');
+        await handleApprove(item, note);
+    };
+
+    const handleApprove = async (item: NormalizedListItem | NormalizedDetail, note = '') => {
         setProcessingId(item.id);
         try {
+            const catatanApproval = note.trim() || null;
             if (item.tipe === 'RAB') {
                 let currentName = userInfo.name;
                 if (jabatan === 'DIREKTUR' && item.status.toUpperCase().includes('MENUNGGU PERSETUJUAN DIREKTUR')) {
@@ -1080,11 +1099,13 @@ export default function ApprovalPage() {
                     ...(shouldSkipRABCoordinatorApproval(item) ? { next_jabatan: 'MANAGER' } : {}),
                     ...(shouldFinalizeRABAfterCoordinatorApproval(item) ? { next_status: 'DISETUJUI' } : {}),
                     tindakan:       'APPROVE',
+                    catatan_approval: catatanApproval,
                 });
             } else if (item.tipe === 'SPK') {
                 await processSPKApproval(item.id as number, {
                     approver_email: userInfo.email,
                     tindakan:       'APPROVE',
+                    catatan_approval: catatanApproval,
                 });
 
                 // Kirim notifikasi email ke semua user Kontraktor pada cabang terkait
@@ -1101,18 +1122,21 @@ export default function ApprovalPage() {
                 await processPertambahanSPKApproval(item.id as number, {
                     approver_email: userInfo.email,
                     tindakan:       'APPROVE',
+                    catatan_approval: catatanApproval,
                 });
             } else if (item.tipe === 'OPNAME_FINAL') {
                 await approveOpnameFinal(item.id as number, {
                     approver_email: userInfo.email,
                     jabatan:        jabatan as any ?? 'KOORDINATOR',
                     tindakan:       'APPROVE',
+                    catatan_approval: catatanApproval,
                 });
             } else if (item.tipe === 'INSTRUKSI_LAPANGAN') {
                 await processInstruksiLapanganApproval(item.id as number, {
                     approver_email: userInfo.email,
                     jabatan:        jabatan as any ?? 'KOORDINATOR',
                     tindakan:       'APPROVE',
+                    catatan_approval: catatanApproval,
                 });
             }
             // Hapus item dari list karena sudah bukan giliran role ini lagi
@@ -1133,8 +1157,10 @@ export default function ApprovalPage() {
     // ==========================================
     // REJECT
     // ==========================================
-    const openRejectModal = (item: NormalizedListItem) => {
+    const openRejectModal = (item: NormalizedListItem | NormalizedDetail) => {
         setRejectNote('');
+        setRejectRabGeneralNote('');
+        setRejectRabRevisionItems([]);
         setRejectModal(item);
     };
 
@@ -1158,12 +1184,22 @@ export default function ApprovalPage() {
                     jabatan:          jabatan ?? 'KOORDINATOR',
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
+                    catatan_approval: rejectNote,
+                    catatan_revisi_umum: rejectRabGeneralNote,
+                    revisi_item_ids: rejectRabRevisionItems
+                        .map(item => item.id)
+                        .filter((id): id is number => typeof id === 'number'),
+                    revisi_item_notes: rejectRabRevisionItems.reduce<Record<string, string>>((acc, item) => {
+                        if (typeof item.id === 'number' && item.note.trim()) acc[String(item.id)] = item.note.trim();
+                        return acc;
+                    }, {}),
                 });
             } else if (item.tipe === 'SPK') {
                 await processSPKApproval(item.id as number, {
                     approver_email:   userInfo.email,
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
+                    catatan_approval: rejectNote,
                 });
 
                 // Email notification is best-effort so approval state is not rolled back by mail delivery issues.
@@ -1181,6 +1217,7 @@ export default function ApprovalPage() {
                     approver_email:   userInfo.email,
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
+                    catatan_approval: rejectNote,
                 });
             } else if (item.tipe === 'OPNAME_FINAL') {
                 await approveOpnameFinal(item.id as number, {
@@ -1188,6 +1225,7 @@ export default function ApprovalPage() {
                     jabatan:          jabatan as any ?? 'KOORDINATOR',
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
+                    catatan_approval: rejectNote,
                 });
             } else if (item.tipe === 'INSTRUKSI_LAPANGAN') {
                 await processInstruksiLapanganApproval(item.id as number, {
@@ -1195,6 +1233,7 @@ export default function ApprovalPage() {
                     jabatan:          jabatan as any ?? 'KOORDINATOR',
                     tindakan:         'REJECT',
                     alasan_penolakan: rejectNote,
+                    catatan_approval: rejectNote,
                 });
             }
             // Hapus item dari list karena sudah ditolak
@@ -1381,33 +1420,142 @@ export default function ApprovalPage() {
                 </div>
             )}
 
+            {/* APPROVE NOTE MODAL */}
+            {approveModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-green-100 bg-green-50/70 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                <CheckCircle className="w-5 h-5 text-green-700" />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="font-bold text-slate-900">Setujui Pengajuan {approveModal.tipe}</h3>
+                                <p className="text-xs text-slate-600 mt-0.5 truncate">{approveModal.nama_toko} - ULOK {approveModal.nomor_ulok}</p>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-3">
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                Catatan bersifat opsional dan akan tersimpan sebagai catatan approval role Anda.
+                            </div>
+                            <textarea
+                                className="w-full border border-slate-300 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-400"
+                                rows={4}
+                                placeholder="Catatan approval, jika ada..."
+                                value={approveNote}
+                                onChange={e => setApproveNote(e.target.value)}
+                                autoFocus
+                            />
+                            <div className="flex gap-3 pt-1">
+                                <Button variant="outline" className="flex-1" onClick={() => setApproveModal(null)}>Batal</Button>
+                                <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleConfirmApprove}>
+                                    Konfirmasi Setuju
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* REJECT MODAL */}
             {rejectModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-red-100 bg-red-50/70 flex items-start gap-3">
                             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                                 <AlertTriangle className="w-5 h-5 text-red-600" />
                             </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Tolak Pengajuan {rejectModal.tipe}</h3>
-                                <p className="text-xs text-slate-500">{rejectModal.nama_toko} — ULOK {rejectModal.nomor_ulok}</p>
+                            <div className="min-w-0">
+                                <h3 className="font-bold text-slate-900">Tolak Pengajuan {rejectModal.tipe}</h3>
+                                <p className="text-xs text-slate-600 mt-0.5 truncate">{rejectModal.nama_toko} - ULOK {rejectModal.nomor_ulok}</p>
                             </div>
                         </div>
-                        <p className="text-sm text-slate-600 mb-3">Harap isi alasan penolakan. Alasan ini akan tercatat dan dikirim ke pengaju.</p>
-                        <textarea
-                            className="w-full border border-slate-300 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
-                            rows={4}
-                            placeholder="Tulis alasan penolakan..."
-                            value={rejectNote}
-                            onChange={e => setRejectNote(e.target.value)}
-                            autoFocus
-                        />
-                        <div className="flex gap-3 mt-4">
-                            <Button variant="outline" className="flex-1" onClick={() => setRejectModal(null)}>Batal</Button>
-                            <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleReject}>
-                                Konfirmasi Tolak
-                            </Button>
+                        <div className="p-5 space-y-3">
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                                Alasan penolakan wajib diisi dan akan dikirim ke pengaju sebagai arahan revisi.
+                            </div>
+                            <textarea
+                                className="w-full border border-slate-300 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
+                                rows={4}
+                                placeholder="Tulis alasan penolakan..."
+                                value={rejectNote}
+                                onChange={e => setRejectNote(e.target.value)}
+                                autoFocus
+                            />
+                            {rejectModal.tipe === 'RAB' && Array.isArray((rejectModal as NormalizedDetail).items) && (rejectModal as NormalizedDetail).items.length > 0 && (
+                                <div className="rounded-xl border border-red-100 bg-red-50/40 p-3 space-y-3">
+                                    <div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-bold text-red-700">Detail Revisi RAB</p>
+                                                <p className="text-xs text-slate-600">Pilih item RAB yang perlu direvisi, atau isi catatan umum.</p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 border-red-200 text-red-700 hover:bg-red-50"
+                                                onClick={() => setRejectRabRevisionItems(prev => [...prev, { id: null, note: '' }])}
+                                            >
+                                                <Plus className="w-3.5 h-3.5 mr-1" /> Item
+                                            </Button>
+                                        </div>
+                                        <textarea
+                                            className="mt-2 w-full border border-slate-300 rounded-lg p-2.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
+                                            rows={2}
+                                            placeholder="Catatan revisi umum RAB (opsional)..."
+                                            value={rejectRabGeneralNote}
+                                            onChange={e => setRejectRabGeneralNote(e.target.value)}
+                                        />
+                                    </div>
+                                    {rejectRabRevisionItems.map((revision, index) => {
+                                        const selectedIds = new Set(rejectRabRevisionItems.map(item => item.id).filter((id): id is number => typeof id === 'number'));
+                                        const availableItems = (rejectModal as NormalizedDetail).items.filter(item => item.id === revision.id || !selectedIds.has(item.id));
+                                        return (
+                                            <div key={index} className="rounded-lg border border-slate-200 bg-white p-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xs font-bold text-slate-700">Item Revisi #{index + 1}</span>
+                                                    <button
+                                                        type="button"
+                                                        className="text-xs font-semibold text-red-600 hover:text-red-700"
+                                                        onClick={() => setRejectRabRevisionItems(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-2">
+                                                    <select
+                                                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                                                        value={revision.id ?? ''}
+                                                        onChange={e => {
+                                                            const nextId = e.target.value ? Number(e.target.value) : null;
+                                                            setRejectRabRevisionItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, id: nextId } : item));
+                                                        }}
+                                                    >
+                                                        <option value="">Pilih item RAB...</option>
+                                                        {availableItems.map(item => (
+                                                            <option key={item.id} value={item.id}>
+                                                                #{item.id} - {item.kategori} / {item.jenis_pekerjaan}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-red-300"
+                                                        value={revision.note}
+                                                        onChange={e => setRejectRabRevisionItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, note: e.target.value } : item))}
+                                                        placeholder="Catatan item..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <div className="flex gap-3 pt-1">
+                                <Button variant="outline" className="flex-1" onClick={() => setRejectModal(null)}>Batal</Button>
+                                <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleReject}>
+                                    Konfirmasi Tolak
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1597,7 +1745,7 @@ export default function ApprovalPage() {
                                                                         size="sm"
                                                                         className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
                                                                         disabled={processingId === item.id}
-                                                                        onClick={() => handleApprove(item)}
+                                                                        onClick={() => openApproveModal(item)}
                                                                     >
                                                                         {processingId === item.id
                                                                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1987,14 +2135,14 @@ export default function ApprovalPage() {
                                                 variant="outline"
                                                 className="border-red-200 text-red-600 hover:bg-red-50 font-bold px-6"
                                                 disabled={!!processingId}
-                                                onClick={() => openRejectModal(detailAsListItem)}
+                                                onClick={() => openRejectModal(selectedDetail)}
                                             >
                                                 <XCircle className="w-4 h-4 mr-2" /> Tolak
                                             </Button>
                                             <Button
                                                 className="bg-green-600 hover:bg-green-700 text-white font-bold px-8"
                                                 disabled={!!processingId}
-                                                onClick={() => handleApprove(selectedDetail)}
+                                                onClick={() => openApproveModal(selectedDetail)}
                                             >
                                                 {processingId === selectedDetail.id
                                                     ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />

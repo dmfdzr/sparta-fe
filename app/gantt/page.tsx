@@ -1317,7 +1317,9 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
     const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null, isSaved?: boolean }>>({});
     const [isDirty, setIsDirty] = useState(false);
     const [showInstruksiModal, setShowInstruksiModal] = useState(false);
+    const [currentMemoNote, setCurrentMemoNote] = useState('');
     const [nextHandoverDate, setNextHandoverDate] = useState('');
+    const [nextHandoverNote, setNextHandoverNote] = useState('');
     const [blockedOpnameRabItemIds, setBlockedOpnameRabItemIds] = useState<Set<number>>(new Set());
     const [currentPengawasanGanttId, setCurrentPengawasanGanttId] = useState<number | null>(null);
     
@@ -1485,6 +1487,45 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
     const hasSelesaiItems = Array.from(latestStatusMapState.values()).some((s: string) => s.toLowerCase() === 'selesai');
     const hasLateItems = Object.values(memoInputs).some((val: any) => val.status === 'Terlambat');
+    useEffect(() => {
+        const currentDate = String(activeHeaderClick?.dateString || '').trim();
+        if (!currentDate) return;
+        const currentMemo = (pengawasanHistory || []).find((p: any) =>
+            String(p.tanggal_pengawasan || '').trim() === currentDate
+            && p?.catatan_memo
+        );
+        setCurrentMemoNote(currentMemo?.catatan_memo ? String(currentMemo.catatan_memo) : '');
+    }, [pengawasanHistory, activeHeaderClick]);
+
+    const carriedMemoNotes = useMemo<string[]>(() => {
+        if (!activeHeaderClick) return [];
+        const currentDate = String(activeHeaderClick.dateString || '').trim();
+        const parseDateNumeric = (value: any): number | null => {
+            const raw = String(value || '').trim();
+            const slashMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (slashMatch) return parseInt(`${slashMatch[3]}${slashMatch[2]}${slashMatch[1]}`, 10);
+            const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) return parseInt(`${isoMatch[1]}${isoMatch[2]}${isoMatch[3]}`, 10);
+            return null;
+        };
+        const currentNumeric = parseDateNumeric(currentDate);
+        if (!currentNumeric) return [];
+        const sortedDates = Array.from(new Set<number>(
+            (pengawasanHistory || [])
+                .map((p: any) => parseDateNumeric(p.tanggal_pengawasan))
+                .filter((dateNum: number | null): dateNum is number => !!dateNum)
+        )).sort((a, b) => a - b);
+
+        return (pengawasanHistory || [])
+            .filter((p: any) => p?.catatan_memo && String(p.catatan_memo).trim())
+            .filter((p: any) => {
+                const sourceNumeric = parseDateNumeric(p.tanggal_pengawasan);
+                if (!sourceNumeric) return false;
+                const nextPengawasan = sortedDates.find(dateNum => dateNum > sourceNumeric);
+                return nextPengawasan === currentNumeric;
+            })
+            .map((p: any) => String(p.catatan_memo).trim());
+    }, [pengawasanHistory, activeHeaderClick]);
 
     const memoConfig = useMemo(() => {
         if (!chartData || !activeHeaderClick) return [];
@@ -1650,6 +1691,8 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             return !!nextHandoverDate;
         }
 
+        if (currentMemoNote.trim() && isDirty) return true;
+
         if (memoConfig.length === 0) return false;
         if (!isDirty) return false;
 
@@ -1697,7 +1740,7 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
         }
 
         return true;
-    }, [memoConfig, memoInputs, latestStatusMapState, latestIdMapState, isDirty, isLastSupervisionDay, hasLateItems, nextHandoverDate]);
+    }, [memoConfig, memoInputs, latestStatusMapState, latestIdMapState, isDirty, isLastSupervisionDay, hasLateItems, nextHandoverDate, currentMemoNote]);
 
     const getDateStr = (dayIndexOffset: number) => {
         if (!spkInfo) return '';
@@ -1791,6 +1834,11 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
             const { submitPengawasanBulk, updatePengawasanBulk } = await import('@/lib/api');
             const { API_URL } = await import('@/lib/constants');
+            const { submitGanttPengawasan } = await import('@/lib/api');
+
+            if (activeHeaderClick?.dateString && currentMemoNote.trim()) {
+                await submitGanttPengawasan(Number(selectedGanttId), [activeHeaderClick.dateString], currentMemoNote);
+            }
 
             // --- A. Eksekusi INSERT (POST) ---
             if (itemsArrayInsert.length > 0) {
@@ -1854,12 +1902,11 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
 
             // 3. Tambahkan Tanggal Serah Terima Berikutnya jika ada item terlambat di hari terakhir
             if (isLastSupervisionDay && hasLateItems && nextHandoverDate) {
-                const { submitGanttPengawasan } = await import('@/lib/api');
                 try {
                     // Convert YYYY-MM-DD to DD/MM/YYYY
                     const parts = nextHandoverDate.split('-');
                     const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : nextHandoverDate;
-                    await submitGanttPengawasan(Number(selectedGanttId), [formattedDate]);
+                    await submitGanttPengawasan(Number(selectedGanttId), [formattedDate], nextHandoverNote);
                 } catch(e: any) {
                     console.warn("Update next handover date error:", e);
                 }
@@ -1932,6 +1979,40 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {carriedMemoNotes.length > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            <div className="flex items-center gap-2 font-bold mb-1">
+                                <Info className="w-4 h-4" />
+                                Catatan dari pengawasan sebelumnya
+                            </div>
+                            <div className="space-y-1">
+                                {Array.from(new Set(carriedMemoNotes)).map((note) => (
+                                    <p key={note} className="leading-relaxed">{note}</p>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800">Catatan Memo Pengawasan</h3>
+                                <p className="text-xs text-slate-500">Catatan ini akan muncul saat tanggal pengawasan berikutnya dibuka.</p>
+                            </div>
+                            <Badge className="bg-blue-50 text-blue-700 border border-blue-100">Opsional</Badge>
+                        </div>
+                        <textarea
+                            value={currentMemoNote}
+                            onChange={(e) => {
+                                setCurrentMemoNote(e.target.value);
+                                setIsDirty(true);
+                            }}
+                            rows={3}
+                            className="w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            placeholder="Tulis catatan untuk pengawasan berikutnya..."
+                        />
+                    </div>
+
                     {isLoadingHistory ? (
                         <div className="flex flex-col items-center justify-center text-slate-400 py-12">
                             <Loader2 className="w-10 h-10 animate-spin mb-3 text-blue-500" />
@@ -2113,6 +2194,19 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
                                         setIsDirty(true);
                                     }}
                                     className="block w-full max-w-xs p-2 mt-1 border border-orange-300 rounded focus:ring-orange-500 focus:border-orange-500 text-sm text-slate-800 outline-none"
+                                />
+                            </div>
+                            <div className="mt-3">
+                                <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">Catatan Untuk Pengawasan Berikutnya</label>
+                                <textarea
+                                    value={nextHandoverNote}
+                                    onChange={(e) => {
+                                        setNextHandoverNote(e.target.value);
+                                        setIsDirty(true);
+                                    }}
+                                    rows={3}
+                                    className="block w-full p-2 mt-1 border border-orange-300 rounded focus:ring-orange-500 focus:border-orange-500 text-sm text-slate-800 outline-none resize-none"
+                                    placeholder="Contoh: cek ulang pekerjaan plafon dan dokumentasi area kasir sebelum opname."
                                 />
                             </div>
                         </div>

@@ -37,6 +37,8 @@ export const PHOTO_POINTS: Record<number, PhotoPoint[]> = {
         { id: 32, x: 48.5, y: 23.5, label: "INSTALASI LISTRIK & DRAINASE CHILLER" },
         { id: 37, x: 59.7, y: 68.8, label: "SEPTICTANK EXISTING" },
         { id: 38, x: 41, y: 68.8, label: "SUMUR EXISTING" },
+        { id: 39, x: 72.5, y: 96.2, label: "FOTO KOMPETITOR HEAD TO HEAD 1" },
+        { id: 40, x: 27.5, y: 96.2, label: "FOTO KOMPETITOR HEAD TO HEAD 2" },
     ],
     2: [
         { id: 34, x: 50, y: 51.8, label: "INSTALASI LISTRIK DAN LISTPLANK" },
@@ -52,7 +54,7 @@ export const ALL_POINTS: PhotoPoint[] = [
     ...PHOTO_POINTS[1], ...PHOTO_POINTS[2], ...PHOTO_POINTS[3]
 ].sort((a, b) => a.id - b.id);
 
-export const TOTAL_PHOTOS = 38;
+export const TOTAL_PHOTOS = 40;
 
 export const FLOOR_IMAGES: Record<number, string> = {
     1: "/assets/floor.png",

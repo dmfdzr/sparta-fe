@@ -903,6 +903,10 @@ export type RABApprovalPayload = {
     next_status?:     string;
     tindakan:         "APPROVE" | "REJECT" | string;
     alasan_penolakan?: string | null;
+    catatan_approval?: string | null;
+    catatan_revisi_umum?: string | null;
+    revisi_item_ids?: number[];
+    revisi_item_notes?: Record<string, string | null | undefined>;
 };
 
 export type RABApprovalResponse = {
@@ -1342,7 +1346,9 @@ export type GanttDependency = {
 };
 
 export type GanttPengawasan = {
-    kategori_pekerjaan: string;
+    kategori_pekerjaan?: string;
+    tanggal_pengawasan?: string;
+    catatan_memo?: string | null;
 };
 
 export type GanttSubmitPayload = {
@@ -1414,6 +1420,7 @@ export type GanttDetailPengawasan = {
     id_gantt:           number;
     kategori_pekerjaan?: string;
     tanggal_pengawasan?: string;
+    catatan_memo?: string | null;
 };
 
 export type GanttDetailDependency = {
@@ -1558,11 +1565,11 @@ export const lockGanttChart = async (id: number, email: string) => {
 };
 
 /** Submit Hari Pengawasan ke Gantt */
-export const submitGanttPengawasan = async (id: number, tanggal_pengawasan: string[]) => {
+export const submitGanttPengawasan = async (id: number, tanggal_pengawasan: string[], catatan_memo?: string | null) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/gantt/${id}/pengawasan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tanggal_pengawasan }),
+        body: JSON.stringify({ tanggal_pengawasan, catatan_memo: catatan_memo?.trim() || undefined }),
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.message || "Gagal menyimpan tanggal pengawasan Gantt.");
@@ -1990,6 +1997,7 @@ export const approveOpnameFinal = async (id: number, payload: {
     jabatan: string;
     tindakan: 'APPROVE' | 'REJECT';
     alasan_penolakan?: string | null;
+    catatan_approval?: string | null;
 }) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}/approval`, {
         method: "POST",
@@ -2098,6 +2106,7 @@ export type SPKApprovalPayload = {
     approver_email: string;
     tindakan: "APPROVE" | "REJECT";
     alasan_penolakan?: string | null;
+    catatan_approval?: string | null;
 };
 
 export type SPKInterventionPayload = {
@@ -2318,6 +2327,7 @@ export type PertambahanSPKApprovalPayload = {
     approver_email: string;
     tindakan: "APPROVE" | "REJECT";
     alasan_penolakan?: string;
+    catatan_approval?: string | null;
 };
 
 // --- Fungsi ---
@@ -2621,6 +2631,7 @@ export type InstruksiLapanganApprovalPayload = {
     jabatan: 'KOORDINATOR' | 'MANAGER' | 'DIREKTUR' | 'DIREKTUR_KONTRAKTOR' | 'KONTRAKTOR' | string;
     tindakan: 'APPROVE' | 'REJECT';
     alasan_penolakan?: string | null;
+    catatan_approval?: string | null;
 };
 
 export const processInstruksiLapanganApproval = async (
