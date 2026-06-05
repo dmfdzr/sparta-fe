@@ -59,6 +59,7 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
     const [isTokoLoading, setIsTokoLoading] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertMessage, setAlertMessage] = useState<{title: string, desc: string, type: 'info' | 'error' | 'success' | 'warning'}>({ title: "", desc: "", type: "info" });
+    const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const userCabang = sessionStorage.getItem('loggedInUserCabang')?.toUpperCase();
@@ -90,6 +91,12 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
             handleTokoChange(String(initialTokoId));
         }
     }, [initialTokoId, tokoList]);
+
+    useEffect(() => {
+        return () => {
+            if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+        };
+    }, []);
 
     const handleTokoChange = async (tokoIdStr: string) => {
         const tokoId = Number(tokoIdStr);
@@ -284,6 +291,15 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
         }
 
         setIsLoading(true);
+        if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+        submitTimeoutRef.current = setTimeout(() => {
+            setIsLoading(false);
+            showAlert(
+                "Timeout",
+                "Proses simpan Instruksi Lapangan terlalu lama. Cek koneksi lalu coba lagi. Jika data belum masuk DB, hubungi admin.",
+                "error"
+            );
+        }, 50000);
 
         const fields: Record<string, string | number | undefined> = {
             id_toko: selectedToko.id,
@@ -297,9 +313,14 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
 
         try {
             await submitInstruksiLapangan(fields, detailItems, lampiranFile);
+            if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+            submitTimeoutRef.current = null;
+            setIsLoading(false);
             showAlert("Berhasil", "Pengajuan Instruksi Lapangan berhasil disimpan.", "success");
             setTimeout(() => { onSuccess(); }, 1500);
         } catch (err: any) {
+            if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+            submitTimeoutRef.current = null;
             setIsLoading(false);
             showAlert("Error", err.message, "error");
         }
@@ -342,7 +363,7 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <Label>Pilih Toko <span className="text-red-500">*</span></Label>
-                                        <Select onValueChange={handleTokoChange} value={selectedToko ? String(selectedToko.id) : undefined} disabled={!!initialTokoId} required>
+                                        <Select onValueChange={handleTokoChange} value={selectedToko ? String(selectedToko.id) : ""} disabled={!!initialTokoId} required>
                                             <SelectTrigger className="bg-white">
                                                 <SelectValue placeholder="-- Pilih Toko Berdasarkan Cabang --" />
                                             </SelectTrigger>
