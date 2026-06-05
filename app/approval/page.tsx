@@ -1543,8 +1543,13 @@ export default function ApprovalPage() {
                                                         {(rejectModal as NormalizedDetail).items.map(item => {
                                                             const isSelectedElsewhere = selectedIdsInOtherRows.has(item.id);
                                                             return (
-                                                            <option key={item.id} value={item.id} disabled={isSelectedElsewhere}>
-                                                                #{item.id} - {item.kategori} / {item.jenis_pekerjaan}
+                                                            <option
+                                                                key={item.id}
+                                                                value={item.id}
+                                                                disabled={isSelectedElsewhere}
+                                                                className={isSelectedElsewhere ? "text-slate-400 bg-slate-100" : ""}
+                                                            >
+                                                                #{item.id} - {item.kategori} / {item.jenis_pekerjaan}{isSelectedElsewhere ? " (sudah dipilih)" : ""}
                                                             </option>
                                                         )})}
                                                     </select>
@@ -1749,30 +1754,6 @@ export default function ApprovalPage() {
                                                             >
                                                                 <Eye className="w-3.5 h-3.5 mr-1" /> Detail
                                                             </Button>
-                                                            {isActionableByRole(item.status, item.tipe) && (
-                                                                <>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
-                                                                        disabled={processingId === item.id}
-                                                                        onClick={() => openApproveModal(item)}
-                                                                    >
-                                                                        {processingId === item.id
-                                                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                                            : <><CheckCircle className="w-3.5 h-3.5 mr-1" />Approve</>
-                                                                        }
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
-                                                                        disabled={processingId === item.id}
-                                                                        onClick={() => openRejectModal(item)}
-                                                                    >
-                                                                        <XCircle className="w-3.5 h-3.5 mr-1" />Tolak
-                                                                    </Button>
-                                                                </>
-                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
