@@ -55,9 +55,36 @@ type RabTableRow = {
   [key: string]: unknown;
 };
 
+type RevisionComparableRow = {
+  category: string;
+  jenisPekerjaan: string;
+  satuan: string;
+  volume: number;
+  hargaMaterial: number;
+  hargaUpah: number;
+  catatan: string;
+};
+
 type TokoDetailPartial = {
   alamat?: string | null;
   cabang?: string | null;
+};
+
+const DEFAULT_REVISION_ITEM_NOTE = "Item ini diminta untuk direvisi. Silakan lakukan minimal 1 perubahan pada item ini.";
+
+const toComparableRevisionRow = (row: Partial<RabTableRow>): RevisionComparableRow => ({
+  category: String(row?.category ?? '').trim(),
+  jenisPekerjaan: String(row?.jenisPekerjaan ?? '').trim(),
+  satuan: String(row?.satuan ?? '').trim(),
+  volume: Number(row?.volume) || 0,
+  hargaMaterial: Number(row?.hargaMaterial) || 0,
+  hargaUpah: Number(row?.hargaUpah) || 0,
+  catatan: String(row?.catatan ?? '').trim(),
+});
+
+const isRevisionRowChanged = (current: Partial<RabTableRow>, initial?: RevisionComparableRow) => {
+  if (!initial) return false;
+  return JSON.stringify(toComparableRevisionRow(current)) !== JSON.stringify(initial);
 };
 
 const priceValueToNumber = (value: unknown, fallback: number) => {
@@ -135,6 +162,7 @@ export default function RABPage() {
   const [revisionListDialogOpen, setRevisionListDialogOpen] = useState(false);
   const [revisionRejectReason, setRevisionRejectReason] = useState('');
   const [revisionItemNotes, setRevisionItemNotes] = useState<Record<number, string>>({});
+  const [revisionItemOriginals, setRevisionItemOriginals] = useState<Record<number, RevisionComparableRow>>({});
   
   // State untuk melacak perubahan pada form revisi
   const [initialFormState, setInitialFormState] = useState<string | null>(null);
@@ -148,6 +176,20 @@ export default function RABPage() {
   const isFormModified = initialFormState && initialFormState !== "TRACKING_PENDING" 
       ? JSON.stringify({ formData, tableRows }) !== initialFormState 
       : true;
+
+  const hasUnchangedRevisionItems = useMemo(() => {
+    if (!currentRabId) return false;
+    const revisionItemIds = Object.keys(revisionItemNotes)
+      .map(Number)
+      .filter(itemId => Number.isFinite(itemId) && itemId > 0);
+
+    if (revisionItemIds.length === 0) return false;
+
+    return revisionItemIds.some(itemId => {
+      const currentRow = tableRows.find(row => Number(row.sourceItemId) === itemId);
+      return !currentRow || !isRevisionRowChanged(currentRow, revisionItemOriginals[itemId]);
+    });
+  }, [currentRabId, revisionItemNotes, revisionItemOriginals, tableRows]);
 
   // --- 1. INISIALISASI SESI & CEK STATUS REVISI ---
   const { user } = useSession();
@@ -240,7 +282,7 @@ export default function RABPage() {
               ? fetchedDetailData.revisi_items.reduce((acc: Record<number, string>, item: any) => {
                   const itemId = Number(item.id_rab_item);
                   const note = String(item.catatan_item || '').trim();
-                  if (Number.isFinite(itemId) && itemId > 0 && note) acc[itemId] = note;
+                  if (Number.isFinite(itemId) && itemId > 0) acc[itemId] = note || DEFAULT_REVISION_ITEM_NOTE;
                   return acc;
               }, {})
               : {};
@@ -384,6 +426,15 @@ export default function RABPage() {
               }
           }
           setTableRows(newRows);
+          setRevisionItemOriginals(
+              newRows.reduce((acc: Record<number, RevisionComparableRow>, row) => {
+                  const sourceItemId = Number(row.sourceItemId);
+                  if (Number.isFinite(sourceItemId) && sourceItemId > 0 && revisionNotes[sourceItemId]) {
+                      acc[sourceItemId] = toComparableRevisionRow(row);
+                  }
+                  return acc;
+              }, {})
+          );
           setInitialFormState("TRACKING_PENDING");
           showAlert("Berhasil", "Data revisi berhasil dimuat ke dalam form.", "success");
       } catch (err) {
@@ -537,6 +588,26 @@ export default function RABPage() {
     }
 
     const isRevisionSubmit = currentRabId !== null;
+    if (isRevisionSubmit) {
+      const revisionItemIds = Object.keys(revisionItemNotes)
+        .map(Number)
+        .filter(itemId => Number.isFinite(itemId) && itemId > 0);
+
+      const unchangedRevisionItems = revisionItemIds.filter(itemId => {
+        const currentRow = tableRows.find(row => Number(row.sourceItemId) === itemId);
+        return !currentRow || !isRevisionRowChanged(currentRow, revisionItemOriginals[itemId]);
+      });
+
+      if (unchangedRevisionItems.length > 0) {
+        setIsLoading(false);
+        return showAlert(
+          "Item revisi belum diubah",
+          "Setiap item yang diminta revisi wajib memiliki minimal 1 perubahan sebelum bisa lanjut.",
+          "warning"
+        );
+      }
+    }
+
     const sessionNamaPt = (sessionStorage.getItem("nama_pt") || "").trim();
     const sessionEmail = (sessionStorage.getItem("loggedInUserEmail") || "").trim();
 
@@ -1052,7 +1123,7 @@ export default function RABPage() {
 
           {!isReadOnly && (
             <div className="flex flex-col md:flex-row gap-4 sticky bottom-4 z-10 p-4 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200">
-              <Button type="submit" disabled={isLoading || !isFormComplete || !isFormModified} title={!isFormModified ? "Silakan buat perubahan pada form terlebih dahulu" : ""} className="w-full md:flex-1 h-14 text-lg font-bold bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 shadow-md transition-all">
+              <Button type="submit" disabled={isLoading || !isFormComplete || !isFormModified || hasUnchangedRevisionItems} title={hasUnchangedRevisionItems ? "Setiap item revisi wajib diubah minimal 1 field" : !isFormModified ? "Silakan buat perubahan pada form terlebih dahulu" : ""} className="w-full md:flex-1 h-14 text-lg font-bold bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 shadow-md transition-all">
                 {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Sedang Mengirim Data...</> : <><Save className="w-5 h-5 mr-2" /> Simpan & Lanjut ke Gantt Chart</>}
               </Button>
               <Button type="button" variant="outline" className="w-full md:w-1/3 h-14 text-lg font-semibold bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-red-600" onClick={() => setResetDialogOpen(true)}>

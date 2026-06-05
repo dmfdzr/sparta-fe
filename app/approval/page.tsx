@@ -1491,6 +1491,7 @@ export default function ApprovalPage() {
                                                 size="sm"
                                                 variant="outline"
                                                 className="h-8 border-red-200 text-red-700 hover:bg-red-50"
+                                                disabled={rejectRabRevisionItems.filter(item => typeof item.id === 'number').length >= (rejectModal as NormalizedDetail).items.length}
                                                 onClick={() => setRejectRabRevisionItems(prev => [...prev, { id: null, note: '' }])}
                                             >
                                                 <Plus className="w-3.5 h-3.5 mr-1" /> Item
