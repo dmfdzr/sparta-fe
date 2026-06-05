@@ -136,6 +136,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showInstruksiModal, setShowInstruksiModal] = useState(false);
+    const [instruksiToast, setInstruksiToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [submittingItemId, setSubmittingItemId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState<'form' | 'history'>('form');
@@ -150,6 +151,11 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
         file: File | null;
         existing_foto?: string | null;
     }>>({});
+
+    const showInstruksiToast = useCallback((message: string, type: 'success' | 'error') => {
+        setInstruksiToast({ message, type });
+        window.setTimeout(() => setInstruksiToast(null), 4000);
+    }, []);
 
     // Expanded categories
     const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
@@ -1117,28 +1123,33 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                     </CardContent>
                 </Card>
         </main>
+
+        {instruksiToast && (
+            <div
+                role="status"
+                aria-live="polite"
+                className={`fixed left-1/2 top-4 z-[10000] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 md:left-auto md:right-5 md:translate-x-0 ${
+                    instruksiToast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+                }`}
+            >
+                {instruksiToast.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 shrink-0" />
+                ) : (
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                )}
+                <span>{instruksiToast.message}</span>
+            </div>
+        )}
         
         {showInstruksiModal && (
             <InstruksiLapanganModal 
                 onClose={() => setShowInstruksiModal(false)} 
                 onSuccess={() => {
                     setShowInstruksiModal(false);
-                    setTimeout(() => {
-                        showAlert({
-                            title: "Instruksi Lapangan Berhasil",
-                            message: "Instruksi Lapangan berhasil disimpan dan dikirim untuk approval.",
-                            type: "success"
-                        });
-                    }, 150);
+                    showInstruksiToast("Instruksi Lapangan berhasil disimpan dan dikirim untuk approval.", "success");
                 }}
                 onError={(message) => {
-                    setTimeout(() => {
-                        showAlert({
-                            title: "Gagal Menyimpan IL",
-                            message: message || "Gagal menyimpan Instruksi Lapangan.",
-                            type: "error"
-                        });
-                    }, 150);
+                    showInstruksiToast(message || "Gagal menyimpan Instruksi Lapangan.", "error");
                 }}
                 initialTokoId={selectedRab?.id_toko}
             />
