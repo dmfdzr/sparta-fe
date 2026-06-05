@@ -1165,6 +1165,13 @@ export default function ApprovalPage() {
     const handleReject = async () => {
         if (!rejectModal) return;
         if (!rejectNote.trim()) { showToast('Harap isi alasan penolakan.', 'error'); return; }
+        const selectedRevisionItemIds = rejectRabRevisionItems
+            .map(item => item.id)
+            .filter((id): id is number => typeof id === 'number');
+        if (new Set(selectedRevisionItemIds).size !== selectedRevisionItemIds.length) {
+            showToast('Item revisi tidak boleh dipilih lebih dari sekali.', 'error');
+            return;
+        }
         const item = rejectModal;
         setRejectModal(null);
         setProcessingId(item.id);
@@ -1499,8 +1506,14 @@ export default function ApprovalPage() {
                                         </div>
                                     </div>
                                     {rejectRabRevisionItems.map((revision, index) => {
-                                        const selectedIds = new Set(rejectRabRevisionItems.map(item => item.id).filter((id): id is number => typeof id === 'number'));
-                                        const availableItems = (rejectModal as NormalizedDetail).items.filter(item => item.id === revision.id || !selectedIds.has(item.id));
+                                        const selectedIdsInOtherRows = new Set(
+                                            rejectRabRevisionItems
+                                                .filter((_, itemIndex) => itemIndex !== index)
+                                                .map(item => item.id)
+                                                .filter((id): id is number => typeof id === 'number')
+                                        );
+                                        const isDuplicateSelection = typeof revision.id === 'number'
+                                            && rejectRabRevisionItems.findIndex(item => item.id === revision.id) !== index;
                                         return (
                                             <div key={index} className="rounded-lg border border-slate-200 bg-white p-3">
                                                 <div className="flex items-center justify-between mb-2">
@@ -1516,18 +1529,24 @@ export default function ApprovalPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-2">
                                                     <select
                                                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
-                                                        value={revision.id ?? ''}
+                                                        value={isDuplicateSelection ? '' : revision.id ?? ''}
                                                         onChange={e => {
                                                             const nextId = e.target.value ? Number(e.target.value) : null;
+                                                            if (nextId !== null && selectedIdsInOtherRows.has(nextId)) {
+                                                                showToast('Item revisi ini sudah dipilih.', 'error');
+                                                                return;
+                                                            }
                                                             setRejectRabRevisionItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, id: nextId } : item));
                                                         }}
                                                     >
                                                         <option value="">Pilih item RAB...</option>
-                                                        {availableItems.map(item => (
-                                                            <option key={item.id} value={item.id}>
+                                                        {(rejectModal as NormalizedDetail).items.map(item => {
+                                                            const isSelectedElsewhere = selectedIdsInOtherRows.has(item.id);
+                                                            return (
+                                                            <option key={item.id} value={item.id} disabled={isSelectedElsewhere}>
                                                                 #{item.id} - {item.kategori} / {item.jenis_pekerjaan}
                                                             </option>
-                                                        ))}
+                                                        )})}
                                                     </select>
                                                     <input
                                                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-red-300"
