@@ -256,7 +256,9 @@ export default function InstruksiLapanganModal({ onClose, onSuccess, initialToko
         setIsLoading(true);
 
         const fields: Record<string, string | number | undefined> = {
+            id_toko: selectedToko.id,
             nomor_ulok: selectedToko.nomor_ulok,
+            lingkup_pekerjaan: selectedToko.lingkup_pekerjaan,
             email_pembuat: sessionStorage.getItem("loggedInUserEmail") || "",
             tanggal_mulai: tanggalMulai,
             tanggal_selesai: tanggalSelesai,
