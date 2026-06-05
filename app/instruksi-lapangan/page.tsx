@@ -185,16 +185,24 @@ export default function InstruksiLapanganPage() {
     const handleLampiranChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 10 * 1024 * 1024) {
-            showAlert("Peringatan", "Ukuran lampiran maksimal 10MB.", "error");
-            return;
-        }
-        
+
         let finalFile = file;
-        // Kompresi otomatis untuk lampiran foto
-        if (file.type.startsWith('image/')) {
+
+        if (file.type.startsWith("image/")) {
+            if (file.size > 25 * 1024 * 1024) {
+                showAlert("Peringatan", "Ukuran gambar maksimal 25MB sebelum kompres.", "error");
+                if (lampiranFileRef.current) lampiranFileRef.current.value = "";
+                return;
+            }
+
             const { compressImage } = await import('@/lib/utils');
             finalFile = await compressImage(file);
+        }
+
+        if (finalFile.size > 10 * 1024 * 1024) {
+            showAlert("Peringatan", "Ukuran lampiran maksimal 10MB. Untuk PDF, kompres file terlebih dahulu sebelum upload.", "error");
+            if (lampiranFileRef.current) lampiranFileRef.current.value = "";
+            return;
         }
 
         setLampiranFile(finalFile);
