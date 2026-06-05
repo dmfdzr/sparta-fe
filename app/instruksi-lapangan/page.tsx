@@ -18,6 +18,14 @@ import { canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
 
 const toRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(num || 0);
 const formatAngka = (num: number) => (num || num === 0) ? num.toLocaleString('id-ID') : '0';
+const parseDecimalInput = (value: string) => {
+    const raw = value.trim();
+    const normalized = raw.includes(",")
+        ? raw.replace(/\./g, "").replace(",", ".")
+        : raw;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+};
 const isConditionalPriceValue = (value: unknown) => String(value ?? "").trim().toLowerCase() === "kondisional";
 const normalizePriceCategoryName = (value?: string | null) =>
     String(value ?? "").toLowerCase().replace(/\s+/g, " ").replace(/[^\p{L}\p{N}\s&/]/gu, "").trim();
@@ -483,7 +491,7 @@ export default function InstruksiLapanganPage() {
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium whitespace-nowrap">{row.satuan}</td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
-                                                                    <Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs ${isReadOnly || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isReadOnly || row.satuan === 'Ls'} />
+                                                                    <Input type="text" inputMode="decimal" className={`h-9 px-2 text-center transition-colors text-xs ${isReadOnly || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', parseDecimalInput(e.target.value))} readOnly={isReadOnly || row.satuan === 'Ls'} />
                                                                 </td>
                                                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap">
                                                                     <Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !canEditMaterialPrice ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaMaterial)} onChange={(e) => updateRow(row.id, 'hargaMaterial', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !canEditMaterialPrice} tabIndex={canEditMaterialPrice ? 0 : -1} />
