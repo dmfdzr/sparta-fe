@@ -46,6 +46,8 @@ type RowItem = {
   totalUpah?: number;
   totalHarga?: number;
   isKondisional: boolean;
+  isMaterialKondisional?: boolean;
+  isUpahKondisional?: boolean;
   catatan: string;
 };
 
@@ -55,6 +57,20 @@ const normalizeHeader = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+
+const isConditionalPriceValue = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase() === "kondisional";
+
+const priceValueToNumber = (value: unknown, fallback = 0) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || /^(kondisional|sbo)$/i.test(trimmed)) return fallback;
+    const parsed = Number(trimmed.replace(/[.,](?=\d{3}(\D|$))/g, "").replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
 
 const parseCsv = (text: string) => {
   const rows: string[][] = [];
@@ -214,15 +230,20 @@ export default function UbahRabItemPage() {
 
         const rawScope = detailRes.data?.toko?.lingkup_pekerjaan || "";
         const scope = rawScope.toUpperCase() === "SIPIL" ? "Sipil" : (rawScope.toUpperCase() === "ME" ? "ME" : rawScope);
+        let loadedPrices: Record<string, any[]> = {};
         if (detailRes.data?.toko?.cabang && scope) {
           const priceData = await fetchPricesData(detailRes.data.toko.cabang, scope);
-          setPrices(priceData || {});
+          loadedPrices = priceData || {};
+          setPrices(loadedPrices);
         } else {
           setPrices({});
         }
 
         const rows: RowItem[] = (detailRes.data.items || []).map((item) => {
           const tempId = `id-${item.id}`;
+          const itemData = loadedPrices[item.kategori_pekerjaan]?.find((priceItem: any) => priceItem["Jenis Pekerjaan"] === item.jenis_pekerjaan);
+          const isMatCond = itemData ? isConditionalPriceValue(itemData["Harga Material"]) : false;
+          const isUpahCond = itemData ? isConditionalPriceValue(itemData["Harga Upah"]) : false;
           return {
             tempId,
             id: item.id,
@@ -235,7 +256,9 @@ export default function UbahRabItemPage() {
             totalMaterial: Number(item.total_material) || 0,
             totalUpah: Number(item.total_upah) || 0,
             totalHarga: Number(item.total_harga) || 0,
-            isKondisional: false,
+            isKondisional: isMatCond || isUpahCond,
+            isMaterialKondisional: isMatCond,
+            isUpahKondisional: isUpahCond,
             catatan: item.catatan || ""
           };
         });
@@ -279,17 +302,21 @@ export default function UbahRabItemPage() {
         updatedRow.totalUpah = undefined;
         updatedRow.totalHarga = undefined;
         updatedRow.isKondisional = false;
+        updatedRow.isMaterialKondisional = false;
+        updatedRow.isUpahKondisional = false;
       }
 
       if (field === "jenisPekerjaan" && value) {
         const itemData = prices[updatedRow.category]?.find((item: any) => item["Jenis Pekerjaan"] === value);
         if (itemData) {
           updatedRow.satuan = itemData["Satuan"] || "";
-          const isMatCond = itemData["Harga Material"] === "Kondisional";
-          const isUpahCond = itemData["Harga Upah"] === "Kondisional";
+          const isMatCond = isConditionalPriceValue(itemData["Harga Material"]);
+          const isUpahCond = isConditionalPriceValue(itemData["Harga Upah"]);
           updatedRow.isKondisional = isMatCond || isUpahCond;
-          updatedRow.hargaMaterial = isMatCond ? 0 : Number(itemData["Harga Material"]) || 0;
-          updatedRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : Number(itemData["Harga Upah"]) || 0;
+          updatedRow.isMaterialKondisional = isMatCond;
+          updatedRow.isUpahKondisional = isUpahCond;
+          updatedRow.hargaMaterial = isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"]);
+          updatedRow.hargaUpah = isUpahCond ? 0 : priceValueToNumber(itemData["Harga Upah"]);
           if (updatedRow.satuan === "Ls") updatedRow.volume = 1;
           updatedRow.totalMaterial = undefined;
           updatedRow.totalUpah = undefined;
@@ -382,18 +409,22 @@ export default function UbahRabItemPage() {
         totalUpah: row.total_upah ? Number(row.total_upah) : undefined,
         totalHarga: row.total_harga ? Number(row.total_harga) : undefined,
         isKondisional: false,
+        isMaterialKondisional: false,
+        isUpahKondisional: false,
         catatan: row.catatan || ""
       };
 
       const itemData = prices[kategori]?.find((item: any) => item["Jenis Pekerjaan"] === jenis);
       if (itemData) {
-        const isMatCond = itemData["Harga Material"] === "Kondisional";
-        const isUpahCond = itemData["Harga Upah"] === "Kondisional";
+        const isMatCond = isConditionalPriceValue(itemData["Harga Material"]);
+        const isUpahCond = isConditionalPriceValue(itemData["Harga Upah"]);
         baseRow.isKondisional = isMatCond || isUpahCond;
+        baseRow.isMaterialKondisional = isMatCond;
+        baseRow.isUpahKondisional = isUpahCond;
 
         if (!row.satuan) baseRow.satuan = itemData["Satuan"] || baseRow.satuan;
-        if (!row.harga_material) baseRow.hargaMaterial = isMatCond ? 0 : Number(itemData["Harga Material"]) || 0;
-        if (!row.harga_upah) baseRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : Number(itemData["Harga Upah"]) || 0;
+        if (!row.harga_material) baseRow.hargaMaterial = isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"]);
+        if (!row.harga_upah) baseRow.hargaUpah = isUpahCond ? 0 : priceValueToNumber(itemData["Harga Upah"]);
         if (baseRow.satuan === "Ls" && !row.volume) baseRow.volume = 1;
       }
       parsed.push(baseRow);
@@ -471,21 +502,28 @@ export default function UbahRabItemPage() {
       setGrandTotal(Number(detailRes.data?.rab?.grand_total ?? 0));
       setGrandTotalNonSbo(Number(detailRes.data?.rab?.grand_total_non_sbo ?? 0));
       setGrandTotalFinal(Number(detailRes.data?.rab?.grand_total_final ?? 0));
-      setTableRows((detailRes.data.items || []).map((item) => ({
-        tempId: `id-${item.id}`,
-        id: item.id,
-        category: item.kategori_pekerjaan,
-        jenisPekerjaan: item.jenis_pekerjaan,
-        satuan: item.satuan,
-        volume: Number(item.volume) || 0,
-        hargaMaterial: Number(item.harga_material) || 0,
-        hargaUpah: Number(item.harga_upah) || 0,
-        totalMaterial: Number(item.total_material) || 0,
-        totalUpah: Number(item.total_upah) || 0,
-        totalHarga: Number(item.total_harga) || 0,
-        isKondisional: false,
-        catatan: item.catatan || ""
-      })));
+      setTableRows((detailRes.data.items || []).map((item) => {
+        const itemData = prices[item.kategori_pekerjaan]?.find((priceItem: any) => priceItem["Jenis Pekerjaan"] === item.jenis_pekerjaan);
+        const isMatCond = itemData ? isConditionalPriceValue(itemData["Harga Material"]) : false;
+        const isUpahCond = itemData ? isConditionalPriceValue(itemData["Harga Upah"]) : false;
+        return {
+          tempId: `id-${item.id}`,
+          id: item.id,
+          category: item.kategori_pekerjaan,
+          jenisPekerjaan: item.jenis_pekerjaan,
+          satuan: item.satuan,
+          volume: Number(item.volume) || 0,
+          hargaMaterial: Number(item.harga_material) || 0,
+          hargaUpah: Number(item.harga_upah) || 0,
+          totalMaterial: Number(item.total_material) || 0,
+          totalUpah: Number(item.total_upah) || 0,
+          totalHarga: Number(item.total_harga) || 0,
+          isKondisional: isMatCond || isUpahCond,
+          isMaterialKondisional: isMatCond,
+          isUpahKondisional: isUpahCond,
+          catatan: item.catatan || ""
+        };
+      }));
       setReplaceMode(false);
     } catch (err: any) {
       showAlert("Error", err.message || "Gagal menyimpan item RAB.", "error");
@@ -687,8 +725,7 @@ export default function UbahRabItemPage() {
                           min="0"
                           value={row.hargaMaterial || ""}
                           onChange={(e) => updateRow(row.tempId, "hargaMaterial", e.target.valueAsNumber || 0)}
-                          disabled={row.isKondisional}
-                          className="h-9 w-full min-w-27.5 focus-visible:ring-red-500 disabled:bg-slate-100 disabled:text-slate-400"
+                          className="h-9 w-full min-w-27.5 focus-visible:ring-red-500"
                         />
                       </td>
                       <td className="px-3 py-2.5">
@@ -697,8 +734,7 @@ export default function UbahRabItemPage() {
                           min="0"
                           value={row.hargaUpah || ""}
                           onChange={(e) => updateRow(row.tempId, "hargaUpah", e.target.valueAsNumber || 0)}
-                          disabled={row.isKondisional}
-                          className="h-9 w-full min-w-27.5 focus-visible:ring-red-500 disabled:bg-slate-100 disabled:text-slate-400"
+                          className="h-9 w-full min-w-27.5 focus-visible:ring-red-500"
                         />
                       </td>
                       <td className="px-3 py-2.5">

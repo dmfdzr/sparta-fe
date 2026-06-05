@@ -98,6 +98,9 @@ const priceValueToNumber = (value: unknown, fallback: number) => {
   return fallback;
 };
 
+const isConditionalPriceValue = (value: unknown) =>
+  String(value ?? '').trim().toLowerCase() === 'kondisional';
+
 const repriceRowsWithMaster = <T extends RabTableRow>(rows: T[], masterPrices: PriceMaster): T[] => {
   const lookup = new Map<string, PriceMasterItem & { category: string }>();
   Object.entries(masterPrices || {}).forEach(([category, items]) => {
@@ -378,8 +381,8 @@ export default function RABPage() {
                   const jobName = item.jenis_pekerjaan;
                   
                   const itemPriceRef = fetchedPrices[category]?.find((x: any) => x["Jenis Pekerjaan"] === jobName);
-                  const isMatCond = itemPriceRef ? itemPriceRef["Harga Material"] === "Kondisional" : false;
-                  const isUpahCond = itemPriceRef ? itemPriceRef["Harga Upah"] === "Kondisional" : false;
+                  const isMatCond = itemPriceRef ? isConditionalPriceValue(itemPriceRef["Harga Material"]) : false;
+                  const isUpahCond = itemPriceRef ? isConditionalPriceValue(itemPriceRef["Harga Upah"]) : false;
 
                   newRows.push({
                       id: Date.now() + i + Math.random(),
@@ -388,11 +391,11 @@ export default function RABPage() {
                       jenisPekerjaan: jobName,
                       satuan: item.satuan || itemPriceRef?.["Satuan"],
                       volume: parseFloat(item.volume) || 0,
-                      hargaMaterial: isMatCond ? 0 : (parseFloat(item.harga_material) || 0),
-                      hargaUpah: isMatCond ? (parseFloat(item.harga_material) || 0) + (parseFloat(item.harga_upah) || 0) : (parseFloat(item.harga_upah) || 0),
+                      hargaMaterial: parseFloat(item.harga_material) || 0,
+                      hargaUpah: parseFloat(item.harga_upah) || 0,
                       isKondisional: isMatCond || isUpahCond,
-                      isMaterialKondisional: false,
-                      isUpahKondisional: isMatCond || isUpahCond,
+                      isMaterialKondisional: isMatCond,
+                      isUpahKondisional: isUpahCond,
                       catatan: item.catatan || ''
                   });
               });
@@ -405,8 +408,8 @@ export default function RABPage() {
                       const jobName = details[`Jenis_Pekerjaan_${i}`];
                       
                       const itemPriceRef = fetchedPrices[category]?.find((x: any) => x["Jenis Pekerjaan"] === jobName);
-                      const isMatCond = itemPriceRef ? itemPriceRef["Harga Material"] === "Kondisional" : false;
-                      const isUpahCond = itemPriceRef ? itemPriceRef["Harga Upah"] === "Kondisional" : false;
+                      const isMatCond = itemPriceRef ? isConditionalPriceValue(itemPriceRef["Harga Material"]) : false;
+                      const isUpahCond = itemPriceRef ? isConditionalPriceValue(itemPriceRef["Harga Upah"]) : false;
 
                       newRows.push({
                           id: Date.now() + i + Math.random(),
@@ -415,11 +418,11 @@ export default function RABPage() {
                           jenisPekerjaan: jobName,
                           satuan: details[`Satuan_Item_${i}`] || itemPriceRef?.["Satuan"],
                           volume: parseFloat(details[`Volume_Item_${i}`]) || 0,
-                          hargaMaterial: isMatCond ? 0 : (parseFloat(details[`Harga_Material_Item_${i}`]) || 0),
-                          hargaUpah: isMatCond ? (parseFloat(details[`Harga_Material_Item_${i}`]) || 0) + (parseFloat(details[`Harga_Upah_Item_${i}`]) || 0) : (parseFloat(details[`Harga_Upah_Item_${i}`]) || 0),
+                          hargaMaterial: parseFloat(details[`Harga_Material_Item_${i}`]) || 0,
+                          hargaUpah: parseFloat(details[`Harga_Upah_Item_${i}`]) || 0,
                           isKondisional: isMatCond || isUpahCond,
-                          isMaterialKondisional: false,
-                          isUpahKondisional: isMatCond || isUpahCond,
+                          isMaterialKondisional: isMatCond,
+                          isUpahKondisional: isUpahCond,
                           catatan: details[`Catatan_Item_${i}`] || ''
                       });
                   }
@@ -540,14 +543,14 @@ export default function RABPage() {
             const itemData = prices[row.category]?.find((item: any) => item["Jenis Pekerjaan"] === value);
             if (itemData) {
                 updatedRow.satuan = itemData["Satuan"];
-                const isMatCond = itemData["Harga Material"] === "Kondisional";
-                const isUpahCond = itemData["Harga Upah"] === "Kondisional";
+                const isMatCond = isConditionalPriceValue(itemData["Harga Material"]);
+                const isUpahCond = isConditionalPriceValue(itemData["Harga Upah"]);
                 
                 updatedRow.isKondisional = isMatCond || isUpahCond;
-                updatedRow.isMaterialKondisional = false;
-                updatedRow.isUpahKondisional = isMatCond || isUpahCond;
+                updatedRow.isMaterialKondisional = isMatCond;
+                updatedRow.isUpahKondisional = isUpahCond;
                 updatedRow.hargaMaterial = isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
-                updatedRow.hargaUpah = (isMatCond || isUpahCond) ? 0 : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
+                updatedRow.hargaUpah = isUpahCond ? 0 : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
                 if (updatedRow.satuan === 'Ls') updatedRow.volume = 1;
             }
         }
@@ -1059,6 +1062,8 @@ export default function RABPage() {
                           <tbody>
                             {itemsInCategory.map((row, index) => {
                               const itemRevisionNote = row.sourceItemId ? revisionItemNotes[Number(row.sourceItemId)] : '';
+                              const canEditMaterialPrice = Boolean(row.isMaterialKondisional);
+                              const canEditUpahPrice = Boolean(row.isUpahKondisional);
                               return (
                               <tr key={row.id} className={`hover:bg-slate-50 transition-colors border-b border-slate-100 ${itemRevisionNote ? 'bg-red-50/30' : ''}`}>
                                 <td className="p-2 border-r border-slate-100 text-center font-medium text-slate-500 whitespace-nowrap">{index + 1}</td>
@@ -1079,8 +1084,8 @@ export default function RABPage() {
                                 </td>
                                 <td className="p-2 border-r border-slate-100 text-center text-slate-600 font-medium whitespace-nowrap">{row.satuan}</td>
                                 <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="number" min="0" step="any" className={`h-9 px-2 text-center transition-colors text-xs w-24 ${isReadOnly || row.satuan === 'Ls' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-slate-300 focus-visible:ring-blue-500 font-medium text-slate-800'}`} value={row.volume === 0 ? 0 : row.volume} onChange={(e) => updateRow(row.id, 'volume', Math.max(0, parseFloat(e.target.value) || 0))} readOnly={isReadOnly || row.satuan === 'Ls'} /></td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className="h-9 px-2 text-right transition-colors text-xs w-28 bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" value={formatAngka(row.hargaMaterial)} readOnly tabIndex={-1} /></td>
-                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !row.isKondisional ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !row.isKondisional} tabIndex={row.isKondisional ? 0 : -1} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !canEditMaterialPrice ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaMaterial)} onChange={(e) => updateRow(row.id, 'hargaMaterial', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !canEditMaterialPrice} tabIndex={canEditMaterialPrice ? 0 : -1} /></td>
+                                <td className="p-2 border-r border-slate-100 whitespace-nowrap"><Input type="text" className={`h-9 px-2 text-right transition-colors text-xs w-28 ${isReadOnly || !canEditUpahPrice ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-yellow-50 border-yellow-300 focus-visible:ring-yellow-500 text-yellow-900 font-bold'}`} value={formatAngka(row.hargaUpah)} onChange={(e) => updateRow(row.id, 'hargaUpah', parseFloat(e.target.value.replace(/\./g, '')) || 0)} readOnly={isReadOnly || !canEditUpahPrice} tabIndex={canEditUpahPrice ? 0 : -1} /></td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaMaterial)}</td>
                                 <td className="p-2 border-r border-slate-100 bg-slate-50 text-right text-slate-600 font-medium text-xs whitespace-nowrap">{toRupiah(row.volume * row.hargaUpah)}</td>
                                 <td className="p-2 border-r border-slate-100 text-right font-bold text-slate-800 bg-slate-100 text-xs whitespace-nowrap">{toRupiah(row.volume * (row.hargaMaterial + row.hargaUpah))}</td>
