@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from '@/context/SessionContext';
 import AppNavbar from '@/components/AppNavbar';
@@ -1428,9 +1428,15 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
     const [memoInputs, setMemoInputs] = useState<Record<string, { status: string, lateDays: number, catatan: string, file: File | null, dokumentasiUrl: string | null, isSaved?: boolean }>>({});
     const [isDirty, setIsDirty] = useState(false);
     const [showInstruksiModal, setShowInstruksiModal] = useState(false);
+    const [instruksiToast, setInstruksiToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [nextHandoverDate, setNextHandoverDate] = useState('');
     const [blockedOpnameRabItemIds, setBlockedOpnameRabItemIds] = useState<Set<number>>(new Set());
     const [currentPengawasanGanttId, setCurrentPengawasanGanttId] = useState<number | null>(null);
+
+    const showInstruksiToast = useCallback((message: string, type: 'success' | 'error') => {
+        setInstruksiToast({ message, type });
+        window.setTimeout(() => setInstruksiToast(null), 4000);
+    }, []);
     
     useEffect(() => {
         if (!selectedGanttId || !spkInfo || !activeHeaderClick) {
@@ -2248,10 +2254,33 @@ function MemoPengawasanModal({ activeHeaderClick, chartData, rabItems, pengawasa
             </div>
         </div>
 
+        {instruksiToast && (
+            <div
+                role="status"
+                aria-live="polite"
+                className={`fixed left-1/2 top-4 z-[10000] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 md:left-auto md:right-5 md:translate-x-0 ${
+                    instruksiToast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+                }`}
+            >
+                {instruksiToast.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 shrink-0" />
+                ) : (
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                )}
+                <span>{instruksiToast.message}</span>
+            </div>
+        )}
+
         {showInstruksiModal && (
             <InstruksiLapanganModal 
                 onClose={() => setShowInstruksiModal(false)} 
-                onSuccess={() => setShowInstruksiModal(false)} 
+                onSuccess={() => {
+                    setShowInstruksiModal(false);
+                    showInstruksiToast("Instruksi Lapangan berhasil disimpan dan dikirim untuk approval.", "success");
+                }}
+                onError={(message) => {
+                    showInstruksiToast(message || "Gagal menyimpan Instruksi Lapangan.", "error");
+                }}
                 initialTokoId={id_toko}
             />
         )}
