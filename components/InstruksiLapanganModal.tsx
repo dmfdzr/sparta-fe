@@ -27,6 +27,11 @@ const getPriceItemsForCategory = (priceData: Record<string, any[]>, category: st
 };
 const normalizeNoPpnText = (value?: string | null) => String(value ?? "").trim().toUpperCase();
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const releaseActiveFocus = () => {
+    if (typeof document === "undefined") return;
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) activeElement.blur();
+};
 const isNoPpnArea = (toko: any, cabangFallback = "") => {
     const identity = [
         toko?.cabang,
@@ -280,6 +285,7 @@ export default function InstruksiLapanganModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        releaseActiveFocus();
         if (!selectedToko) return showAlert("Peringatan", "Silakan pilih Toko terlebih dahulu.", "error");
         if (!tanggalMulai || !tanggalSelesai) {
             return showAlert("Peringatan", "Tanggal mulai dan tanggal selesai wajib diisi.", "warning");
@@ -364,16 +370,19 @@ export default function InstruksiLapanganModal({
             if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
             submitTimeoutRef.current = null;
             setIsLoading(false);
+            releaseActiveFocus();
             onSuccess();
         } catch (err: any) {
             if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
             submitTimeoutRef.current = null;
             setIsLoading(false);
+            releaseActiveFocus();
             onError?.(err.message || "Gagal menyimpan Instruksi Lapangan.");
         }
     };
 
     const showAlert = (title: string, desc: string, type: "info" | "error" | "success" | "warning") => {
+        releaseActiveFocus();
         setAlertMessage({ title, desc, type }); setAlertOpen(true);
     };
 

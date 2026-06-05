@@ -3,7 +3,7 @@
 // Handles caching, offline support, push notifications, and navigation.
 // =============================================================================
 
-const CACHE_NAME = 'sparta-v1';
+const CACHE_NAME = 'sparta-v2';
 
 // Static assets to cache on install for offline shell
 const STATIC_ASSETS = [
@@ -47,9 +47,12 @@ self.addEventListener('activate', (event) => {
 // =============================================================================
 self.addEventListener('fetch', (event) => {
     const { request } = event;
+    const requestUrl = new URL(request.url);
 
     // Skip non-GET requests
     if (request.method !== 'GET') return;
+
+    if (requestUrl.origin !== self.location.origin) return;
 
     // Skip API calls and external requests — always go to network
     if (
@@ -81,6 +84,8 @@ self.addEventListener('fetch', (event) => {
                     if (request.mode === 'navigate') {
                         return caches.match('/');
                     }
+
+                    return Response.error();
                 });
             })
     );
