@@ -420,6 +420,11 @@ const getStatusBadgeClass = (status: string) => {
     return STATUS_BADGE[upper] ?? 'bg-slate-100 text-slate-600 border-slate-200';
 };
 
+const isRejectedStatus = (status?: string | null) => {
+    const upper = String(status ?? '').toUpperCase();
+    return upper.includes('TOLAK') || upper.includes('REJECTED');
+};
+
 const getStatusLabel = (status: string) => {
     if (!status) return '-';
     const upper = status.toUpperCase();
@@ -2290,7 +2295,7 @@ export default function DaftarDokumenPage() {
                                 )}
 
                                 {/* Approval Trail (RAB & INSTRUKSI_LAPANGAN) */}
-                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && (
+                                {(selectedDetail.tipe === 'RAB' || selectedDetail.tipe === 'INSTRUKSI_LAPANGAN') && !isRejectedStatus(selectedDetail.status) && (
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                             <div className="w-1.5 h-5 bg-green-500 rounded-full" />

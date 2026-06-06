@@ -704,6 +704,7 @@ export default function ApprovalPage() {
                 if (
                     type === 'RAB'
                     && isContractorCompanyScopedRole(userRoles)
+                    && !(isPendingApprovalStatus(upper) && isDirectorApprovalStatus(upper))
                     && userInfo.nama_pt
                     && !matchesUserCompany(item._raw, userInfo.nama_pt)
                 ) {
@@ -1915,7 +1916,7 @@ export default function ApprovalPage() {
                                                 )}
 
                                                 {/* Riwayat approval */}
-                                                {(selectedDetail.approval_koordinator?.pemberi || selectedDetail.approval_manager?.pemberi || selectedDetail.approval_direktur?.pemberi) && (
+                                                {!isRejected(selectedDetail.status) && (selectedDetail.approval_koordinator?.pemberi || selectedDetail.approval_manager?.pemberi || selectedDetail.approval_direktur?.pemberi) && (
                                                     <div className="mt-4 pt-4 border-t border-slate-200 space-y-2">
                                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Riwayat Persetujuan</p>
                                                         <ApprovalHistoryRow label="Koordinator" pemberi={selectedDetail.approval_koordinator?.pemberi} waktu={selectedDetail.approval_koordinator?.waktu} />
