@@ -41,6 +41,8 @@ type PriceMasterItem = {
   "Satuan"?: string;
   "Harga Material"?: number | string;
   "Harga Upah"?: number | string;
+  "Input Material Manual"?: boolean | string | number;
+  "Input Upah Manual"?: boolean | string | number;
 };
 
 type PriceMaster = Record<string, PriceMasterItem[]>;
@@ -126,6 +128,9 @@ const isNumericPriceValue = (value: unknown) => {
 const isTextPriceDirective = (value: unknown) =>
   typeof value === 'string' && value.trim() !== '' && value.trim() !== '-' && !isNumericPriceValue(value);
 
+const isManualInputFlag = (value: unknown) =>
+  value === true || value === 1 || String(value ?? '').trim().toLowerCase() === 'true';
+
 const repriceRowsWithMaster = <T extends RabTableRow>(rows: T[], masterPrices: PriceMaster): T[] => {
   const lookup = new Map<string, PriceMasterItem & { category: string }>();
   Object.entries(masterPrices || {}).forEach(([category, items]) => {
@@ -141,8 +146,13 @@ const repriceRowsWithMaster = <T extends RabTableRow>(rows: T[], masterPrices: P
     if (!itemData) return row;
 
     const materialDirectiveToUpah = isTextPriceDirective(itemData["Harga Material"]);
-    const isMatCond = !materialDirectiveToUpah && isConditionalPriceValue(itemData["Harga Material"]);
-    const isUpahCond = materialDirectiveToUpah || isConditionalPriceValue(itemData["Harga Upah"]);
+    const isMatCond = !materialDirectiveToUpah && (
+      isManualInputFlag(itemData["Input Material Manual"]) || isConditionalPriceValue(itemData["Harga Material"])
+    );
+    const isUpahCond =
+      materialDirectiveToUpah ||
+      isManualInputFlag(itemData["Input Upah Manual"]) ||
+      isConditionalPriceValue(itemData["Harga Upah"]);
     return {
       ...row,
       category: itemData.category || row.category,
@@ -172,8 +182,16 @@ const getPriceDirectiveForRow = (priceData: PriceMaster, row: Partial<RabTableRo
   const materialDirectiveToUpah = isTextPriceDirective(itemData?.["Harga Material"]);
   return {
     materialDirectiveToUpah,
-    isMaterialEditable: !materialDirectiveToUpah && (Boolean(row.isMaterialKondisional) || isConditionalPriceValue(itemData?.["Harga Material"])),
-    isUpahEditable: materialDirectiveToUpah || Boolean(row.isUpahKondisional) || isConditionalPriceValue(itemData?.["Harga Upah"]),
+    isMaterialEditable: !materialDirectiveToUpah && (
+      Boolean(row.isMaterialKondisional) ||
+      isManualInputFlag(itemData?.["Input Material Manual"]) ||
+      isConditionalPriceValue(itemData?.["Harga Material"])
+    ),
+    isUpahEditable:
+      materialDirectiveToUpah ||
+      Boolean(row.isUpahKondisional) ||
+      isManualInputFlag(itemData?.["Input Upah Manual"]) ||
+      isConditionalPriceValue(itemData?.["Harga Upah"]),
   };
 };
 
@@ -590,8 +608,14 @@ export default function RABPage() {
             if (itemData) {
                 updatedRow.satuan = itemData["Satuan"];
                 const materialDirectiveToUpah = isTextPriceDirective(itemData["Harga Material"]);
-                const isMatCond = !materialDirectiveToUpah && isConditionalPriceValue(itemData["Harga Material"]);
-                const isUpahCond = materialDirectiveToUpah || isConditionalPriceValue(itemData["Harga Upah"]);
+                const isMatCond = !materialDirectiveToUpah && (
+                  isManualInputFlag(itemData["Input Material Manual"]) ||
+                  isConditionalPriceValue(itemData["Harga Material"])
+                );
+                const isUpahCond =
+                  materialDirectiveToUpah ||
+                  isManualInputFlag(itemData["Input Upah Manual"]) ||
+                  isConditionalPriceValue(itemData["Harga Upah"]);
                 
                 updatedRow.isKondisional = isMatCond || isUpahCond;
                 updatedRow.isMaterialKondisional = isMatCond;
