@@ -150,8 +150,8 @@ function GanttBoard() {
         if (!document.fullscreenElement) {
             try {
                 await document.documentElement.requestFullscreen();
-                if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-                    await window.screen.orientation.lock('landscape').catch(() => {});
+                if (window.screen && window.screen.orientation && (window.screen.orientation as any).lock) {
+                    await (window.screen.orientation as any).lock('landscape').catch(() => {});
                 }
             } catch (err) {
                 console.warn("Fullscreen failed:", err);
