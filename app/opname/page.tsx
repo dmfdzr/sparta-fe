@@ -19,7 +19,7 @@ import {
     fetchRABList, fetchRABDetail, fetchTokoList,
     fetchOpnameList, fetchOpnameDetail, updateOpname, submitOpnameBulk, kunciOpnameFinal,
     downloadOpnameFoto, fetchOpnameFinalList,
-    fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList,
+    fetchGanttList, fetchGanttDetailByToko, fetchPengawasanList, fetchInstruksiLapanganList,
     type OpnameItem, type RABDetailItem, type RABDetailToko, type RABListItem,
 } from '@/lib/api';
 import { BRANCH_GROUPS, canViewAllBranches, isViewOnlyUser } from '@/lib/constants';
@@ -1327,6 +1327,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     const [isProcessing, setIsProcessing] = useState(false);
     const [downloadingFotoId, setDownloadingFotoId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [ilTokoMap, setIlTokoMap] = useState<Map<number, any>>(new Map());
 
     const userCabang = (userInfo.cabang || '').toUpperCase();
     const isHeadOfficeContractor = userCabang === 'HEAD OFFICE';
@@ -1343,11 +1344,21 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
     useEffect(() => {
         setIsLoading(true);
 
-        // Fetch RAB list (backend should filter for authorized projects)
-        // We remove the strict email filter because contractors might not be the 'pembuat'
-        fetchRABList()
-            .then(res => {
+        Promise.all([
+            fetchRABList(),
+            fetchInstruksiLapanganList({ status: 'Disetujui' }, { suppressGlobalError: true })
+        ])
+            .then(([res, instruksiRes]) => {
                 const data = res.data || [];
+                const ilRows = instruksiRes.data || [];
+                const nextIlTokoMap = new Map<number, any>();
+                ilRows.forEach((item: any) => {
+                    const idToko = Number(item.id_toko);
+                    if (!idToko || nextIlTokoMap.has(idToko)) return;
+                    nextIlTokoMap.set(idToko, item);
+                });
+                setIlTokoMap(nextIlTokoMap);
+
                 const userNamaPt = (userInfo.nama_pt || '').toUpperCase();
                 const filteredRab = data.filter(item => {
                     if (!userNamaPt) return true;
@@ -1357,12 +1368,12 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                 setRabList(filteredRab);
 
                 // Load all opnames (backend should filter by user access)
-                return fetchOpnameList().then(opnameRes => ({ opnameRes, filteredRab }));
+                return fetchOpnameList().then(opnameRes => ({ opnameRes, filteredRab, ilTokoIds: new Set(nextIlTokoMap.keys()) }));
             })
-            .then(({ opnameRes, filteredRab }) => {
+            .then(({ opnameRes, filteredRab, ilTokoIds }) => {
                 const allOpname = opnameRes.data || [];
                 const validTokoIds = new Set(filteredRab.map(r => r.id_toko));
-                const filteredOpname = allOpname.filter(o => validTokoIds.has(o.id_toko));
+                const filteredOpname = allOpname.filter(o => validTokoIds.has(o.id_toko) || ilTokoIds.has(o.id_toko));
                 setOpnameList(filteredOpname);
             })
             .catch(err => console.error("Gagal memuat data:", err))
@@ -1376,11 +1387,12 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
             const id = item.id_toko;
             if (!map.has(id)) {
                 const rab = rabList.find(r => r.id_toko === id);
+                const ilToko = ilTokoMap.get(id);
                 map.set(id, {
                     id_toko: id,
-                    nomor_ulok: rab?.nomor_ulok || item.toko?.nomor_ulok || '-',
-                    nama_toko: rab?.nama_toko || item.toko?.nama_toko || 'Toko',
-                    cabang: (rab?.cabang || item.toko?.cabang || '').toUpperCase(),
+                    nomor_ulok: rab?.nomor_ulok || ilToko?.nomor_ulok || item.toko?.nomor_ulok || '-',
+                    nama_toko: rab?.nama_toko || ilToko?.nama_toko || item.toko?.nama_toko || 'Toko',
+                    cabang: (rab?.cabang || ilToko?.cabang || item.toko?.cabang || '').toUpperCase(),
                     count: 0,
                     items: [],
                 });
@@ -1390,7 +1402,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
             group.items.push(item);
         });
         return Array.from(map.values());
-    }, [opnameList, rabList]);
+    }, [opnameList, rabList, ilTokoMap]);
 
     // Filter by search and branch
     const filteredTokoGroups = useMemo(() => {

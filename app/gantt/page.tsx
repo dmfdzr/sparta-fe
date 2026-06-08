@@ -16,7 +16,7 @@ import {
     updateGanttChart, lockGanttChart, deleteGanttChart, 
     updateGanttDelay, updateGanttSpeed, fetchGanttDetailByToko,
     fetchRABList, fetchRABDetail, fetchSPKList,
-    fetchGanttNotes, createGanttNote
+    fetchGanttNotes, createGanttNote, fetchInstruksiLapanganList
 } from '@/lib/api';
 
 const mapInstruksiLapanganToWorkItems = (items: any[] = []) =>
@@ -45,6 +45,39 @@ const getOpnameItemKey = (item: any) =>
     item?.id_instruksi_lapangan_item
         ? `il:${item.id_instruksi_lapangan_item}`
         : `rab:${item?.id_rab_item}`;
+
+const mapApprovedInstruksiToTokoOptions = (items: any[] = []) => {
+    const map = new Map<string, any>();
+    items.forEach((item) => {
+        const idToko = Number(item.id_toko);
+        if (!idToko) return;
+        const key = `${idToko}`;
+        if (!map.has(key)) {
+            map.set(key, {
+                id: idToko,
+                id_toko: idToko,
+                nomor_ulok: item.nomor_ulok,
+                nama_toko: item.nama_toko,
+                cabang: item.cabang,
+                lingkup_pekerjaan: item.lingkup_pekerjaan,
+                proyek: item.proyek,
+                source_type: 'IL'
+            });
+        }
+    });
+    return Array.from(map.values());
+};
+
+const mergeProjectOptions = (base: any[] = [], extra: any[] = []) => {
+    const map = new Map<string, any>();
+    [...base, ...extra].forEach((item) => {
+        const idToko = item.id_toko || item.id;
+        if (!idToko) return;
+        const key = `${idToko}`;
+        map.set(key, { ...(map.get(key) || {}), ...item, id_toko: idToko });
+    });
+    return Array.from(map.values());
+};
 import type { GanttListItem, GanttNoteItem } from '@/lib/api';
 import { API_URL, BRANCH_GROUPS, canViewAllBranches, GLOBAL_VIEW_ONLY_ROLES, isViewOnlyUser } from '@/lib/constants';
 import InstruksiLapanganModal from '@/components/InstruksiLapanganModal';
@@ -239,26 +272,36 @@ function GanttBoard() {
         }
 
         if (currentAppMode === 'pic') {
-            fetchGanttList()
-                .then(res => {
+            Promise.all([
+                fetchGanttList(),
+                fetchInstruksiLapanganList({ status: 'Disetujui' }, { suppressGlobalError: true })
+            ])
+                .then(([res, instruksiRes]) => {
                     const data = res.data || [];
-                    const filtered = upperCabang ? data.filter(item => {
+                    const ilProjects = mapApprovedInstruksiToTokoOptions(instruksiRes.data || []);
+                    const merged = mergeProjectOptions(data, ilProjects);
+                    const filtered = upperCabang ? merged.filter(item => {
                         if (canSeeAllBranches) return true;
                         if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
                         return item.cabang?.toUpperCase() === upperCabang;
-                    }) : data;
+                    }) : merged;
                     setAllTokoList(filtered);
                 })
                 .catch(err => console.error("Gagal memuat semua daftar Gantt:", err));
         } else {
-            fetchRABList()
-                .then(res => {
+            Promise.all([
+                fetchRABList(),
+                fetchInstruksiLapanganList({ status: 'Disetujui' }, { suppressGlobalError: true })
+            ])
+                .then(([res, instruksiRes]) => {
                     const data = res.data || [];
-                    const filtered = upperCabang ? data.filter(item => {
+                    const ilProjects = mapApprovedInstruksiToTokoOptions(instruksiRes.data || []);
+                    const merged = mergeProjectOptions(data, ilProjects);
+                    const filtered = upperCabang ? merged.filter(item => {
                         if (canSeeAllBranches) return true;
                         if (userGroup) return userGroup.includes(item.cabang?.toUpperCase());
                         return item.cabang?.toUpperCase() === upperCabang;
-                    }) : data;
+                    }) : merged;
                     setAllTokoList(filtered);
                 })
                 .catch(err => console.error("Gagal memuat semua daftar RAB:", err));
