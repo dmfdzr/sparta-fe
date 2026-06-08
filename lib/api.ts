@@ -2250,11 +2250,13 @@ export const submitSPK = async (payload: SPKSubmitPayload) => {
 export const fetchSPKList = async (filters?: {
     status?: string;
     nomor_ulok?: string;
+    nama_kontraktor?: string;
 }, options?: ApiRequestOptions): Promise<{ status: string; data: SPKListItem[] }> => {
     const base = API_URL.replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters?.status)     params.append("status", filters.status);
     if (filters?.nomor_ulok) params.append("nomor_ulok", filters.nomor_ulok);
+    if (filters?.nama_kontraktor) params.append("nama_kontraktor", filters.nama_kontraktor);
     const url = `${base}/api/spk${params.toString() ? `?${params}` : ""}`;
     return safeFetchJSON(url, options);
 };

@@ -786,7 +786,15 @@ export default function DaftarDokumenPage() {
                 const res = await fetchRABList(filters);
                 docs = normalizeRABDocs(res.data ?? []);
             } else if (kategori === 'SPK') {
-                const res = await fetchSPKList();
+                let filters: any = undefined;
+                // Read directly from sessionStorage to avoid stale closure
+                const sessionRole = (sessionStorage.getItem('userRole') || '').toUpperCase();
+                const sessionNamaPt = sessionStorage.getItem('nama_pt') || '';
+                const isKontraktorOrDirektur = sessionRole.includes('KONTRAKTOR') || sessionRole.includes('DIREKTUR');
+                if (isKontraktorOrDirektur && sessionNamaPt) {
+                    filters = { nama_kontraktor: sessionNamaPt };
+                }
+                const res = await fetchSPKList(filters);
                 docs = normalizeSPKDocs(res.data ?? []);
             } else if (kategori === 'PERTAMBAHAN_SPK') {
                 const res = await fetchPertambahanSPKList();
