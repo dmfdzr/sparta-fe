@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText, Search, Download, Clock, MessageSquare } from 'lucide-react'; 
+import { Lock, Send, Loader2, Info, Plus, Trash2, X, AlertTriangle, AlertCircle, Calendar, CheckCircle, Save, FileText, Search, Download, Clock, MessageSquare, Maximize, Minimize } from 'lucide-react'; 
 import {
     fetchGanttDetail, fetchGanttList, submitGanttChart, 
     updateGanttChart, lockGanttChart, deleteGanttChart, 
@@ -136,6 +136,32 @@ function GanttBoard() {
     const [appMode, setAppMode] = useState<'kontraktor' | 'pic' | null>(null);
     const [userRole, setUserRole] = useState('');
     const [labelColWidth, setLabelColWidth] = useState(250);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
+    const toggleFullscreen = async () => {
+        if (!document.fullscreenElement) {
+            try {
+                await document.documentElement.requestFullscreen();
+                if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+                    await window.screen.orientation.lock('landscape').catch(() => {});
+                }
+            } catch (err) {
+                console.warn("Fullscreen failed:", err);
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
 
     useEffect(() => {
         const handleResize = () => setLabelColWidth(window.innerWidth < 768 ? 140 : 250);
@@ -1312,9 +1338,14 @@ function GanttBoard() {
 
 
             <Card className="overflow-hidden shadow-md mb-8 border-slate-200">
-                <div className="p-4 bg-slate-100 border-b flex justify-center gap-6 text-sm font-medium">
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-500 rounded shadow-inner"></div> Progress</div>
-                    <div className="flex items-center gap-2"><div className="w-4 h-4 bg-linear-to-r from-pink-500 to-orange-500 rounded shadow-inner"></div> Terlambat</div>
+                <div className="p-4 bg-slate-100 border-b flex flex-col sm:flex-row justify-between items-center gap-4 text-sm font-medium">
+                    <div className="flex justify-center gap-6">
+                        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-500 rounded shadow-inner"></div> Progress</div>
+                        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-linear-to-r from-pink-500 to-orange-500 rounded shadow-inner"></div> Terlambat</div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={toggleFullscreen} className="flex gap-2 w-full sm:w-auto font-bold border-slate-300 shadow-sm hover:bg-slate-200">
+                        {isFullscreen ? <><Minimize className="w-4 h-4" /> Keluar Mode Landscape</> : <><Maximize className="w-4 h-4" /> Mode Landscape</>}
+                    </Button>
                 </div>
                 
                 <div className="p-0 overflow-x-auto min-h-100 relative bg-white pb-10" id="ganttChartContainer">
