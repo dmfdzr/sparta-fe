@@ -382,7 +382,7 @@ function GanttBoard() {
             const validRabId = rab?.id || fallbackIdRab;
 
             if (gantt_data) {
-                await loadGanttDetail(gantt_data.id, validRabId);
+                await loadGanttDetail(gantt_data.id, validRabId, instruksi_lapangan_items || []);
             } else {
                 setSelectedGanttId(null);
                 setGanttNotes([]);
@@ -459,7 +459,7 @@ function GanttBoard() {
         }
     };
     
-    const loadGanttDetail = async (ganttId: number, idRabFallback?: number) => {
+    const loadGanttDetail = async (ganttId: number, idRabFallback?: number, instruksiLapanganFallback: any[] = []) => {
         if (!ganttId) return;
         setIsLoading(true);
         setSelectedGanttId(ganttId);
@@ -470,7 +470,11 @@ function GanttBoard() {
             const { data } = await fetchGanttDetail(ganttId);
             const { gantt, toko, kategori_pekerjaan, day_items, dependencies, pengawasan, instruksi_lapangan_items } = data;
             let baseCategories: string[] = [];
-            const instruksiItems = mapInstruksiLapanganToWorkItems(instruksi_lapangan_items || []);
+            const instruksiItems = mapInstruksiLapanganToWorkItems(
+                (instruksi_lapangan_items && instruksi_lapangan_items.length > 0)
+                    ? instruksi_lapangan_items
+                    : instruksiLapanganFallback
+            );
             const instruksiCategories = instruksiItems.map((item: any) => item.kategori_pekerjaan);
             let rabDurationFallback = 0;
 
