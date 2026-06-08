@@ -112,6 +112,20 @@ const priceValueToNumber = (value: unknown, fallback: number) => {
 const isConditionalPriceValue = (value: unknown) =>
   String(value ?? '').trim().toLowerCase() === 'kondisional';
 
+const isNumericPriceValue = (value: unknown) => {
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value !== 'string') return false;
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '-') return false;
+
+  const parsed = Number(trimmed.replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.'));
+  return Number.isFinite(parsed);
+};
+
+const isTextPriceDirective = (value: unknown) =>
+  typeof value === 'string' && value.trim() !== '' && value.trim() !== '-' && !isNumericPriceValue(value);
+
 const repriceRowsWithMaster = <T extends RabTableRow>(rows: T[], masterPrices: PriceMaster): T[] => {
   const lookup = new Map<string, PriceMasterItem & { category: string }>();
   Object.entries(masterPrices || {}).forEach(([category, items]) => {
@@ -126,13 +140,14 @@ const repriceRowsWithMaster = <T extends RabTableRow>(rows: T[], masterPrices: P
     const itemData = lookup.get(normalizeJobName(row.jenisPekerjaan));
     if (!itemData) return row;
 
-    const isMatCond = itemData["Harga Material"] === "Kondisional";
-    const isUpahCond = itemData["Harga Upah"] === "Kondisional";
+    const materialDirectiveToUpah = isTextPriceDirective(itemData["Harga Material"]);
+    const isMatCond = !materialDirectiveToUpah && isConditionalPriceValue(itemData["Harga Material"]);
+    const isUpahCond = materialDirectiveToUpah || isConditionalPriceValue(itemData["Harga Upah"]);
     return {
       ...row,
       category: itemData.category || row.category,
       satuan: itemData["Satuan"] || row.satuan,
-      hargaMaterial: isMatCond ? row.hargaMaterial : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial),
+      hargaMaterial: materialDirectiveToUpah ? 0 : isMatCond ? row.hargaMaterial : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial),
       hargaUpah: isUpahCond ? row.hargaUpah : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah),
       isKondisional: isMatCond || isUpahCond,
       isMaterialKondisional: isMatCond,
@@ -554,13 +569,14 @@ export default function RABPage() {
             const itemData = getPriceItemsForCategory(prices, row.category).find((item: any) => item["Jenis Pekerjaan"] === value);
             if (itemData) {
                 updatedRow.satuan = itemData["Satuan"];
-                const isMatCond = isConditionalPriceValue(itemData["Harga Material"]);
-                const isUpahCond = isConditionalPriceValue(itemData["Harga Upah"]);
+                const materialDirectiveToUpah = isTextPriceDirective(itemData["Harga Material"]);
+                const isMatCond = !materialDirectiveToUpah && isConditionalPriceValue(itemData["Harga Material"]);
+                const isUpahCond = materialDirectiveToUpah || isConditionalPriceValue(itemData["Harga Upah"]);
                 
                 updatedRow.isKondisional = isMatCond || isUpahCond;
                 updatedRow.isMaterialKondisional = isMatCond;
                 updatedRow.isUpahKondisional = isUpahCond;
-                updatedRow.hargaMaterial = isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
+                updatedRow.hargaMaterial = materialDirectiveToUpah ? 0 : isMatCond ? 0 : priceValueToNumber(itemData["Harga Material"], row.hargaMaterial);
                 updatedRow.hargaUpah = isUpahCond ? 0 : priceValueToNumber(itemData["Harga Upah"], row.hargaUpah);
                 if (updatedRow.satuan === 'Ls') updatedRow.volume = 1;
             }
