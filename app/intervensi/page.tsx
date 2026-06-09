@@ -38,9 +38,12 @@ import {
     fetchRABList,
     fetchSPKDetail,
     fetchSPKList,
+    fetchPertambahanSPKList,
+    fetchPertambahanSPKDetail,
     interveneGanttStatus,
     interveneProjekPlanningStatus,
     interveneSPKStatus,
+    intervenePertambahanSPKStatus,
     updateRABStatus,
     type ActivityLog,
     type GanttDetailData,
@@ -51,6 +54,9 @@ import {
     type RABListItem,
     type SPKApprovalLog,
     type SPKListItem,
+    type PertambahanSPKListItem,
+    type PertambahanSPKDetailResponse,
+    type PertambahanSPKInterventionPayload,
 } from "@/lib/api";
 import { formatRupiah } from "@/lib/utils";
 import {
@@ -73,9 +79,10 @@ import {
     XCircle,
 } from "lucide-react";
 
-type InterventionDocType = "RAB" | "SPK" | "PROJECT_PLANNING" | "GANTT";
+type InterventionDocType = "RAB" | "SPK" | "PROJECT_PLANNING" | "GANTT" | "PERTAMBAHAN_SPK";
 type StatusCategory = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 type SpkTargetStatus = "WAITING_FOR_BM_APPROVAL" | "SPK_APPROVED" | "SPK_REJECTED";
+type PertambahanSpkTargetStatus = "WAITING_FOR_BM_APPROVAL" | "APPROVED_BY_BM" | "REJECTED_BY_BM";
 type GanttTargetStatus = "active" | "terkunci";
 
 type StatusOption = {
@@ -112,7 +119,7 @@ type InterventionDocument = {
     updated_at?: string | null;
     email_pembuat?: string | null;
     logs?: InterventionLog[];
-    raw: RABListItem | SPKListItem | ProjekPlanningItem | GanttListItem | GanttDetailData | Record<string, unknown>;
+    raw: RABListItem | SPKListItem | ProjekPlanningItem | GanttListItem | GanttDetailData | PertambahanSPKListItem | PertambahanSPKDetailResponse | Record<string, unknown>;
 };
 
 type InterventionAdapter = {
@@ -176,6 +183,27 @@ const SPK_STATUS_OPTIONS: StatusOption[] = [
         value: "SPK_APPROVED",
         label: "Disetujui",
         description: "Tandai SPK sebagai sudah disetujui.",
+        tone: "success",
+    },
+];
+
+const PERTAMBAHAN_SPK_STATUS_OPTIONS: StatusOption[] = [
+    {
+        value: "REJECTED_BY_BM",
+        label: "Ditolak BM",
+        description: "Kembalikan Pertambahan SPK ke pembuat agar bisa diperbaiki.",
+        tone: "danger",
+    },
+    {
+        value: "WAITING_FOR_BM_APPROVAL",
+        label: "Menunggu Persetujuan",
+        description: "Buka kembali Pertambahan SPK ke antrean Branch Manager.",
+        tone: "warning",
+    },
+    {
+        value: "APPROVED_BY_BM",
+        label: "Disetujui BM",
+        description: "Tandai Pertambahan SPK sebagai sudah disetujui BM.",
         tone: "success",
     },
 ];
@@ -262,6 +290,7 @@ const TYPE_FILTERS: Array<{ value: InterventionDocType | "ALL"; label: string }>
     { value: "ALL", label: "Semua Tipe" },
     { value: "RAB", label: "RAB" },
     { value: "SPK", label: "SPK" },
+    { value: "PERTAMBAHAN_SPK", label: "Pertambahan SPK" },
     { value: "PROJECT_PLANNING", label: "Project Planning" },
     { value: "GANTT", label: "Gantt" },
 ];
@@ -400,6 +429,21 @@ const normalizeGantt = (gantt: GanttListItem): InterventionDocument => ({
     raw: gantt,
 });
 
+const normalizePertambahanSpk = (psp: PertambahanSPKListItem): InterventionDocument => ({
+    id: psp.id,
+    type: "PERTAMBAHAN_SPK",
+    nomor_ulok: psp.spk?.nomor_ulok ?? psp.toko?.nomor_ulok,
+    nama_toko: psp.toko?.nama_toko ?? psp.spk?.nama_toko,
+    cabang: psp.toko?.cabang ?? psp.spk?.cabang,
+    contractor: psp.spk?.nama_kontraktor,
+    project: psp.spk?.proyek,
+    status: psp.status_persetujuan,
+    created_at: psp.created_at,
+    updated_at: psp.waktu_persetujuan,
+    email_pembuat: psp.dibuat_oleh,
+    raw: psp,
+});
+
 const mapActivityLogs = (logs: ActivityLog[]): InterventionLog[] =>
     logs.map((log) => ({
         id: `activity-${log.id}`,
@@ -502,6 +546,36 @@ const interventionAdapters: Record<InterventionDocType, InterventionAdapter> = {
                 actor_email: user.email,
                 actor_role: user.role,
                 target_status: targetStatus as SpkTargetStatus,
+                alasan_intervensi: reason,
+            });
+        },
+    },
+    PERTAMBAHAN_SPK: {
+        type: "PERTAMBAHAN_SPK",
+        label: "Pertambahan SPK",
+        accentClass: "border-pink-200 bg-pink-50 text-pink-700",
+        icon: <FileSignature className="h-4 w-4" />,
+        fetchList: async () => {
+            const response = await fetchPertambahanSPKList();
+            return (response.data || []).map(normalizePertambahanSpk);
+        },
+        fetchDetail: async (doc) => {
+            const [detail, logs] = await Promise.all([
+                fetchPertambahanSPKDetail(doc.id).catch(() => null),
+                fetchActivityLogs("PERTAMBAHAN_SPK", doc.id).then((res) => res.data).catch(() => []),
+            ]);
+            if (!detail?.data) return { ...doc, logs: mapActivityLogs(logs) };
+            return {
+                ...normalizePertambahanSpk(detail.data),
+                logs: mapActivityLogs(logs),
+            };
+        },
+        getStatusOptions: () => PERTAMBAHAN_SPK_STATUS_OPTIONS,
+        submit: async (doc, targetStatus, reason, user) => {
+            await intervenePertambahanSPKStatus(doc.id, {
+                actor_email: user.email,
+                actor_role: user.role,
+                target_status: targetStatus as PertambahanSpkTargetStatus,
                 alasan_intervensi: reason,
             });
         },
