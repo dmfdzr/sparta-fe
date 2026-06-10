@@ -957,6 +957,18 @@ function GanttBoard() {
         const svgHeight = processedTasks.length * ROW_HEIGHT;
         const supervisionDays: Record<number, boolean> = {};
         
+        if (spkInfo && spkInfo.startDate && pengawasanDates.length > 0) {
+            const startD = new Date(spkInfo.startDate.split('T')[0] + 'T00:00:00');
+            pengawasanDates.forEach(pd => {
+                const pD = new Date(pd.split('T')[0] + 'T00:00:00');
+                const diffTime = pD.getTime() - startD.getTime();
+                const diffDays = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
+                if (diffDays > 0) {
+                    supervisionDays[diffDays] = true;
+                }
+            });
+        }
+        
         let taskCoordinates: Record<number, any> = {};
         processedTasks.forEach((task, idx) => {
             const shift = task.computed.shift || 0;
@@ -1028,7 +1040,7 @@ function GanttBoard() {
         }
         
         return { processedTasks, totalDaysToRender, totalChartWidth, svgHeight, supervisionDays, svgLines, liveDayIndex };
-    }, [tasks, projectData, spkInfo]);
+    }, [tasks, projectData, spkInfo, pengawasanDates]);
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
