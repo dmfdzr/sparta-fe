@@ -48,7 +48,7 @@ import {
 // =============================================
 // TYPES INTERNAL
 // =============================================
-type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME' | 'OPNAME_FINAL' | 'INSTRUKSI_LAPANGAN' | 'PROJECT_PLANNING';
+type ApprovalType = 'RAB' | 'SPK' | 'PERTAMBAHAN_SPK' | 'OPNAME' | 'INSTRUKSI_LAPANGAN' | 'PROJECT_PLANNING';
 type ActiveView = 'menu' | 'list' | 'detail';
 
 
@@ -181,7 +181,6 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
     SPK: ['BRANCH MANAGER', 'MANAGER'],
     PERTAMBAHAN_SPK: ['BRANCH MANAGER', 'MANAGER'],
     OPNAME: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR KONTRAKTOR', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
-    OPNAME_FINAL: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'DIREKTUR KONTRAKTOR', 'DIREKTUR', 'COORDINATOR', 'MANAGER'],
     INSTRUKSI_LAPANGAN: ['BRANCH BUILDING COORDINATOR', 'BRANCH BUILDING & MAINTENANCE MANAGER', 'COORDINATOR', 'MANAGER'],
     PROJECT_PLANNING: ['BRANCH BUILDING & MAINTENANCE MANAGER', 'PROJECT PLANNING & DEVELOPMENT SPECIALIST', 'PROJECT PLANNING & DEVELOPMENT MANAGER'],
 };
@@ -287,15 +286,7 @@ const APPROVAL_CONFIG: Record<ApprovalType, {
         description: 'Opname yang menunggu persetujuan.',
         emptyMsg: 'Tidak ada pengajuan Opname yang menunggu persetujuan.',
     },
-    OPNAME_FINAL: {
-        label: 'Approval Opname Final',
-        icon: <CheckCircle className="w-10 h-10" />,
-        color: 'text-indigo-700',
-        hoverBorder: 'hover:border-indigo-500',
-        badgeColor: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-        description: 'Opname Final yang menunggu persetujuan.',
-        emptyMsg: 'Tidak ada pengajuan Opname Final yang menunggu persetujuan.',
-    },
+
     INSTRUKSI_LAPANGAN: {
         label: 'Approval Instruksi Lapangan',
         icon: <FileText className="w-10 h-10" />,
@@ -460,21 +451,7 @@ const normalizeOpnameList = (items: any[]): NormalizedListItem[] =>
         _raw: o,
     }));
 
-const normalizeOpnameFinalList = (items: any[]): NormalizedListItem[] =>
-    items.map(o => ({
-        id: o.id,
-        tipe: 'OPNAME_FINAL' as ApprovalType,
-        nomor_ulok:    o.nomor_ulok || o.toko?.nomor_ulok || '-',
-        nama_toko:     o.nama_toko  || o.toko?.nama_toko  || '-',
-        cabang:        o.cabang     || o.toko?.cabang     || '-',
-        status:        o.status_opname_final,
-        total_nilai:   Math.max(0, parseCurrency(o.grand_total_opname) - parseCurrency(o.nilai_denda)),
-        email_pembuat: o.email_pembuat,
-        created_at:    o.created_at,
-        hari_denda:    Number(o.hari_denda ?? 0),
-        nilai_denda:   o.nilai_denda,
-        _raw: o,
-    }));
+
 
 const normalizeInstruksiLapanganList = (items: any[]): NormalizedListItem[] =>
     items.map(i => ({
@@ -595,7 +572,6 @@ export default function ApprovalPage() {
             allAccessibleTypes.add('SPK');
             allAccessibleTypes.add('PERTAMBAHAN_SPK');
             allAccessibleTypes.add('OPNAME');
-            allAccessibleTypes.add('OPNAME_FINAL');
             allAccessibleTypes.add('INSTRUKSI_LAPANGAN');
             allAccessibleTypes.add('PROJECT_PLANNING');
         } else if (isProjectPlanningApprovalRole && isHO) {
@@ -603,7 +579,6 @@ export default function ApprovalPage() {
         } else if (isDirectorHO) {
             allAccessibleTypes.add('RAB');
             allAccessibleTypes.add('OPNAME');
-            allAccessibleTypes.add('OPNAME_FINAL');
         } else {
             roles.forEach(r => {
                 (Object.keys(ROLE_ACCESS) as ApprovalType[]).forEach(type => {
@@ -701,21 +676,13 @@ export default function ApprovalPage() {
                 const res = await fetchPertambahanSPKList({ status_persetujuan: 'Menunggu Persetujuan' });
                 normalized = normalizePertambahanSPKList(res.data ?? []);
             } else if (type === 'OPNAME') {
-                const res = await fetchOpnameFinalList({ aksi: 'terkunci', tipe_opname: 'OPNAME' });
-                const opnameListRaw = Array.isArray(res.data)
-                    ? res.data
-                    : Array.isArray((res.data as any)?.opname_final)
-                        ? (res.data as any).opname_final
-                        : [];
-                normalized = normalizeOpnameList(opnameListRaw);
-            } else if (type === 'OPNAME_FINAL') {
                 const res = await fetchOpnameFinalList({ aksi: 'terkunci', tipe_opname: 'OPNAME_FINAL' });
                 const opnameListRaw = Array.isArray(res.data)
                     ? res.data
                     : Array.isArray((res.data as any)?.opname_final)
                         ? (res.data as any).opname_final
                         : [];
-                normalized = normalizeOpnameFinalList(opnameListRaw);
+                normalized = normalizeOpnameList(opnameListRaw);
             } else if (type === 'INSTRUKSI_LAPANGAN') {
                 const res = await fetchInstruksiLapanganList();
                 normalized = normalizeInstruksiLapanganList(res.data ?? []);
@@ -739,7 +706,7 @@ export default function ApprovalPage() {
                 const isRegionalManagerUser = user?.isRegionalManager ?? false;
 
                 if (
-                    ['RAB', 'OPNAME', 'OPNAME_FINAL', 'INSTRUKSI_LAPANGAN'].includes(type)
+                    ['RAB', 'OPNAME', 'INSTRUKSI_LAPANGAN'].includes(type)
                     && isContractorCompanyScopedRole(userRoles)
                     && userInfo.nama_pt
                     && !matchesUserCompany(item._raw, userInfo.nama_pt)
@@ -971,7 +938,7 @@ export default function ApprovalPage() {
                     nomor_spk:         d.nomor_spk || d.spk?.nomor_spk,
                     items: [],
                 };
-            } else if (item.tipe === 'OPNAME' || item.tipe === 'OPNAME_FINAL') {
+            } else if (item.tipe === 'OPNAME') {
                 const res = await fetchOpnameFinalDetail(item.id);
                 const payload = res?.data ?? {};
                 const header = payload.opname_final ?? payload;
@@ -1160,7 +1127,7 @@ export default function ApprovalPage() {
                     tindakan:       'APPROVE',
                     catatan_approval: catatanApproval,
                 });
-            } else if (item.tipe === 'OPNAME' || item.tipe === 'OPNAME_FINAL') {
+            } else if (item.tipe === 'OPNAME') {
                 await approveOpnameFinal(item.id as number, {
                     approver_email: userInfo.email,
                     jabatan:        jabatan as any ?? 'KOORDINATOR',
@@ -1260,7 +1227,7 @@ export default function ApprovalPage() {
                     alasan_penolakan: rejectNote,
                     catatan_approval: rejectNote,
                 });
-            } else if (item.tipe === 'OPNAME' || item.tipe === 'OPNAME_FINAL') {
+            } else if (item.tipe === 'OPNAME') {
                 await approveOpnameFinal(item.id as number, {
                     approver_email:   userInfo.email,
                     jabatan:          jabatan as any ?? 'KOORDINATOR',
@@ -1303,7 +1270,7 @@ export default function ApprovalPage() {
                 await downloadRABPdf(id);
             } else if (type === 'SPK') {
                 await downloadSPKPdf(id);
-            } else if (type === 'OPNAME' || type === 'OPNAME_FINAL') {
+            } else if (type === 'OPNAME') {
                 await downloadOpnameFinalPdf(id);
             } else if (type === 'INSTRUKSI_LAPANGAN') {
                 await downloadInstruksiLapanganPdf(id);

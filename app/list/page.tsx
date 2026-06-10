@@ -834,9 +834,20 @@ export default function DaftarDokumenPage() {
                 if (isKontraktorOrDirektur && sessionNamaPt) {
                     filters = { nama_kontraktor: sessionNamaPt };
                 }
-                filters = { ...(filters ?? {}), tipe_opname: kategori };
-                const res = await fetchOpnameFinalList(filters);
-                docs = normalizeOpnameDocs(res.data ?? [], kategori);
+                
+                if (kategori === 'OPNAME') {
+                    const resOpname = await fetchOpnameFinalList({ ...(filters ?? {}), tipe_opname: 'OPNAME' });
+                    const resFinal = await fetchOpnameFinalList({ ...(filters ?? {}), tipe_opname: 'OPNAME_FINAL' });
+                    
+                    const opnameDocs = normalizeOpnameDocs(resOpname.data ?? [], 'OPNAME');
+                    const finalDocs = normalizeOpnameDocs(resFinal.data ?? [], 'OPNAME_FINAL');
+                    
+                    const finalTokoIds = new Set(finalDocs.map(d => d.nomor_ulok).filter(v => v && v !== '-'));
+                    docs = opnameDocs.filter(d => !finalTokoIds.has(d.nomor_ulok));
+                } else {
+                    const res = await fetchOpnameFinalList({ ...(filters ?? {}), tipe_opname: 'OPNAME_FINAL' });
+                    docs = normalizeOpnameDocs(res.data ?? [], kategori);
+                }
             } else if (kategori === 'PENGAWASAN') {
                 const res = await fetchPengawasanList();
                 const ganttRes = await fetchGanttList();
