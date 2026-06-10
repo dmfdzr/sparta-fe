@@ -670,12 +670,14 @@ function GanttBoard() {
                 }
             });
 
+            // depMap: child → daftar nama parent-nya
+            // (dep.kategori_pekerjaan = child, dep.kategori_pekerjaan_terikat = parent)
             const depMap: Record<string, string[]> = {};
             dependencies.forEach(dep => {
                 const child  = dep.kategori_pekerjaan.toLowerCase().trim();
                 const parent = dep.kategori_pekerjaan_terikat.toLowerCase().trim();
-                if (!depMap[parent]) depMap[parent] = [];
-                depMap[parent].push(child);
+                if (!depMap[child]) depMap[child] = [];
+                depMap[child].push(parent);
             });
 
             generatedTasks = generatedTasks.map(task => {
@@ -685,6 +687,7 @@ function GanttBoard() {
                     ?? Object.entries(categoryRangesMap).find(([k]) => tName.includes(k) || k.includes(tName))?.[1]
                     ?? [];
 
+                // Cari id task-task yang menjadi parent dari task ini
                 const parentIds: number[] = [];
                 (depMap[tName] || []).forEach(parentName => {
                     const parentObj = generatedTasks.find(t => t.name.toLowerCase().trim() === parentName);

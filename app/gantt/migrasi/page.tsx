@@ -26,6 +26,7 @@ type PreviewDetail = {
     nomor_ulok: string;
     lingkup_pekerjaan: string;
     status: string;
+    sheet_count?: number;
 };
 
 type PreviewResult = {
@@ -285,8 +286,8 @@ export default function GanttMigrasiPage() {
                     <>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             {[
-                                { label: "Total Baris Excel", value: preview.total_rows, color: "border-slate-200", textColor: "text-slate-900", icon: <FileSpreadsheet className="h-5 w-5 text-slate-400" /> },
-                                { label: "Total Group (Ulok)", value: preview.total_groups, color: "border-blue-200 bg-blue-50", textColor: "text-blue-700", icon: <Info className="h-5 w-5 text-blue-400" /> },
+                                { label: "Total Baris Day", value: preview.total_rows, color: "border-slate-200", textColor: "text-slate-900", icon: <FileSpreadsheet className="h-5 w-5 text-slate-400" /> },
+                                { label: "Total Proyek (Header)", value: preview.total_groups, color: "border-blue-200 bg-blue-50", textColor: "text-blue-700", icon: <Info className="h-5 w-5 text-blue-400" /> },
                                 { label: "Siap Insert", value: preview.ready_count, color: "border-emerald-200 bg-emerald-50", textColor: "text-emerald-700", icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> },
                                 { label: "Di-skip (Sudah Ada)", value: preview.skipped_count, color: "border-amber-200 bg-amber-50", textColor: "text-amber-700", icon: <AlertTriangle className="h-5 w-5 text-amber-400" /> },
                             ].map(({ label, value, color, textColor, icon }) => (
@@ -337,13 +338,14 @@ export default function GanttMigrasiPage() {
                                                 <th className="px-5 py-3 w-10">#</th>
                                                 <th className="px-5 py-3">Nomor Ulok</th>
                                                 <th className="px-5 py-3">Lingkup Pekerjaan</th>
+                                                <th className="px-5 py-3 text-right">Baris Day</th>
                                                 <th className="px-5 py-3">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {filteredDetails.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={4} className="px-5 py-10 text-center text-slate-400">
+                                                    <td colSpan={5} className="px-5 py-10 text-center text-slate-400">
                                                         Tidak ada data yang cocok dengan pencarian.
                                                     </td>
                                                 </tr>
@@ -359,6 +361,11 @@ export default function GanttMigrasiPage() {
                                                                 </span>
                                                             </td>
                                                             <td className="px-5 py-3 text-slate-600">{item.lingkup_pekerjaan || <span className="text-slate-300 italic">—</span>}</td>
+                                                            <td className="px-5 py-3 text-right">
+                                                                <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                                                                    {item.sheet_count ?? 0}
+                                                                </span>
+                                                            </td>
                                                             <td className="px-5 py-3">
                                                                 <Badge className={isReady
                                                                     ? "bg-emerald-100 text-emerald-700 border-none text-xs font-semibold"
@@ -376,7 +383,7 @@ export default function GanttMigrasiPage() {
                                         {filteredDetails.length > 0 && (
                                             <tfoot className="border-t bg-slate-50">
                                                 <tr>
-                                                    <td colSpan={4} className="px-5 py-3 text-xs text-slate-400">
+                                                    <td colSpan={5} className="px-5 py-3 text-xs text-slate-400">
                                                         Menampilkan <strong>{filteredDetails.length}</strong> dari <strong>{preview.details.length}</strong> data
                                                     </td>
                                                 </tr>
