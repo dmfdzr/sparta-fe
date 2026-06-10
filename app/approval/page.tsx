@@ -1823,20 +1823,6 @@ export default function ApprovalPage() {
                                         {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download Opname (PDF)'}
                                     </Button>
                                 )}
-                                {selectedDetail?.tipe === 'OPNAME_FINAL' && (
-                                    <Button
-                                        variant="outline"
-                                        className="border-indigo-600 text-indigo-700 hover:bg-indigo-50 font-bold"
-                                        disabled={processingId === `pdf-${selectedDetail.id}`}
-                                        onClick={() => handleDownloadPDF(selectedDetail.id as number, 'OPNAME_FINAL')}
-                                    >
-                                        {processingId === `pdf-${selectedDetail.id}`
-                                            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            : <FileDown className="w-4 h-4 mr-2" />
-                                        }
-                                        {processingId === `pdf-${selectedDetail.id}` ? 'Menyiapkan PDF...' : 'Download Opname (PDF)'}
-                                    </Button>
-                                )}
                                 {selectedDetail?.tipe === 'INSTRUKSI_LAPANGAN' && (
                                     <Button
                                         variant="outline"
@@ -1954,7 +1940,7 @@ export default function ApprovalPage() {
                                                     <>
                                                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Nilai</p>
                                                         <p className="text-3xl font-extrabold text-slate-800">{formatRupiah(selectedDetail.total_nilai)}</p>
-                                                        {(selectedDetail.tipe === 'OPNAME' || selectedDetail.tipe === 'OPNAME_FINAL') && (
+                                                        {selectedDetail.tipe === 'OPNAME' && (
                                                             <p className="text-xs font-semibold text-red-500 mt-1">
                                                                 Denda {formatRupiah(parseCurrency(selectedDetail.nilai_denda))} ({selectedDetail.hari_denda ?? 0} hari)
                                                             </p>
