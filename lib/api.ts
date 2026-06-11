@@ -1194,6 +1194,94 @@ export const replaceRabItems = async (
     return res.json();
 };
 
+export type RabMigrationAction =
+    | "insert"
+    | "skip"
+    | "replace_rab_items"
+    | "replace_toko_rab_items"
+    | "replace_items";
+
+export type RabMigrationPreviewDetail = {
+    source_rab_id: number;
+    source_toko_id: number;
+    nomor_ulok: string;
+    lingkup_pekerjaan: string;
+    nama_toko: string;
+    cabang: string;
+    status_rab: string;
+    item_count: number;
+    grand_total: string;
+    db_state: "ready" | "conflict" | "invalid";
+    existing_toko_id: number | null;
+    existing_rab_id: number | null;
+    existing_item_count: number;
+    issues: string[];
+};
+
+export type RabMigrationPreviewResult = {
+    total_rab: number;
+    total_items: number;
+    ready_count: number;
+    conflict_count: number;
+    invalid_count: number;
+    ignored_sheets: string[];
+    details: RabMigrationPreviewDetail[];
+};
+
+export type RabMigrationCommitSelection = {
+    source_rab_id: number;
+    action: RabMigrationAction;
+};
+
+export type RabMigrationCommitResult = {
+    total_selected: number;
+    inserted: number;
+    replaced: number;
+    skipped: number;
+    migrated_items: number;
+    details: Array<{
+        action: RabMigrationAction;
+        source_rab_id: number;
+        target_rab_id: number | null;
+        item_count: number;
+        status: string;
+    }>;
+};
+
+const postRabMigration = async <T>(
+    endpoint: "preview" | "commit",
+    file: File,
+    actorRole: string,
+    actorEmail?: string,
+    selections?: RabMigrationCommitSelection[]
+): Promise<{ status: string; message: string; data: T }> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("actor_role", actorRole);
+    if (actorEmail) form.append("actor_email", actorEmail);
+    if (selections) form.append("selections", JSON.stringify(selections));
+
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/rab/migration/${endpoint}`, {
+        method: "POST",
+        body: form
+    });
+
+    const result = await res.json();
+    if (res.status === 403) throw new Error(result.message || "Hanya Super Human yang dapat melakukan migrasi RAB.");
+    if (!res.ok) throw new Error(result.message || "Gagal memproses migrasi RAB.");
+    return result;
+};
+
+export const previewRabMigration = (file: File, actorRole: string, actorEmail?: string) =>
+    postRabMigration<RabMigrationPreviewResult>("preview", file, actorRole, actorEmail);
+
+export const commitRabMigration = (
+    file: File,
+    actorRole: string,
+    actorEmail: string | undefined,
+    selections: RabMigrationCommitSelection[]
+) => postRabMigration<RabMigrationCommitResult>("commit", file, actorRole, actorEmail, selections);
+
 /** Ambil detail Toko berdasarkan ID untuk menarik kolom alamat yang kosong pada revisi. */
 export const fetchTokoDetail = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/toko/detail?id=${id}`);
