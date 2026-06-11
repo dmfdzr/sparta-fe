@@ -18,7 +18,6 @@ export type ApprovalType =
     | "SPK"
     | "PERTAMBAHAN_SPK"
     | "OPNAME"
-    | "OPNAME_FINAL"
     | "INSTRUKSI_LAPANGAN"
     | "PROJECT_PLANNING";
 
@@ -30,7 +29,31 @@ type CountableApprovalItem = {
     tipe: ApprovalType;
     status: string;
     cabang?: string | null;
-    raw?: any;
+    raw?: unknown;
+};
+
+type ApprovalSourceRecord = Record<string, unknown>;
+
+const toRecord = (value: unknown): ApprovalSourceRecord =>
+    value && typeof value === "object" ? value as ApprovalSourceRecord : {};
+
+const getNestedRecord = (value: unknown, key: string): ApprovalSourceRecord => {
+    const nested = toRecord(value)[key];
+    return toRecord(nested);
+};
+
+const getStringValue = (value: unknown, key: string) => {
+    const field = toRecord(value)[key];
+    return typeof field === "string" || typeof field === "number" ? String(field) : null;
+};
+
+const getTokoStringValue = (value: unknown, key: string) =>
+    getStringValue(getNestedRecord(value, "toko"), key);
+
+const getOpnameRows = (data: unknown): unknown[] => {
+    if (Array.isArray(data)) return data;
+    const nestedRows = toRecord(data).opname_final;
+    return Array.isArray(nestedRows) ? nestedRows : [];
 };
 
 export const EMPTY_APPROVAL_COUNTS: ApprovalCounts = {
@@ -38,7 +61,6 @@ export const EMPTY_APPROVAL_COUNTS: ApprovalCounts = {
     SPK: 0,
     PERTAMBAHAN_SPK: 0,
     OPNAME: 0,
-    OPNAME_FINAL: 0,
     INSTRUKSI_LAPANGAN: 0,
     PROJECT_PLANNING: 0,
 };
@@ -48,7 +70,6 @@ const ROLE_ACCESS: Record<ApprovalType, string[]> = {
     SPK: ["BRANCH MANAGER", "MANAGER"],
     PERTAMBAHAN_SPK: ["BRANCH MANAGER", "MANAGER"],
     OPNAME: ["BRANCH BUILDING COORDINATOR", "BRANCH BUILDING & MAINTENANCE MANAGER", "DIREKTUR KONTRAKTOR", "DIREKTUR", "COORDINATOR", "MANAGER"],
-    OPNAME_FINAL: ["BRANCH BUILDING COORDINATOR", "BRANCH BUILDING & MAINTENANCE MANAGER", "DIREKTUR KONTRAKTOR", "DIREKTUR", "COORDINATOR", "MANAGER"],
     INSTRUKSI_LAPANGAN: ["BRANCH BUILDING COORDINATOR", "BRANCH BUILDING & MAINTENANCE MANAGER", "COORDINATOR", "MANAGER"],
     PROJECT_PLANNING: ["BRANCH BUILDING & MAINTENANCE MANAGER", "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "PROJECT PLANNING & DEVELOPMENT MANAGER"],
 };
@@ -91,12 +112,11 @@ const matchesUserCompany = (value: unknown, userCompany?: string | null) => {
     const normalizedUserCompany = normalizeCompanyName(userCompany);
     if (!normalizedUserCompany || !value || typeof value !== "object") return false;
 
-    const source = value as Record<string, any>;
     const candidates = [
-        source.nama_pt,
-        source.nama_kontraktor,
-        source.toko?.nama_pt,
-        source.toko?.nama_kontraktor,
+        getStringValue(value, "nama_pt"),
+        getStringValue(value, "nama_kontraktor"),
+        getTokoStringValue(value, "nama_pt"),
+        getTokoStringValue(value, "nama_kontraktor"),
     ];
 
     return candidates.some(candidate => normalizeCompanyName(candidate) === normalizedUserCompany);
@@ -131,7 +151,6 @@ export const getAccessibleApprovalTypes = (user: UserSession): ApprovalType[] =>
     } else if (isDirectorHO) {
         allAccessibleTypes.add("RAB");
         allAccessibleTypes.add("OPNAME");
-        allAccessibleTypes.add("OPNAME_FINAL");
     } else {
         roles.forEach(role => {
             (Object.keys(ROLE_ACCESS) as ApprovalType[]).forEach(type => {
@@ -209,7 +228,7 @@ const canCountProjectPlanningForUser = (item: CountableApprovalItem, user: UserS
         (isPpSpecialist && ["WAITING_PP_APPROVAL_1", "PP_DESIGN_3D_REQUIRED", "WAITING_PP_APPROVAL_2"].includes(upper)) ||
         (isPpManager && (
             upper === "WAITING_PP_MANAGER_APPROVAL" ||
-            (upper === "WAITING_RAB_UPLOAD" && !!raw.pp_manager_approver_email)
+            (upper === "WAITING_RAB_UPLOAD" && !!getStringValue(raw, "pp_manager_approver_email"))
         ));
 
     if (!statusMatchesRole) return false;
@@ -221,7 +240,7 @@ const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan
     if (!isPendingProcessStatus(item.status, item.tipe)) return false;
     if (isViewOnlyUser(user.roles, user.isSuperHuman)) return false;
     if (
-        item.tipe === "RAB"
+        ["RAB", "OPNAME", "INSTRUKSI_LAPANGAN"].includes(item.tipe)
         && isContractorCompanyScopedRole(user.roles)
         && user.namaPt
         && !matchesUserCompany(item.raw, user.namaPt)
@@ -233,7 +252,6 @@ const canCountForUser = (item: CountableApprovalItem, user: UserSession, jabatan
 
     const upper = item.status.toUpperCase();
     const userCabang = normalizeBranch(user.cabang);
-    const isHOUser = userCabang === "HEAD OFFICE";
     const isDirectorHOUser = isHeadOfficeDirector(user);
     const canSeeAll = canViewAllBranches(user.roles, user.isSuperHuman);
 
@@ -282,60 +300,43 @@ export const fetchApprovalNotificationCounts = async (user: UserSession): Promis
                 })), user, jabatan);
             } else if (type === "SPK") {
                 const res = await fetchSPKList({ status: "WAITING_FOR_BM_APPROVAL" }, { suppressGlobalError: true });
-                counts.SPK = countItems((res.data ?? []).map((item: any) => ({
+                counts.SPK = countItems((res.data ?? []).map((item: unknown) => ({
                     tipe: "SPK",
-                    status: item.status,
-                    cabang: item.toko?.cabang ?? item.cabang,
+                    status: getStringValue(item, "status") ?? "",
+                    cabang: getTokoStringValue(item, "cabang") ?? getStringValue(item, "cabang"),
                     raw: item,
                 })), user, jabatan);
             } else if (type === "PERTAMBAHAN_SPK") {
                 const res = await fetchPertambahanSPKList({ status_persetujuan: "Menunggu Persetujuan" }, { suppressGlobalError: true });
-                counts.PERTAMBAHAN_SPK = countItems((res.data ?? []).map((item: any) => ({
+                counts.PERTAMBAHAN_SPK = countItems((res.data ?? []).map((item: unknown) => ({
                     tipe: "PERTAMBAHAN_SPK",
-                    status: item.status_persetujuan,
-                    cabang: item.toko?.cabang,
+                    status: getStringValue(item, "status_persetujuan") ?? "",
+                    cabang: getTokoStringValue(item, "cabang"),
                     raw: item,
                 })), user, jabatan);
             } else if (type === "OPNAME") {
-                const res = await fetchOpnameFinalList({ aksi: "terkunci", tipe_opname: "OPNAME" }, { suppressGlobalError: true });
-                const rows = Array.isArray(res.data)
-                    ? res.data
-                    : Array.isArray((res.data as any)?.opname_final)
-                        ? (res.data as any).opname_final
-                        : [];
-                counts.OPNAME = countItems(rows.map((item: any) => ({
-                    tipe: "OPNAME",
-                    status: item.status_opname_final,
-                    cabang: item.cabang ?? item.toko?.cabang,
-                    raw: item,
-                })), user, jabatan);
-            } else if (type === "OPNAME_FINAL") {
                 const res = await fetchOpnameFinalList({ aksi: "terkunci", tipe_opname: "OPNAME_FINAL" }, { suppressGlobalError: true });
-                const rows = Array.isArray(res.data)
-                    ? res.data
-                    : Array.isArray((res.data as any)?.opname_final)
-                        ? (res.data as any).opname_final
-                        : [];
-                counts.OPNAME_FINAL = countItems(rows.map((item: any) => ({
-                    tipe: "OPNAME_FINAL",
-                    status: item.status_opname_final,
-                    cabang: item.cabang ?? item.toko?.cabang,
+                const rows = getOpnameRows(res.data);
+                counts.OPNAME = countItems(rows.map((item: unknown) => ({
+                    tipe: "OPNAME",
+                    status: getStringValue(item, "status_opname_final") ?? "",
+                    cabang: getStringValue(item, "cabang") ?? getTokoStringValue(item, "cabang"),
                     raw: item,
                 })), user, jabatan);
             } else if (type === "INSTRUKSI_LAPANGAN") {
                 const res = await fetchInstruksiLapanganList(undefined, { suppressGlobalError: true });
-                counts.INSTRUKSI_LAPANGAN = countItems((res.data ?? []).map((item: any) => ({
+                counts.INSTRUKSI_LAPANGAN = countItems((res.data ?? []).map((item: unknown) => ({
                     tipe: "INSTRUKSI_LAPANGAN",
-                    status: item.status,
-                    cabang: item.cabang,
+                    status: getStringValue(item, "status") ?? "",
+                    cabang: getStringValue(item, "cabang"),
                     raw: item,
                 })), user, jabatan);
             } else if (type === "PROJECT_PLANNING") {
                 const res = await fetchProjekPlanningList(undefined, { suppressGlobalError: true });
-                counts.PROJECT_PLANNING = countItems((res.data ?? []).map((item: any) => ({
+                counts.PROJECT_PLANNING = countItems((res.data ?? []).map((item: unknown) => ({
                     tipe: "PROJECT_PLANNING",
-                    status: item.status,
-                    cabang: item.cabang,
+                    status: getStringValue(item, "status") ?? "",
+                    cabang: getStringValue(item, "cabang"),
                     raw: item,
                 })), user, jabatan);
             }
