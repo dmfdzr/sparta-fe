@@ -40,12 +40,31 @@ const PUBLIC_PATHS = ['/', '/auth', '/about', '/manual'];
  * [KONFIGURASI BATASAN WAKTU DAN HARI AKSES]
  * ============================================================================
  * Ubah batasan waktu dan hari operasional aplikasi pada fungsi ini.
- * Pengecualian: User dengan cabang "HEAD OFFICE" mengabaikan aturan ini sepenuhnya.
+ * Pengecualian: Super Human mengabaikan aturan ini sepenuhnya.
  */
-function isWithinOperatingHours(): boolean {
+const OPERATING_START_MINUTES = 6 * 60;
+const GENERAL_OPERATING_END_MINUTES = 18 * 60;
+const CONTRACTOR_OPERATING_END_MINUTES = 20 * 60;
+
+const isContractorRole = (roles: string[]): boolean =>
+  roles.some((role) => role.includes('KONTRAKTOR'));
+
+const getOperatingEndMinutes = (roles: string[]): number =>
+  isContractorRole(roles)
+    ? CONTRACTOR_OPERATING_END_MINUTES
+    : GENERAL_OPERATING_END_MINUTES;
+
+const formatMinutesAsTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+function isWithinOperatingHours(roles: string[]): boolean {
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
   const totalMinutes = now.getHours() * 60 + now.getMinutes();
+  const operatingEndMinutes = getOperatingEndMinutes(roles);
 
   // 1. BATASAN HARI: Block akses pada hari Sabtu (6) dan Minggu (0)
   if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -53,8 +72,7 @@ function isWithinOperatingHours(): boolean {
   }
 
   // 2. BATASAN WAKTU: Block akses di luar jam operasional
-  // Contoh: 6 * 60 (06:00) sampai 24 * 60 (00:00 / midnight)
-  return totalMinutes >= 6 * 60 && totalMinutes < 24 * 60;
+  return totalMinutes >= OPERATING_START_MINUTES && totalMinutes < operatingEndMinutes;
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -124,8 +142,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     setUser(sessionUser);
 
-    // Time restriction: HEAD OFFICE & SUPER HUMAN always allowed
-    if (!isHO && !isSuperHuman && !isRegionalManager && !isWithinOperatingHours()) {
+    // Time restriction: only Super Human is always allowed.
+    if (!isSuperHuman && !isWithinOperatingHours(roles)) {
       setIsTimeBlocked(true);
     } else {
       setIsTimeBlocked(false);
@@ -164,6 +182,7 @@ function TimeBlockedScreen({
   onLogout: () => void;
 }) {
   const now = new Date();
+  const operatingHoursLabel = `${formatMinutesAsTime(OPERATING_START_MINUTES)} - ${formatMinutesAsTime(getOperatingEndMinutes(user.roles))}`;
   const currentTime = now.toLocaleTimeString('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
@@ -267,7 +286,7 @@ function TimeBlockedScreen({
               marginBottom: '0.25rem',
             }}
           >
-            06:00 – 00:00
+            {operatingHoursLabel}
           </p>
           <p style={{ color: '#475569', fontSize: '0.75rem' }}>
             Senin – Jumat &nbsp;|&nbsp; WIB
