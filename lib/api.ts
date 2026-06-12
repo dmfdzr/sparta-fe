@@ -809,6 +809,7 @@ export type RABListItem = {
     link_pdf_gabungan:    string;
     link_pdf_non_sbo:     string;
     link_pdf_rekapitulasi:string;
+    link_pdf_materai?:    string | null;
     link_lampiran_pendukung?:string | null;
     created_at:           string;
     nomor_ulok:           string;
@@ -849,6 +850,7 @@ export type RABDetailData = {
     link_pdf_gabungan:               string | null;
     link_pdf_non_sbo:                string | null;
     link_pdf_rekapitulasi:           string | null;
+    link_pdf_materai:                string | null;
     pemberi_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator:   string | null;
     pemberi_persetujuan_manager:     string | null;
@@ -1218,6 +1220,7 @@ export type RabMigrationPreviewDetail = {
     existing_created_at: string | null;
     existing_item_count: number;
     existing_match_count: number;
+    has_materai_pdf: boolean;
     issues: string[];
     warnings: string[];
 };
@@ -1229,6 +1232,8 @@ export type RabMigrationPreviewResult = {
     conflict_count: number;
     missing_created_at_count: number;
     invalid_count: number;
+    materai_count: number;
+    materai_ambiguous_count: number;
     source_format: "legacy_tables" | "data_form_form2";
     ignored_sheets: string[];
     details: RabMigrationPreviewDetail[];
@@ -1260,10 +1265,12 @@ const postRabMigration = async <T>(
     file: File,
     actorRole: string,
     actorEmail?: string,
-    selections?: RabMigrationCommitSelection[]
+    selections?: RabMigrationCommitSelection[],
+    materaiFile?: File | null
 ): Promise<{ status: string; message: string; data: T }> => {
     const form = new FormData();
     form.append("file", file);
+    if (materaiFile) form.append("materai_file", materaiFile);
     form.append("actor_role", actorRole);
     if (actorEmail) form.append("actor_email", actorEmail);
     if (selections) form.append("selections", JSON.stringify(selections));
@@ -1279,15 +1286,16 @@ const postRabMigration = async <T>(
     return result;
 };
 
-export const previewRabMigration = (file: File, actorRole: string, actorEmail?: string) =>
-    postRabMigration<RabMigrationPreviewResult>("preview", file, actorRole, actorEmail);
+export const previewRabMigration = (file: File, actorRole: string, actorEmail?: string, materaiFile?: File | null) =>
+    postRabMigration<RabMigrationPreviewResult>("preview", file, actorRole, actorEmail, undefined, materaiFile);
 
 export const commitRabMigration = (
     file: File,
     actorRole: string,
     actorEmail: string | undefined,
-    selections: RabMigrationCommitSelection[]
-) => postRabMigration<RabMigrationCommitResult>("commit", file, actorRole, actorEmail, selections);
+    selections: RabMigrationCommitSelection[],
+    materaiFile?: File | null
+) => postRabMigration<RabMigrationCommitResult>("commit", file, actorRole, actorEmail, selections, materaiFile);
 
 /** Ambil detail Toko berdasarkan ID untuk menarik kolom alamat yang kosong pada revisi. */
 export const fetchTokoDetail = async (id: number) => {
@@ -1346,6 +1354,25 @@ export const downloadRABPdf = async (id: number): Promise<boolean> => {
     window.URL.revokeObjectURL(blobUrl);
     document.body.removeChild(a);
     return true;
+};
+
+export const regenerateRABPdf = async (id: number): Promise<{
+    status: string;
+    message: string;
+    data: {
+        link_pdf_gabungan: string;
+        link_pdf_non_sbo: string;
+        link_pdf_rekapitulasi: string;
+        link_pdf_sph?: string;
+        has_materai_pdf: boolean;
+    };
+}> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/rab/${id}/pdf/regenerate`, { method: "POST" });
+    const result = await res.json();
+    if (!res.ok || result.status !== "success") {
+        throw new Error(result.message || "Gagal generate ulang PDF RAB.");
+    }
+    return result;
 };
 
 /** Sinkronkan ulang harga item RAB dari master harga cabang dan regenerate PDF. */

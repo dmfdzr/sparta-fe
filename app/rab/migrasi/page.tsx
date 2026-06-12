@@ -60,6 +60,7 @@ const getErrorMessage = (error: unknown, fallback: string) =>
 export default function RabMigrasiPage() {
     const { user } = useSession();
     const [file, setFile] = useState<File | null>(null);
+    const [materaiFile, setMateraiFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<RabMigrationPreviewResult | null>(null);
     const [commitResult, setCommitResult] = useState<RabMigrationCommitResult | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -144,7 +145,7 @@ export default function RabMigrasiPage() {
         setIsPreviewing(true);
         resetPreviewState();
         try {
-            const result = await previewRabMigration(file, actorRole, user?.email);
+            const result = await previewRabMigration(file, actorRole, user?.email, materaiFile);
             const details = result.data.details;
             setPreview(result.data);
             setSelectedIds(new Set(details.filter((row) => row.db_state === "ready").map((row) => row.source_rab_id)));
@@ -205,7 +206,7 @@ export default function RabMigrasiPage() {
         setIsCommitting(true);
         setMessage(null);
         try {
-            const result = await commitRabMigration(file, actorRole, user?.email, selections);
+            const result = await commitRabMigration(file, actorRole, user?.email, selections, materaiFile);
             setCommitResult(result.data);
             setMessage({ type: "success", text: "Migrasi RAB selesai diproses." });
         } catch (error) {
@@ -254,13 +255,23 @@ export default function RabMigrasiPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-center">
+                        <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto_auto] lg:items-center">
                             <Input
                                 type="file"
                                 accept=".xlsx,.xls"
                                 className="h-11 rounded-xl bg-white"
                                 onChange={(event) => {
                                     setFile(event.target.files?.[0] ?? null);
+                                    resetPreviewState();
+                                }}
+                            />
+                            <Input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                className="h-11 rounded-xl bg-white"
+                                title="File MATERAI opsional"
+                                onChange={(event) => {
+                                    setMateraiFile(event.target.files?.[0] ?? null);
                                     resetPreviewState();
                                 }}
                             />
@@ -301,7 +312,7 @@ export default function RabMigrasiPage() {
 
                 {preview && (
                     <>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
                             {[
                                 ["Total RAB", preview.total_rab, "text-slate-950"],
                                 ["Total Item", preview.total_items, "text-slate-950"],
@@ -309,6 +320,8 @@ export default function RabMigrasiPage() {
                                 ["Konflik DB", preview.conflict_count, "text-amber-700"],
                                 ["Target Timpa", preview.missing_created_at_count, "text-orange-700"],
                                 ["Invalid", preview.invalid_count, "text-red-700"],
+                                ["Materai Match", preview.materai_count, "text-blue-700"],
+                                ["Materai Ambigu", preview.materai_ambiguous_count, "text-amber-700"],
                             ].map(([label, value, color]) => (
                                 <Card key={String(label)} className="border-slate-200 shadow-sm">
                                     <CardContent className="p-4">
@@ -444,6 +457,11 @@ export default function RabMigrasiPage() {
                                                                     <div className="mt-1 text-xs font-semibold text-red-600">
                                                                         {formatNumber(row.existing_match_count)} target DB cocok
                                                                     </div>
+                                                                )}
+                                                                {row.has_materai_pdf && (
+                                                                    <Badge className="mt-2 border-none bg-blue-100 text-blue-700">
+                                                                        Ada materai
+                                                                    </Badge>
                                                                 )}
                                                             </td>
                                                             <td className="px-4 py-3 align-top">

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import {
-    fetchRABList, fetchRABDetail, downloadRABPdf,
+    fetchRABList, fetchRABDetail, downloadRABPdf, regenerateRABPdf,
     type RABListItem, type RABDetailItem, type RABDetailResponse,
     fetchSPKList, fetchSPKDetail, downloadSPKPdf,
     type SPKListItem, type SPKDetailResponse,
@@ -118,6 +118,7 @@ interface NormalizedDetail {
     link_pdf_gabungan?: string | null;
     link_pdf_non_sbo?: string | null;
     link_pdf_rekapitulasi?: string | null;
+    link_pdf_materai?: string | null;
     link_lampiran_pendukung?: string | null;
     approval_koordinator?: { pemberi: string | null; waktu: string | null };
     approval_manager?: { pemberi: string | null; waktu: string | null };
@@ -955,6 +956,7 @@ export default function DaftarDokumenPage() {
                     link_pdf_gabungan:   d.rab.link_pdf_gabungan,
                     link_pdf_non_sbo:    d.rab.link_pdf_non_sbo,
                     link_pdf_rekapitulasi: d.rab.link_pdf_rekapitulasi,
+                    link_pdf_materai:    d.rab.link_pdf_materai,
                     link_lampiran_pendukung: d.rab.link_lampiran_pendukung,
                     alasan_penolakan:    d.rab.alasan_penolakan,
                     approval_koordinator: { pemberi: d.rab.pemberi_persetujuan_koordinator, waktu: d.rab.waktu_persetujuan_koordinator },
@@ -1305,6 +1307,30 @@ export default function DaftarDokumenPage() {
             showToast(err.message || 'Gagal membuka PDF online.', 'error');
         }
     }, [showToast]);
+
+    const handleRegenerateRabPdf = useCallback(async () => {
+        if (!selectedDetail || selectedDetail.tipe !== 'RAB') return;
+
+        setDownloadingId(selectedDetail.id);
+        try {
+            const result = await regenerateRABPdf(selectedDetail.id);
+            const links = result.data;
+            setSelectedDetail((current) => current && current.id === selectedDetail.id
+                ? {
+                    ...current,
+                    link_pdf: links.link_pdf_gabungan,
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi,
+                }
+                : current);
+            showToast(result.message || 'PDF RAB berhasil digenerate ulang.', 'success');
+        } catch (err: any) {
+            showToast(err.message || 'Gagal generate ulang PDF RAB.', 'error');
+        } finally {
+            setDownloadingId(null);
+        }
+    }, [selectedDetail, showToast]);
 
     const handleDownloadProjectPlanningAttachment = useCallback(async (field: string, itemIndex?: number) => {
         if (!selectedDetail || selectedDetail.tipe !== 'PROJECT_PLANNING') return;
@@ -2727,6 +2753,22 @@ export default function DaftarDokumenPage() {
                                         Unduh Dokumen
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
+                                        {selectedDetail.tipe === 'RAB' && (
+                                            <Button
+                                                variant={selectedDetail.link_pdf_materai ? "default" : "outline"}
+                                                className={selectedDetail.link_pdf_materai ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+                                                disabled={downloadingId === selectedDetail.id}
+                                                onClick={handleRegenerateRabPdf}
+                                            >
+                                                {downloadingId === selectedDetail.id ? (
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <FileSignature className="w-4 h-4 mr-2" />
+                                                )}
+                                                {selectedDetail.link_pdf_materai ? "Generate PDF + Materai" : "Generate PDF RAB"}
+                                            </Button>
+                                        )}
+
                                         {/* Download button for generated/stored PDFs */}
                                         {(
                                             (selectedDetail.tipe === 'RAB' && selectedDetail.link_pdf_gabungan) ||
