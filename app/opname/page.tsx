@@ -1440,9 +1440,14 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
                 });
                 setIlTokoMap(nextIlTokoMap);
 
+                const userEmail = String(userInfo.email || '').trim().toLowerCase();
                 const filteredRab = data.filter(item => {
                     if (!userNamaPt) return true;
-                    return normalizeNamaPt(item.nama_pt) === userNamaPt;
+                    const itemNamaPt = normalizeNamaPt(item.nama_pt);
+                    if (itemNamaPt) return itemNamaPt === userNamaPt;
+                    return userEmail
+                        ? String(item.email_pembuat || '').trim().toLowerCase() === userEmail
+                        : false;
                 });
                 
                 setRabList(filteredRab);
@@ -1458,7 +1463,7 @@ function KontraktorOpnameView({ userInfo }: { userInfo: { name: string; role: st
             })
             .catch(err => console.error("Gagal memuat data:", err))
             .finally(() => setIsLoading(false));
-    }, [userInfo.nama_pt]);
+    }, [userInfo.nama_pt, userInfo.email]);
 
     // Group opname by toko for project selection
     const tokoGroups = useMemo(() => {
