@@ -1375,6 +1375,40 @@ export const regenerateRABPdf = async (id: number): Promise<{
     return result;
 };
 
+export const regenerateAndDownloadRABPdf = async (id: number): Promise<boolean> => {
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/rab/${id}/pdf/regenerate-download`, { method: "POST" });
+    if (!res.ok) {
+        const text = await res.text();
+        let message = "";
+        try {
+            const parsed = JSON.parse(text);
+            message = parsed.message || "";
+        } catch {
+            message = "";
+        }
+        throw new Error(message || `Gagal generate dan mengunduh PDF (${res.status}): ${text.substring(0, 100)}`);
+    }
+
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `RAB_GABUNGAN_${id}.pdf`;
+    if (disposition?.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+    return true;
+};
+
 /** Sinkronkan ulang harga item RAB dari master harga cabang dan regenerate PDF. */
 export const syncRABBranchPrices = async (
     id: number

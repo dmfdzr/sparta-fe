@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import {
-    fetchRABList, fetchRABDetail, downloadRABPdf, regenerateRABPdf,
+    fetchRABList, fetchRABDetail, downloadRABPdf, regenerateAndDownloadRABPdf,
     type RABListItem, type RABDetailItem, type RABDetailResponse,
     fetchSPKList, fetchSPKDetail, downloadSPKPdf,
     type SPKListItem, type SPKDetailResponse,
@@ -1313,18 +1313,13 @@ export default function DaftarDokumenPage() {
 
         setDownloadingId(selectedDetail.id);
         try {
-            const result = await regenerateRABPdf(selectedDetail.id);
-            const links = result.data;
-            setSelectedDetail((current) => current && current.id === selectedDetail.id
-                ? {
-                    ...current,
-                    link_pdf: links.link_pdf_gabungan,
-                    link_pdf_gabungan: links.link_pdf_gabungan,
-                    link_pdf_non_sbo: links.link_pdf_non_sbo,
-                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi,
-                }
-                : current);
-            showToast(result.message || 'PDF RAB berhasil digenerate ulang.', 'success');
+            await regenerateAndDownloadRABPdf(selectedDetail.id);
+            showToast(
+                selectedDetail.link_pdf_materai
+                    ? 'PDF RAB + materai berhasil digenerate dan diunduh.'
+                    : 'PDF RAB berhasil digenerate dan diunduh.',
+                'success'
+            );
         } catch (err: any) {
             showToast(err.message || 'Gagal generate ulang PDF RAB.', 'error');
         } finally {
