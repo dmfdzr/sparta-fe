@@ -983,6 +983,11 @@ export default function DashboardPage() {
         { label: 'Ongoing', value: stats.miniStats.Ongoing, helper: 'Sudah SPK dan masih berjalan', icon: <HardHat className="w-4 h-4" />, context: 'PROJECT', subContext: 'Ongoing', tone: 'border-blue-200 bg-blue-50 text-blue-700' },
         { label: 'Done / ST', value: stats.miniStats.Done, helper: 'Sudah opname final atau serah terima', icon: <CheckCircle2 className="w-4 h-4" />, context: 'PROJECT', subContext: 'Done', tone: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
     ];
+    const secondaryMetrics = [
+        { label: 'JHK Pekerjaan', value: `${stats.avgJHK} hari`, helper: 'Durasi SPK + tambah hari', context: 'JHK', icon: <Calendar className="w-4 h-4" /> },
+        { label: 'Keterlambatan', value: `${stats.avgDelay} hari`, helper: 'Rata-rata lewat target', context: 'DELAY', icon: <Clock className="w-4 h-4" /> },
+        { label: 'Nilai Kontraktor', value: `${stats.avgNilaiKontraktor} poin`, helper: 'Rata-rata hasil ST', context: 'NILAI_KONTRAKTOR', icon: <UserCheck className="w-4 h-4" /> },
+    ];
 
     // =========================================================================
     // LOADING STATE
@@ -1351,13 +1356,31 @@ export default function DashboardPage() {
                                                 </div>
                                             </button>
                                         ))}
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                                            {secondaryMetrics.map(item => (
+                                                <button key={item.label} className="rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-red-200 hover:shadow-sm" onClick={() => setDetailModal({ open: true, title: item.label, context: item.context, subContext: '' })}>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2 text-slate-500">
+                                                            {item.icon}
+                                                            <p className="text-[10px] font-black uppercase tracking-wide">{item.label}</p>
+                                                        </div>
+                                                        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                                                    </div>
+                                                    <p className="mt-2 text-lg font-black text-slate-950">{item.value}</p>
+                                                    <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{item.helper}</p>
+                                                </button>
+                                            ))}
+                                        </div>
                                         {shouldShowFinancialBenchmarkCards && (
                                             <button className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-purple-200 hover:bg-white hover:shadow-sm" onClick={() => setDetailModal({ open: true, title: 'Rata-rata Cost/m2', context: 'COST_M2', subContext: '' })}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div>
                                                         <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">Cost/m2</p>
                                                         <p className="mt-1 text-lg font-black text-slate-950">Terbangun {formatRupiah(stats.avgCostTerbangun)}</p>
-                                                        <p className="mt-1 text-xs font-semibold text-slate-500">Bangunan {formatRupiah(stats.avgCostBangunan)} - Terbuka {formatRupiah(stats.avgCostTerbuka)}</p>
+                                                        <div className="mt-2 grid grid-cols-2 gap-2">
+                                                            <span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600">Bangunan {formatRupiah(stats.avgCostBangunan)}</span>
+                                                            <span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600">Terbuka {formatRupiah(stats.avgCostTerbuka)}</span>
+                                                        </div>
                                                     </div>
                                                     <ChevronRight className="mt-1 h-4 w-4 text-slate-400" />
                                                 </div>
@@ -1805,22 +1828,22 @@ export default function DashboardPage() {
                 open={detailModal.open} 
                 onOpenChange={(open) => setDetailModal(prev => ({ ...prev, open }))}
             >
-                <AlertDialogContent className="max-w-none! w-[98vw]! max-h-[92vh]! overflow-hidden flex flex-col p-0 rounded-2xl border-none shadow-2xl">
-                    <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <AlertDialogContent className="max-w-none! w-[98vw]! max-h-[92vh]! overflow-hidden flex flex-col p-0 rounded-2xl border border-slate-200 shadow-2xl">
+                    <div className="bg-white px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-200">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                                <Activity className="w-4 h-4 text-white" />
+                            <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                                <Activity className="w-4 h-4" />
                             </div>
                             <div>
-                                <AlertDialogTitle className="text-base font-bold leading-none">{detailModal.title}</AlertDialogTitle>
-                                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">Monitoring Rincian Data</p>
+                                <AlertDialogTitle className="text-base font-black leading-none text-slate-950">{detailModal.title}</AlertDialogTitle>
+                                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black">Monitoring Rincian Data</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-white hover:bg-white/10 rounded-full"
+                                className="h-8 w-8 text-slate-500 hover:bg-slate-100 hover:text-slate-900 rounded-full"
                                 onClick={() => fetchDashboardData(
                                     userInfo.cabang,
                                     canSeeAllMonitoringBranches,
@@ -1832,7 +1855,7 @@ export default function DashboardPage() {
                             >
                                 <RefreshCw className={`w-3.5 h-3.5 ${isDataLoading ? 'animate-spin' : ''}`} />
                             </Button>
-                            <AlertDialogCancel className="bg-white/10 border-none text-white hover:bg-white/20 hover:text-white h-8 w-8 p-0 rounded-full flex items-center justify-center">
+                            <AlertDialogCancel className="bg-slate-100 border-none text-slate-600 hover:bg-slate-200 hover:text-slate-900 h-8 w-8 p-0 rounded-full flex items-center justify-center">
                                 <X className="w-4 h-4" />
                             </AlertDialogCancel>
                         </div>
@@ -1840,40 +1863,74 @@ export default function DashboardPage() {
 
                     <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
                         {detailModal.context === 'PROJECT' && !detailModal.subContext && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(stats.miniStats).map(([label, val]) => (
-                                    <div 
-                                        key={label} 
-                                        onClick={() => setDetailModal(prev => ({ ...prev, subContext: label }))}
-                                        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                            <div className="space-y-4">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Ringkasan Status</p>
+                                            <h3 className="text-xl font-black text-slate-950">Pilih tahap untuk melihat toko</h3>
                                         </div>
-                                        <div className="text-3xl font-black text-slate-800">{val}</div>
-                                        <p className="text-[10px] text-slate-400 mt-1 font-medium italic">Klik untuk melihat daftar toko</p>
+                                        <Badge className="w-fit border-slate-200 bg-slate-100 px-3 py-1 font-black text-slate-700">{stats.total} total toko</Badge>
                                     </div>
-                                ))}
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    {Object.entries(stats.miniStats).map(([label, val]) => {
+                                        const pct = stats.total > 0 ? Math.round((Number(val) / stats.total) * 100) : 0;
+                                        return (
+                                            <button
+                                                key={label}
+                                                onClick={() => setDetailModal(prev => ({ ...prev, subContext: label }))}
+                                                className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-200 hover:shadow-md"
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+                                                        <p className="mt-2 text-3xl font-black text-slate-950">{val}</p>
+                                                    </div>
+                                                    <ChevronRight className="mt-1 h-4 w-4 text-slate-300 group-hover:text-red-600" />
+                                                </div>
+                                                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                                                    <div className="h-full rounded-full bg-red-600" style={{ width: `${Math.max(3, pct)}%` }} />
+                                                </div>
+                                                <p className="mt-2 text-[11px] font-bold text-slate-400">{pct}% dari total toko</p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
 
                         {detailModal.context === 'ATTENTION' && !detailModal.subContext && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(stats.miniPerhatian).map(([label, val]) => (
-                                    <div 
-                                        key={label} 
-                                        onClick={() => val > 0 && setDetailModal(prev => ({ ...prev, subContext: label }))}
-                                        className={`p-5 rounded-2xl border transition-all group ${val > 0 ? 'bg-white border-red-100 hover:border-red-300 shadow-sm hover:shadow-md cursor-pointer' : 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${val > 0 ? 'text-red-400' : 'text-slate-400'}`}>{label}</span>
-                                            {val > 0 && <ChevronRight className="w-4 h-4 text-red-300 group-hover:text-red-500 transition-colors" />}
+                            <div className="space-y-4">
+                                <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-black uppercase tracking-wide text-red-500">Perlu Tindakan</p>
+                                            <h3 className="text-xl font-black text-red-950">Tahap yang lewat SLA</h3>
+                                            <p className="mt-1 text-sm font-semibold text-red-700">Klik salah satu tahap untuk membuka daftar toko yang perlu dicek.</p>
                                         </div>
-                                        <div className={`text-3xl font-black ${val > 0 ? 'text-red-600' : 'text-slate-300'}`}>{val}</div>
-                                        <p className="text-[10px] text-slate-400 mt-1 font-medium italic">Toko melebihi batas SLA</p>
+                                        <p className="text-4xl font-black text-red-700">{stats.attention}</p>
                                     </div>
-                                ))}
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    {Object.entries(stats.miniPerhatian).map(([label, val]) => (
+                                        <button
+                                            key={label}
+                                            onClick={() => val > 0 && setDetailModal(prev => ({ ...prev, subContext: label }))}
+                                            disabled={Number(val) <= 0}
+                                            className={`rounded-2xl border p-4 text-left transition-all ${val > 0 ? 'border-red-100 bg-white shadow-sm hover:border-red-300 hover:shadow-md' : 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60'}`}
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className={`text-[11px] font-black uppercase tracking-wide ${val > 0 ? 'text-red-500' : 'text-slate-400'}`}>{label}</p>
+                                                    <p className={`mt-2 text-3xl font-black ${val > 0 ? 'text-red-700' : 'text-slate-300'}`}>{val}</p>
+                                                </div>
+                                                {val > 0 && <ChevronRight className="mt-1 h-4 w-4 text-red-400" />}
+                                            </div>
+                                            <p className="mt-3 text-[11px] font-bold text-slate-400">{val > 0 ? 'Ada toko yang perlu dicek' : 'Tidak ada masalah'}</p>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -2055,6 +2112,13 @@ export default function DashboardPage() {
                             );
                             const modernContexts = ['PROJECT', 'ATTENTION', 'PENAWARAN', 'SPK', 'JHK', 'DELAY', 'DENDA', 'NILAI_TOKO', 'NILAI_KONTRAKTOR', 'COST_M2'];
                             if (modernContexts.includes(detailModal.context)) {
+                                const summaryCards = [
+                                    { label: 'Data', value: modalData.length.toLocaleString('id-ID'), tone: 'border-slate-200 bg-white text-slate-900' },
+                                    { label: 'Penawaran', value: formatRupiah(modalData.reduce((sum, item) => sum + getProjectFinancialSummary(item).penawaran, 0)), tone: 'border-indigo-100 bg-indigo-50 text-indigo-800' },
+                                    { label: 'SPK', value: formatRupiah(modalData.reduce((sum, item) => sum + getProjectFinancialSummary(item).spk, 0)), tone: 'border-orange-100 bg-orange-50 text-orange-800' },
+                                    { label: 'Denda', value: formatRupiah(modalData.reduce((sum, item) => sum + getProjectPenaltyInfo(item).amount, 0)), tone: 'border-red-100 bg-red-50 text-red-800' },
+                                ];
+
                                 return (
                                     <div className="space-y-4">
                                         {detailModal.subContext && (
@@ -2066,6 +2130,17 @@ export default function DashboardPage() {
                                             >
                                                 <ChevronRight className="mr-1 h-4 w-4 rotate-180" /> Kembali ke Ringkasan
                                             </Button>
+                                        )}
+
+                                        {detailModal.context !== 'NILAI_KONTRAKTOR' && (
+                                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                                                {summaryCards.map(item => (
+                                                    <div key={item.label} className={`rounded-xl border px-4 py-3 ${item.tone}`}>
+                                                        <p className="text-[10px] font-black uppercase tracking-wide opacity-70">{item.label}</p>
+                                                        <p className="mt-1 text-base font-black leading-tight">{item.value}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
 
                                         <div className="grid grid-cols-1 gap-3">
@@ -2155,43 +2230,50 @@ export default function DashboardPage() {
                                                 }
 
                                                 return (
-                                                    <div key={toko.id || toko.nomor_ulok || i} className={`rounded-2xl border p-4 shadow-sm ${tone}`}>
-                                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                                            <div className="min-w-0">
+                                                    <div key={toko.id || toko.nomor_ulok || i} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition-all hover:shadow-md ${tone}`}>
+                                                        <div className="flex flex-col lg:flex-row">
+                                                            <div className={`h-1 lg:h-auto lg:w-1.5 ${detailModal.context === 'DENDA' || detailModal.context === 'DELAY' ? 'bg-red-500' : detailModal.context === 'NILAI_TOKO' ? 'bg-amber-500' : detailModal.context === 'SPK' ? 'bg-orange-500' : detailModal.context === 'PENAWARAN' ? 'bg-indigo-500' : 'bg-blue-500'}`} />
+                                                            <div className="flex min-w-0 flex-1 flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
+                                                                <div className="min-w-0 flex-1">
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     <p className="text-base font-black text-slate-950">{toko.nama_toko || '-'}</p>
                                                                     <Badge className="border-slate-200 bg-white font-black text-slate-700">{toko.nomor_ulok || '-'}</Badge>
                                                                     <Badge className="border-blue-100 bg-blue-50 font-black text-blue-700">{stage}</Badge>
                                                                     {badges}
                                                                 </div>
-                                                                <p className="mt-1 text-xs font-semibold text-slate-500">{toko.cabang || '-'} - {toko.lingkup_pekerjaan || '-'}</p>
+                                                                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-bold text-slate-500">
+                                                                        <span>{toko.cabang || '-'}</span>
+                                                                        <span>{toko.lingkup_pekerjaan || '-'}</span>
+                                                                        <span>Proyek: {toko.proyek || '-'}</span>
+                                                                    </div>
+                                                                    <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                                                                        <span className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400">Penawaran</p>
+                                                                            <p className="text-xs font-black text-slate-900">{formatRupiah(financial.penawaran)}</p>
+                                                                        </span>
+                                                                        <span className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400">SPK</p>
+                                                                            <p className="text-xs font-black text-slate-900">{formatRupiah(financial.spk)}</p>
+                                                                        </span>
+                                                                        <span className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400">Denda / Telat</p>
+                                                                            <p className="text-xs font-black text-slate-900">{formatRupiah(penaltyInfo.amount)} <span className="text-[10px] text-slate-400">({lateDays}h)</span></p>
+                                                                        </span>
+                                                                        <span className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400">ST</p>
+                                                                            <p className="text-xs font-black text-slate-900">{hasST ? 'Ada' : 'Belum'}</p>
+                                                                        </span>
+                                                                    </div>
                                                             </div>
-                                                            <div className="rounded-xl border border-white bg-white/80 px-4 py-3 text-right shadow-xs">
+
+                                                                <div className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-white bg-white/90 px-4 py-3 shadow-xs xl:min-w-56 xl:flex-col xl:items-end xl:text-right">
+                                                                    <div>
                                                                 <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{headline}</p>
                                                                 <p className="mt-1 text-xl font-black text-slate-950">{headlineValue}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                                                <p className="text-[10px] font-black uppercase text-slate-400">Penawaran</p>
-                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(financial.penawaran)}</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                                                <p className="text-[10px] font-black uppercase text-slate-400">SPK</p>
-                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(financial.spk)}</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                                                <p className="text-[10px] font-black uppercase text-slate-400">Denda / Telat</p>
-                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(penaltyInfo.amount)} <span className="text-[10px] text-slate-400">({lateDays} hari)</span></p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                                                <p className="text-[10px] font-black uppercase text-slate-400">Serah Terima</p>
-                                                                <div className="mt-1 flex items-center justify-between gap-2">
-                                                                    <p className="text-sm font-black text-slate-900">{hasST ? 'Ada' : 'Belum'}</p>
+                                                                    </div>
                                                                     {hasST && (
-                                                                        <Button variant="outline" className="h-7 rounded-md px-2 text-[10px] font-bold" onClick={() => handleOpenSerahTerima(p)}>
-                                                                            <ExternalLink className="mr-1 h-3 w-3" /> ST
+                                                                        <Button variant="outline" className="h-8 rounded-lg px-3 text-[11px] font-black" onClick={() => handleOpenSerahTerima(p)}>
+                                                                            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Buka ST
                                                                         </Button>
                                                                     )}
                                                                 </div>
@@ -2199,7 +2281,7 @@ export default function DashboardPage() {
                                                         </div>
 
                                                         {detailModal.context === 'NILAI_TOKO' && (
-                                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                            <div className="border-t border-amber-100 bg-white/70 px-4 py-3 grid grid-cols-3 gap-2">
                                                                 {[
                                                                     ['Desain', quality.desain, 30],
                                                                     ['Kualitas', quality.kualitas, 35],
