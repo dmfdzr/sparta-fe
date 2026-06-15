@@ -558,12 +558,6 @@ const DOCUMENT_GROUP_CONFIG: Array<Omit<DocumentContextGroup, 'docs'>> = [
         className: 'bg-slate-50 text-slate-700 border-slate-200',
     },
     {
-        key: 'PERLUASAN',
-        label: 'Perluasan',
-        description: 'Dokumen pekerjaan perluasan.',
-        className: 'bg-purple-50 text-purple-700 border-purple-200',
-    },
-    {
         key: 'LAINNYA',
         label: 'Lainnya',
         description: 'Dokumen yang belum memiliki klasifikasi utama.',
@@ -584,9 +578,13 @@ const getDocumentGroupKeys = (doc: NormalizedDoc) => {
         keys.add('RUKO');
     }
 
-    if (proyek.includes('RENOVASI') || jenisPengajuan.includes('RENOVASI')) keys.add('RENOVASI');
+    if (
+        proyek.includes('RENOVASI') ||
+        jenisPengajuan.includes('RENOVASI') ||
+        proyek.includes('PERLUAS') ||
+        jenisPengajuan.includes('PERLUAS')
+    ) keys.add('RENOVASI');
     if (proyek.includes('REGULER') || jenisPengajuan.includes('REGULER')) keys.add('REGULER');
-    if (proyek.includes('PERLUAS') || jenisPengajuan.includes('PERLUAS')) keys.add('PERLUASAN');
 
     if (keys.size === 0) keys.add('LAINNYA');
     return Array.from(keys);
@@ -618,15 +616,6 @@ const getDocumentGroupVisual = (key: string): { icon: React.ReactNode; panel: st
             iconBox: 'bg-blue-100 text-blue-700',
             text: 'text-blue-700',
             meter: 'bg-blue-500',
-        };
-    }
-    if (key === 'PERLUASAN') {
-        return {
-            icon: <ExternalLink className="w-5 h-5" />,
-            panel: 'border-violet-200 bg-linear-to-br from-white via-violet-50/70 to-white',
-            iconBox: 'bg-violet-100 text-violet-700',
-            text: 'text-violet-700',
-            meter: 'bg-violet-500',
         };
     }
     if (key === 'REGULER') {

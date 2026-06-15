@@ -1336,8 +1336,8 @@ export default function DashboardPage() {
 
                                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                     <div className="mb-4">
-                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Angka Kunci</p>
-                                        <h2 className="text-lg font-black text-slate-950">Nilai & Risiko</h2>
+                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Nominal Pekerjaan</p>
+                                        <h2 className="text-lg font-black text-slate-950">Ringkasan Nilai</h2>
                                     </div>
                                     <div className="space-y-3">
                                         {financialHighlights.map(item => (
