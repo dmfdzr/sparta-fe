@@ -573,13 +573,11 @@ export default function DashboardPage() {
     const handleOpenSerahTerima = useCallback(async (project: any) => {
         const serahTerima = getLatestSerahTerima(project);
         if (!serahTerima) return;
-        if (serahTerima.link_pdf) {
-            window.open(serahTerima.link_pdf, '_blank', 'noopener,noreferrer');
-            return;
-        }
         if (serahTerima.id) {
             await viewGeneratedPdfOnline(serahTerima.id, 'BERKAS_SERAH_TERIMA');
+            return;
         }
+        console.warn('Berkas serah terima tidak memiliki ID untuk dibuka lewat viewer aplikasi.', serahTerima);
     }, []);
 
     // Summary Stats
