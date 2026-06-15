@@ -977,6 +977,12 @@ export default function DashboardPage() {
         { label: 'Denda', value: formatRupiah(stats.totalDenda), icon: <AlertCircle className="w-4 h-4" />, context: 'DENDA', color: 'text-red-700 bg-red-50 border-red-100' },
         { label: 'Nilai Toko', value: `${stats.avgNilaiToko} Poin`, icon: <Tag className="w-4 h-4" />, context: 'NILAI_TOKO', color: 'text-amber-700 bg-amber-50 border-amber-100' },
     ];
+    const focusCards = [
+        { label: 'Total Toko', value: stats.total, helper: 'Semua toko pada filter aktif', icon: <Store className="w-4 h-4" />, context: 'PROJECT', subContext: '', tone: 'border-slate-200 bg-white text-slate-900' },
+        { label: 'Perlu Dicek', value: stats.attention, helper: 'Lewat SLA atau punya risiko denda', icon: <AlertTriangle className="w-4 h-4" />, context: 'ATTENTION', subContext: '', tone: 'border-red-200 bg-red-50 text-red-700' },
+        { label: 'Ongoing', value: stats.miniStats.Ongoing, helper: 'Sudah SPK dan masih berjalan', icon: <HardHat className="w-4 h-4" />, context: 'PROJECT', subContext: 'Ongoing', tone: 'border-blue-200 bg-blue-50 text-blue-700' },
+        { label: 'Done / ST', value: stats.miniStats.Done, helper: 'Sudah opname final atau serah terima', icon: <CheckCircle2 className="w-4 h-4" />, context: 'PROJECT', subContext: 'Done', tone: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    ];
 
     // =========================================================================
     // LOADING STATE
@@ -1247,7 +1253,184 @@ export default function DashboardPage() {
                         
                         {/* 1. SCROLLABLE CONTENT */}
                         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-5 custom-scrollbar">
-                            <section className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.9fr] gap-5">
+                            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                <div className="border-b border-slate-200 px-5 py-4">
+                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-red-600">Monitoring Operasional</p>
+                                            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Dashboard Toko</h1>
+                                            <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">
+                                                {canSeeAllMonitoringBranches ? 'Ringkasan lintas cabang untuk melihat status dokumen, nilai pekerjaan, denda, dan toko yang perlu ditindaklanjuti.' : `Ringkasan cabang ${userInfo.cabang || '-'} untuk melihat toko aktif, risiko, dan dokumen penting.`}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button variant="outline" className="h-9 rounded-lg text-xs font-bold" onClick={() => setDetailModal({ open: true, title: 'Detail Status Proyek', context: 'PROJECT', subContext: '' })}>
+                                                <Layers className="mr-1.5 h-3.5 w-3.5" /> Semua Toko
+                                            </Button>
+                                            <Button className="h-9 rounded-lg bg-red-600 text-xs font-bold text-white hover:bg-red-700" onClick={() => setDetailModal({ open: true, title: 'Detail SLA (Perlu Perhatian)', context: 'ATTENTION', subContext: '' })}>
+                                                <AlertTriangle className="mr-1.5 h-3.5 w-3.5" /> Prioritas
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
+                                    {focusCards.map(item => (
+                                        <button
+                                            key={item.label}
+                                            className={`rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${item.tone}`}
+                                            onClick={() => setDetailModal({ open: true, title: item.label, context: item.context, subContext: item.subContext })}
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="rounded-lg bg-white/80 p-2 shadow-sm">{item.icon}</div>
+                                                <ChevronRight className="h-4 w-4 opacity-50" />
+                                            </div>
+                                            <p className="mt-4 text-[11px] font-black uppercase tracking-wide opacity-70">{item.label}</p>
+                                            <p className="mt-1 text-3xl font-black leading-none">{item.value}</p>
+                                            <p className="mt-2 text-xs font-semibold opacity-70">{item.helper}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_420px]">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Tahap Pekerjaan</p>
+                                            <h2 className="text-lg font-black text-slate-950">Alur Dokumen</h2>
+                                        </div>
+                                        <Button variant="outline" className="h-9 rounded-lg text-xs font-bold" onClick={() => setDetailModal({ open: true, title: 'Detail Status Proyek', context: 'PROJECT', subContext: '' })}>
+                                            Lihat Semua
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                                        {pipelineSteps.map((label, idx) => {
+                                            const value = stats.miniStats[label as keyof typeof stats.miniStats] ?? 0;
+                                            const pct = stats.total > 0 ? Math.round((value / stats.total) * 100) : 0;
+                                            return (
+                                                <button
+                                                    key={label}
+                                                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-red-200 hover:bg-white hover:shadow-sm"
+                                                    onClick={() => setDetailModal({ open: true, title: `Tahap ${label}`, context: 'PROJECT', subContext: label })}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-black text-slate-500">{idx + 1}</span>
+                                                        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500">{pct}%</span>
+                                                    </div>
+                                                    <p className="mt-3 min-h-8 text-sm font-black leading-tight text-slate-900">{label}</p>
+                                                    <div className="mt-3 flex items-end justify-between gap-3">
+                                                        <p className="text-2xl font-black text-red-600">{value}</p>
+                                                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                                                            <div className="h-full rounded-full bg-red-600" style={{ width: `${Math.max(4, pct)}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="mb-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Angka Kunci</p>
+                                        <h2 className="text-lg font-black text-slate-950">Nilai & Risiko</h2>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {financialHighlights.map(item => (
+                                            <button key={item.label} className={`w-full rounded-xl border p-4 text-left transition-all hover:shadow-sm ${item.color}`} onClick={() => setDetailModal({ open: true, title: item.label, context: item.context, subContext: '' })}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="rounded-lg bg-white/80 p-2 shadow-sm">{item.icon}</div>
+                                                        <div>
+                                                            <p className="text-[11px] font-black uppercase tracking-wide opacity-70">{item.label}</p>
+                                                            <p className="mt-1 text-xl font-black">{item.value}</p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="mt-1 h-4 w-4 opacity-50" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                        {shouldShowFinancialBenchmarkCards && (
+                                            <button className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-all hover:border-purple-200 hover:bg-white hover:shadow-sm" onClick={() => setDetailModal({ open: true, title: 'Rata-rata Cost/m2', context: 'COST_M2', subContext: '' })}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">Cost/m2</p>
+                                                        <p className="mt-1 text-lg font-black text-slate-950">Terbangun {formatRupiah(stats.avgCostTerbangun)}</p>
+                                                        <p className="mt-1 text-xs font-semibold text-slate-500">Bangunan {formatRupiah(stats.avgCostBangunan)} - Terbuka {formatRupiah(stats.avgCostTerbuka)}</p>
+                                                    </div>
+                                                    <ChevronRight className="mt-1 h-4 w-4 text-slate-400" />
+                                                </div>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Daftar Kerja</p>
+                                            <h2 className="text-lg font-black text-slate-950">Toko yang Harus Dicek</h2>
+                                        </div>
+                                        <Button variant="outline" className="h-9 rounded-lg text-xs font-bold" onClick={() => setDetailModal({ open: true, title: 'Detail SLA (Perlu Perhatian)', context: 'ATTENTION', subContext: '' })}>
+                                            Semua Prioritas
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {priorityProjects.length === 0 ? (
+                                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-sm font-bold text-emerald-700">Tidak ada toko prioritas pada filter ini.</div>
+                                        ) : priorityProjects.map(({ project, stage, lateDays, penalty, hasST }) => {
+                                            const st = getLatestSerahTerima(project);
+                                            return (
+                                                <div key={project.toko?.id || project.toko?.nomor_ulok} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+                                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                                        <div className="min-w-0">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <p className="font-black text-slate-950">{project.toko?.nama_toko || '-'}</p>
+                                                                <Badge className="border-slate-200 bg-slate-100 font-black text-slate-700">{project.toko?.nomor_ulok || '-'}</Badge>
+                                                                <Badge className="border-blue-100 bg-blue-50 font-black text-blue-700">{stage}</Badge>
+                                                            </div>
+                                                            <p className="mt-1 text-xs font-semibold text-slate-500">{project.toko?.cabang || '-'} - {project.toko?.lingkup_pekerjaan || '-'}</p>
+                                                            {st?.created_at && <p className="mt-1 text-[11px] font-medium text-slate-400">ST terakhir {new Date(st.created_at).toLocaleDateString('id-ID')}</p>}
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                                                            {lateDays > 0 && <Badge className="border-red-100 bg-red-50 font-black text-red-700">{lateDays} hari telat</Badge>}
+                                                            {penalty.amount > 0 && <Badge className="border-rose-100 bg-rose-50 font-black text-rose-700">{formatRupiah(penalty.amount)}</Badge>}
+                                                            {hasST ? (
+                                                                <Button variant="outline" className="h-8 rounded-lg bg-white text-xs font-bold" onClick={() => handleOpenSerahTerima(project)}>
+                                                                    <ExternalLink className="mr-1 h-3.5 w-3.5" /> ST
+                                                                </Button>
+                                                            ) : (
+                                                                <Badge className="border-slate-200 bg-slate-100 font-black text-slate-500">Belum ST</Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <div className="mb-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Kualitas Serah Terima</p>
+                                        <h2 className="text-lg font-black text-slate-950">Nilai Toko</h2>
+                                    </div>
+                                    <button className="w-full rounded-xl border border-amber-200 bg-amber-50 p-5 text-left transition-all hover:bg-white hover:shadow-sm" onClick={() => setDetailModal({ open: true, title: 'Rata-rata Nilai Toko', context: 'NILAI_TOKO', subContext: '' })}>
+                                        <div className="flex items-center justify-between">
+                                            <Tag className="h-5 w-5 text-amber-700" />
+                                            <ChevronRight className="h-4 w-4 text-amber-700" />
+                                        </div>
+                                        <p className="mt-6 text-[11px] font-black uppercase tracking-wide text-amber-700">Rata-rata Nilai Toko</p>
+                                        <p className="mt-1 text-4xl font-black text-amber-900">{stats.avgNilaiToko}</p>
+                                        <p className="mt-2 text-sm font-semibold text-amber-800">Klik untuk lihat komponen nilai dan akses file ST per toko.</p>
+                                    </button>
+                                </div>
+                            </section>
+
+                            <section className="hidden">
                                 <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white border border-slate-800 shadow-sm">
                                     <div className="absolute inset-y-0 right-0 w-1/2 bg-linear-to-l from-red-700/25 to-transparent" />
                                     <div className="relative p-5 md:p-6">
@@ -1303,7 +1486,7 @@ export default function DashboardPage() {
                                 </div>
                             </section>
 
-                            <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-5">
+                            <section className="hidden">
                                 <div className="flex items-center justify-between gap-3 mb-4">
                                     <div>
                                         <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Pipeline</p>
@@ -1334,7 +1517,7 @@ export default function DashboardPage() {
                                 </div>
                             </section>
 
-                            <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5">
+                            <section className="hidden">
                                 <div className="rounded-3xl bg-white border border-slate-200 shadow-sm p-5">
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
@@ -1852,6 +2035,192 @@ export default function DashboardPage() {
 
                             const totalPages = Math.ceil(modalData.length / itemsPerPage);
                             const paginatedData = modalData.slice((modalPage - 1) * itemsPerPage, modalPage * itemsPerPage);
+                            const renderModalPagination = () => (
+                                <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-[11px] font-semibold text-slate-400">
+                                        Menampilkan <span className="font-black text-slate-700">{modalData.length ? Math.min(modalData.length, (modalPage - 1) * itemsPerPage + 1) : 0} - {Math.min(modalData.length, modalPage * itemsPerPage)}</span> dari <span className="font-black text-slate-700">{modalData.length}</span> data
+                                    </p>
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="sm" className="h-8 rounded-lg px-3 text-[10px] font-bold" onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1}>
+                                                Sebelumnya
+                                            </Button>
+                                            <span className="rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-600">{modalPage} / {totalPages}</span>
+                                            <Button variant="outline" size="sm" className="h-8 rounded-lg px-3 text-[10px] font-bold" onClick={() => setModalPage(p => Math.min(totalPages, p + 1))} disabled={modalPage === totalPages}>
+                                                Selanjutnya
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                            const modernContexts = ['PROJECT', 'ATTENTION', 'PENAWARAN', 'SPK', 'JHK', 'DELAY', 'DENDA', 'NILAI_TOKO', 'NILAI_KONTRAKTOR', 'COST_M2'];
+                            if (modernContexts.includes(detailModal.context)) {
+                                return (
+                                    <div className="space-y-4">
+                                        {detailModal.subContext && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="-ml-2 rounded-lg text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                onClick={() => setDetailModal(prev => ({ ...prev, subContext: '' }))}
+                                            >
+                                                <ChevronRight className="mr-1 h-4 w-4 rotate-180" /> Kembali ke Ringkasan
+                                            </Button>
+                                        )}
+
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {paginatedData.length === 0 && (
+                                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                                                    <p className="text-sm font-bold text-slate-500">Tidak ada data untuk filter ini.</p>
+                                                </div>
+                                            )}
+
+                                            {paginatedData.map((p: any, i: number) => {
+                                                if (detailModal.context === 'NILAI_KONTRAKTOR') {
+                                                    return (
+                                                        <div key={p.nama_kontraktor || i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                                <div>
+                                                                    <p className="text-base font-black text-slate-950">{p.nama_kontraktor || '-'}</p>
+                                                                    <p className="mt-1 text-xs font-semibold text-slate-500">{p.tokoCount || 0} toko / ULOK dinilai</p>
+                                                                </div>
+                                                                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right">
+                                                                    <p className="text-[10px] font-black uppercase text-emerald-700">Rata-rata</p>
+                                                                    <p className="text-2xl font-black text-emerald-900">{Number(p.nilai || 0).toFixed(1)}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                                                {(p.stores || []).slice(0, 4).map((st: any, idx: number) => (
+                                                                    <div key={`${st.nomor_ulok || idx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                                                        <div className="flex items-start justify-between gap-3">
+                                                                            <div>
+                                                                                <p className="text-sm font-black text-slate-900">{st.nama_toko || '-'}</p>
+                                                                                <p className="text-[11px] font-semibold text-slate-500">{st.nomor_ulok || '-'} - {st.cabang || '-'}</p>
+                                                                            </div>
+                                                                            <Badge className="border-blue-100 bg-blue-50 font-black text-blue-700">{Number(st.nilai || 0).toFixed(1)}</Badge>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                const toko = p.toko || {};
+                                                const stage = getProjectStage(p);
+                                                const financial = getProjectFinancialSummary(p);
+                                                const penaltyInfo = getProjectPenaltyInfo(p);
+                                                const lateDays = calculateProjectLateDays(p);
+                                                const quality = getStoreQualityScore(opnameItemsMap[toko.id] || []);
+                                                const spkArr = Array.isArray(p.spk) ? p.spk : (p.spk ? [p.spk] : []);
+                                                const activeSpk = spkArr.find((s: any) => s.status && !['REJECTED', 'REJECT', 'CANCELLED', 'CANCEL'].includes(String(s.status).toUpperCase())) || spkArr[0];
+                                                const hasST = Boolean(getLatestSerahTerima(p));
+                                                const areaTerbangun = Number(toko.luas_area_terbangun || toko.luas_terbangun || 0);
+                                                const costTerbangun = areaTerbangun > 0 ? Math.round(financial.opname / areaTerbangun) : 0;
+
+                                                let headline = stage;
+                                                let headlineValue: React.ReactNode = toko.proyek || '-';
+                                                let tone = 'border-slate-200 bg-white';
+                                                let badges: React.ReactNode = null;
+                                                if (detailModal.context === 'PENAWARAN') {
+                                                    headline = 'Nilai Penawaran';
+                                                    headlineValue = formatRupiah(financial.penawaran);
+                                                    tone = 'border-indigo-100 bg-indigo-50/40';
+                                                } else if (detailModal.context === 'SPK') {
+                                                    headline = 'Nilai SPK';
+                                                    headlineValue = formatRupiah(financial.spk);
+                                                    tone = 'border-orange-100 bg-orange-50/40';
+                                                } else if (detailModal.context === 'JHK') {
+                                                    headline = 'Durasi SPK';
+                                                    headlineValue = `${Number(activeSpk?.durasi || 0)} hari`;
+                                                    tone = 'border-blue-100 bg-blue-50/40';
+                                                } else if (detailModal.context === 'DELAY') {
+                                                    headline = 'Keterlambatan';
+                                                    headlineValue = `${lateDays} hari`;
+                                                    tone = lateDays > 0 ? 'border-red-100 bg-red-50/50' : 'border-emerald-100 bg-emerald-50/40';
+                                                } else if (detailModal.context === 'DENDA') {
+                                                    headline = 'Nilai Denda';
+                                                    headlineValue = formatRupiah(penaltyInfo.amount);
+                                                    tone = 'border-rose-100 bg-rose-50/50';
+                                                    badges = <Badge className="border-rose-100 bg-white font-black text-rose-700">{penaltyInfo.days} hari</Badge>;
+                                                } else if (detailModal.context === 'NILAI_TOKO') {
+                                                    headline = 'Nilai Toko';
+                                                    headlineValue = `${quality.total.toFixed(1)} poin`;
+                                                    tone = 'border-amber-100 bg-amber-50/50';
+                                                } else if (detailModal.context === 'COST_M2') {
+                                                    headline = 'Cost/m2 Terbangun';
+                                                    headlineValue = costTerbangun ? formatRupiah(costTerbangun) : '-';
+                                                    tone = costTerbangun > 900000 ? 'border-red-100 bg-red-50/50' : 'border-purple-100 bg-purple-50/40';
+                                                    badges = costTerbangun > 900000 ? <Badge className="border-red-100 bg-white font-black text-red-700">Rekomendasi Non-Ruko</Badge> : null;
+                                                }
+
+                                                return (
+                                                    <div key={toko.id || toko.nomor_ulok || i} className={`rounded-2xl border p-4 shadow-sm ${tone}`}>
+                                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <p className="text-base font-black text-slate-950">{toko.nama_toko || '-'}</p>
+                                                                    <Badge className="border-slate-200 bg-white font-black text-slate-700">{toko.nomor_ulok || '-'}</Badge>
+                                                                    <Badge className="border-blue-100 bg-blue-50 font-black text-blue-700">{stage}</Badge>
+                                                                    {badges}
+                                                                </div>
+                                                                <p className="mt-1 text-xs font-semibold text-slate-500">{toko.cabang || '-'} - {toko.lingkup_pekerjaan || '-'}</p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-white bg-white/80 px-4 py-3 text-right shadow-xs">
+                                                                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{headline}</p>
+                                                                <p className="mt-1 text-xl font-black text-slate-950">{headlineValue}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
+                                                                <p className="text-[10px] font-black uppercase text-slate-400">Penawaran</p>
+                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(financial.penawaran)}</p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
+                                                                <p className="text-[10px] font-black uppercase text-slate-400">SPK</p>
+                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(financial.spk)}</p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
+                                                                <p className="text-[10px] font-black uppercase text-slate-400">Denda / Telat</p>
+                                                                <p className="mt-1 text-sm font-black text-slate-900">{formatRupiah(penaltyInfo.amount)} <span className="text-[10px] text-slate-400">({lateDays} hari)</span></p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-100 bg-white p-3">
+                                                                <p className="text-[10px] font-black uppercase text-slate-400">Serah Terima</p>
+                                                                <div className="mt-1 flex items-center justify-between gap-2">
+                                                                    <p className="text-sm font-black text-slate-900">{hasST ? 'Ada' : 'Belum'}</p>
+                                                                    {hasST && (
+                                                                        <Button variant="outline" className="h-7 rounded-md px-2 text-[10px] font-bold" onClick={() => handleOpenSerahTerima(p)}>
+                                                                            <ExternalLink className="mr-1 h-3 w-3" /> ST
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {detailModal.context === 'NILAI_TOKO' && (
+                                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                                {[
+                                                                    ['Desain', quality.desain, 30],
+                                                                    ['Kualitas', quality.kualitas, 35],
+                                                                    ['Spesifikasi', quality.spesifikasi, 35],
+                                                                ].map(([label, value, max]) => (
+                                                                    <div key={String(label)} className="rounded-xl border border-amber-100 bg-white p-3">
+                                                                        <p className="text-[10px] font-black uppercase text-amber-700">{label}</p>
+                                                                        <p className="mt-1 text-sm font-black text-slate-950">{Number(value).toFixed(1)} <span className="text-[10px] text-slate-400">/ {max}</span></p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {renderModalPagination()}
+                                    </div>
+                                );
+                            }
 
                             return (
                                 <div className="space-y-3">
