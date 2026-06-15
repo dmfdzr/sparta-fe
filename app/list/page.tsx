@@ -584,6 +584,61 @@ const getDocumentGroupKeys = (doc: NormalizedDoc) => {
     return Array.from(keys);
 };
 
+const getDocumentGroupVisual = (key: string): { icon: React.ReactNode; panel: string; iconBox: string; text: string; meter: string } => {
+    if (key === 'NON_RUKO') {
+        return {
+            icon: <Building2 className="w-5 h-5" />,
+            panel: 'border-emerald-200 bg-linear-to-br from-white via-emerald-50/60 to-white',
+            iconBox: 'bg-emerald-100 text-emerald-700',
+            text: 'text-emerald-700',
+            meter: 'bg-emerald-500',
+        };
+    }
+    if (key === 'RUKO') {
+        return {
+            icon: <Building2 className="w-5 h-5" />,
+            panel: 'border-amber-200 bg-linear-to-br from-white via-amber-50/70 to-white',
+            iconBox: 'bg-amber-100 text-amber-700',
+            text: 'text-amber-700',
+            meter: 'bg-amber-500',
+        };
+    }
+    if (key === 'RENOVASI') {
+        return {
+            icon: <RefreshCw className="w-5 h-5" />,
+            panel: 'border-blue-200 bg-linear-to-br from-white via-blue-50/70 to-white',
+            iconBox: 'bg-blue-100 text-blue-700',
+            text: 'text-blue-700',
+            meter: 'bg-blue-500',
+        };
+    }
+    if (key === 'PERLUASAN') {
+        return {
+            icon: <ExternalLink className="w-5 h-5" />,
+            panel: 'border-violet-200 bg-linear-to-br from-white via-violet-50/70 to-white',
+            iconBox: 'bg-violet-100 text-violet-700',
+            text: 'text-violet-700',
+            meter: 'bg-violet-500',
+        };
+    }
+    if (key === 'REGULER') {
+        return {
+            icon: <CheckCircle className="w-5 h-5" />,
+            panel: 'border-slate-200 bg-linear-to-br from-white via-slate-50 to-white',
+            iconBox: 'bg-slate-100 text-slate-700',
+            text: 'text-slate-700',
+            meter: 'bg-slate-500',
+        };
+    }
+    return {
+        icon: <FileText className="w-5 h-5" />,
+        panel: 'border-zinc-200 bg-linear-to-br from-white via-zinc-50 to-white',
+        iconBox: 'bg-zinc-100 text-zinc-700',
+        text: 'text-zinc-700',
+        meter: 'bg-zinc-500',
+    };
+};
+
 const applyProjectPlanningContext = (docs: NormalizedDoc[], projekList: ProjekPlanningItem[]) => {
     const contextByUlok = new Map<string, ProjekPlanningItem>();
     projekList.forEach((projek) => {
@@ -2161,7 +2216,7 @@ export default function DaftarDokumenPage() {
                                     </Button>
                                 </div>
                             )}
-                            <div className="grid gap-3">
+                            <div className={isGroupedDocumentCategory && !selectedDocumentGroup ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "grid gap-3"}>
                                 {selectedKategori === 'PENGAWASAN' && !selectedPengawasanGroup ? pengawasanGroups.map(group => (
                                     <div
                                         key={group.key}
@@ -2218,54 +2273,50 @@ export default function DaftarDokumenPage() {
                                 )) : isGroupedDocumentCategory && !selectedDocumentGroup ? documentGroups.map(group => {
                                     const latestDoc = group.docs[0];
                                     const branchCount = new Set(group.docs.map(doc => doc.cabang).filter(Boolean)).size;
+                                    const visual = getDocumentGroupVisual(group.key);
+                                    const totalCount = Math.max(filteredList.length, 1);
+                                    const ratio = Math.max(8, Math.min(100, Math.round((group.docs.length / totalCount) * 100)));
                                     return (
                                     <div
                                         key={group.key}
-                                        className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                                        className={`relative overflow-hidden rounded-2xl border ${visual.panel} p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 cursor-pointer group`}
                                         onClick={() => setSelectedDocumentGroupKey(group.key)}
                                     >
-                                        <div className="p-4 md:p-5">
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                                <div className="flex items-start gap-3 min-w-0 flex-1">
-                                                    <div className={`w-10 h-10 rounded-xl ${KATEGORI_CONFIG[selectedKategori].bgColor} flex items-center justify-center shrink-0 mt-0.5`}>
-                                                        <div className={`${KATEGORI_CONFIG[selectedKategori].color}`}>
-                                                            <Filter className="w-5 h-5" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-bold text-slate-800 text-sm">{group.label}</span>
-                                                            <Badge className={`${group.className} text-[10px] font-semibold border px-2 py-0`}>
-                                                                Kelompok
-                                                            </Badge>
-                                                            <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-semibold border px-2 py-0">
-                                                                {group.docs.length} dokumen
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-sm text-slate-600 mt-0.5">{group.description}</p>
-                                                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                                            {latestDoc?.created_at && (
-                                                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                                                    <CalendarDays className="w-3 h-3" /> Terakhir {formatDate(latestDoc.created_at)}
-                                                                </span>
-                                                            )}
-                                                            {branchCount > 0 && (
-                                                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                                                    <Building2 className="w-3 h-3" /> {branchCount} cabang
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                        <div className="absolute inset-x-0 top-0 h-1 bg-slate-100">
+                                            <div className={`h-full ${visual.meter}`} style={{ width: `${ratio}%` }} />
+                                        </div>
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className={`w-11 h-11 rounded-2xl ${visual.iconBox} flex items-center justify-center shrink-0`}>
+                                                {visual.icon}
+                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors mt-2" />
+                                        </div>
 
-                                                <div className="flex items-center gap-3 shrink-0 md:pl-4">
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-bold text-slate-800">{group.docs.length} Dokumen</p>
-                                                        <p className="text-[11px] text-slate-400 mt-0.5">Klik untuk lihat ULOK</p>
-                                                    </div>
-                                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                                        <div className="mt-5">
+                                            <div className="flex items-baseline justify-between gap-3">
+                                                <h3 className="font-extrabold text-slate-900 text-lg">{group.label}</h3>
+                                                <div className="text-right shrink-0">
+                                                    <p className={`text-2xl font-extrabold leading-none ${visual.text}`}>{group.docs.length}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1">Dokumen</p>
                                                 </div>
                                             </div>
+                                            <p className="text-sm text-slate-600 mt-2 min-h-10 leading-5">{group.description}</p>
+                                        </div>
+
+                                        <div className="mt-5 pt-4 border-t border-white/80 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 flex-wrap min-w-0">
+                                                {latestDoc?.created_at && (
+                                                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                                                        <CalendarDays className="w-3 h-3" /> {formatDate(latestDoc.created_at)}
+                                                    </span>
+                                                )}
+                                                {branchCount > 0 && (
+                                                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                                                        <Building2 className="w-3 h-3" /> {branchCount} cabang
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Lihat ULOK</span>
                                         </div>
                                     </div>
                                 )}) : visibleList.map(doc => (
