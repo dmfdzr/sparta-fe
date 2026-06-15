@@ -210,7 +210,7 @@ const getProjectPenaltyInfo = (project: any, lateDays?: number): ProjectPenaltyI
         const dbAmount = Math.max(0, parseCurrency(latestOpnameFinal.nilai_denda));
         const dbDays = Number(latestOpnameFinal.hari_denda ?? 0);
         
-        // If the DB has a valid penalty > 0, trust the DB (Opname Final).
+        // If the DB has a valid penalty > 0, trust the DB (Opname).
         // Otherwise (DB is 0), fallback to the live calculation based on SPK + ST to bypass the backend bug.
         if (dbAmount > 0 || dbDays > 0) {
             return {
@@ -1678,7 +1678,7 @@ export default function DashboardPage() {
                                                         });
 
                                                         if (useOpnameFinal) {
-                                                            dataSource = "Opname Final";
+                                                            dataSource = "Opname";
                                                             costTerbangun = Number(latestOpnameFinal.grand_total_opname || 0);
                                                             opnameFinalItems.forEach((oItem: any) => {
                                                                 const itemTotal = Number(oItem.total_harga_opname || 0);

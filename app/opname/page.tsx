@@ -971,11 +971,11 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                         <div>
                                             <h4 className={`font-bold text-sm ${allApproved ? 'text-emerald-800' : 'text-slate-500'}`}>
                                                 <Lock className="w-4 h-4 inline mr-1.5" />
-                                                Kunci Opname Final
+                                                Kunci Opname
                                             </h4>
                                             <p className={`text-xs mt-0.5 ${allApproved ? 'text-emerald-600' : 'text-slate-400'}`}>
                                                 {allApproved
-                                                    ? 'Semua item telah disetujui oleh Kontraktor. Klik untuk mengunci dan mengirim ke proses approval sebagai Opname Final.'
+                                                    ? 'Semua item telah disetujui oleh Kontraktor. Klik untuk mengunci dan mengirim ke proses approval sebagai Opname.'
                                                     : `Semua item harus berstatus Disetujui (${existingOpname.filter(o => o.status?.toLowerCase() === 'disetujui').length}/${rabItems.length} item disetujui oleh Kontraktor).`
                                                 }
                                             </p>
@@ -986,7 +986,7 @@ function PICOpnameView({ userInfo }: { userInfo: { name: string; role: string; c
                                             className={`font-bold text-sm px-6 shadow-md shrink-0 ml-4 ${allApproved ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-300 cursor-not-allowed text-slate-500'}`}
                                         >
                                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
-                                            Kunci Opname Final
+                                            Kunci Opname
                                         </Button>
                                     </div>
                                 )}

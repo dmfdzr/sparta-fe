@@ -328,7 +328,7 @@ export default function UserManualPage() {
                       <li>Lakukan pengecekan pada <strong>Volume Aktual</strong> dan <strong>Foto</strong> yang diunggah oleh pengawas.</li>
                       <li>Berikan catatan opsional jika diperlukan.</li>
                       <li>Pilih tindakan <strong>Approve</strong> atau <strong>Reject</strong> pada setiap item laporan Opname.</li>
-                      <li>Hasil Riwayat Opname Final yang telah diapprove dapat dilihat dan di-download dalam bentuk PDF.</li>
+                      <li>Hasil Riwayat Opname yang telah diapprove dapat dilihat dan di-download dalam bentuk PDF.</li>
                     </ul>
                   </div>
 
@@ -419,7 +419,7 @@ export default function UserManualPage() {
                       <li>Pilih menu <strong>Opname</strong> lalu klik <strong>Input Opname Harian</strong>.</li>
                       <li>Pilih Lokasi Toko dan Lingkup Pekerjaan.</li>
                       <li>Isi detail Volume Aktual yang diselesaikan, lalu Upload Foto pendukung, dan klik Simpan untuk diverifikasi oleh Kontraktor.</li>
-                      <li>Riwayat Opname Final dapat dilihat pada menu Lihat Opname Final dan bisa diunduh PDF (Berita Acara Opname Pekerjaan).</li>
+                      <li>Riwayat Opname dapat dilihat pada menu Lihat Opname dan bisa diunduh PDF (Berita Acara Opname Pekerjaan).</li>
                     </ul>
                   </div>
 

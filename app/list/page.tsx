@@ -57,6 +57,7 @@ interface NormalizedDoc {
     nomor_spk?: string;
     nama_kontraktor?: string;
     lingkup_pekerjaan?: string;
+    kategori_lokasi?: string;
     durasi?: number;
     waktu_mulai?: string;
     waktu_selesai?: string;
@@ -71,6 +72,9 @@ interface NormalizedDoc {
     jenis_proyek?: string;
     jenis_pengajuan?: string;
     nama_pengaju?: string;
+    is_ruko?: boolean;
+    luas_area_terbangun?: string | null;
+    klasifikasi_bangunan?: string;
     // Pengawasan specific
     id_gantt?: number;
     id_pengawasan_gantt?: number;
@@ -111,6 +115,8 @@ interface NormalizedDetail {
     nama_pt?: string;
     durasi_pekerjaan?: string;
     kategori_lokasi?: string;
+    klasifikasi_bangunan?: string;
+    luas_area_terbangun?: string | null;
     grand_total?: string;
     grand_total_non_sbo?: string;
     grand_total_final?: string;
@@ -196,6 +202,8 @@ interface NormalizedDetail {
     link_gambar_kerja_final_me_pp?: string | null;
     foto_items_pp?: { id?: number; item_index: number; link_foto: string }[];
     butuh_desain_3d_pp?: boolean;
+    is_ruko_pp?: boolean;
+    luas_area_terbangun_pp?: string | null;
     bm_approval_pp?: { pemberi: string | null; waktu: string | null };
     pp1_approval?: { pemberi: string | null; waktu: string | null };
     pp2_approval?: { pemberi: string | null; waktu: string | null };
@@ -276,15 +284,15 @@ const KATEGORI_CONFIG: Record<DokumenKategori, {
         description: 'Daftar dokumen Opname.',
     },
     OPNAME_FINAL: {
-        label: 'Opname Final',
-        fullLabel: 'Opname Final',
+        label: 'Opname',
+        fullLabel: 'Opname',
         icon: <CheckSquare className="w-10 h-10" />,
         color: 'text-orange-600',
         bgColor: 'bg-orange-50',
         borderColor: 'border-orange-200',
         hoverBorder: 'hover:border-orange-400',
         badgeColor: 'bg-orange-100 text-orange-700 border-orange-200',
-        description: 'Daftar dokumen Opname Final.',
+        description: 'Daftar dokumen Opname.',
     },
     PENGAWASAN: {
         label: 'Pengawasan',
@@ -470,6 +478,70 @@ const getStatusLabel = (status: string) => {
     return status;
 };
 
+const normalizeUlokKey = (value?: string | null) => String(value ?? '').trim().toUpperCase();
+
+const getBuildingClassification = (value?: boolean | null, fallback?: string | null) => {
+    if (typeof value === 'boolean') return value ? 'Ruko' : 'Non-Ruko';
+    const raw = String(fallback ?? '').trim();
+    if (!raw) return '';
+    if (/non[\s-]?ruko/i.test(raw)) return 'Non-Ruko';
+    if (/ruko/i.test(raw)) return 'Ruko';
+    return raw;
+};
+
+const getDocumentContextBadges = (doc: Pick<NormalizedDoc, 'proyek' | 'lingkup_pekerjaan' | 'kategori_lokasi' | 'is_ruko' | 'klasifikasi_bangunan' | 'tipe' | 'status'>) => {
+    const badges: Array<{ label: string; className: string }> = [];
+    const proyek = String(doc.proyek ?? '').trim();
+    const lingkup = String(doc.lingkup_pekerjaan ?? '').trim();
+    const klasifikasi = doc.klasifikasi_bangunan || getBuildingClassification(doc.is_ruko, doc.kategori_lokasi);
+
+    if (proyek && proyek !== '-') {
+        badges.push({ label: proyek, className: 'bg-slate-100 text-slate-600 border-slate-200' });
+    }
+    if (klasifikasi) {
+        badges.push({
+            label: klasifikasi,
+            className: klasifikasi.toLowerCase().includes('non')
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                : 'bg-amber-100 text-amber-700 border-amber-200',
+        });
+    }
+    if (lingkup && lingkup !== '-') {
+        badges.push({ label: lingkup, className: 'bg-cyan-100 text-cyan-700 border-cyan-200' });
+    }
+    if ((doc.tipe === 'OPNAME' || doc.tipe === 'OPNAME_FINAL') && String(doc.status ?? '').toUpperCase().includes('DISETUJUI')) {
+        badges.push({ label: 'KTK', className: 'bg-orange-100 text-orange-700 border-orange-200' });
+    }
+
+    return badges;
+};
+
+const applyProjectPlanningContext = (docs: NormalizedDoc[], projekList: ProjekPlanningItem[]) => {
+    const contextByUlok = new Map<string, ProjekPlanningItem>();
+    projekList.forEach((projek) => {
+        const key = normalizeUlokKey(projek.nomor_ulok);
+        if (!key || key === '-') return;
+        const existing = contextByUlok.get(key);
+        if (!existing || new Date(projek.updated_at || projek.created_at).getTime() > new Date(existing.updated_at || existing.created_at).getTime()) {
+            contextByUlok.set(key, projek);
+        }
+    });
+
+    return docs.map((doc) => {
+        const context = contextByUlok.get(normalizeUlokKey(doc.nomor_ulok));
+        if (!context) return doc;
+        return {
+            ...doc,
+            jenis_proyek: doc.jenis_proyek || context.jenis_proyek || undefined,
+            proyek: doc.proyek && doc.proyek !== '-' ? doc.proyek : (context.proyek || context.jenis_proyek || doc.proyek),
+            lingkup_pekerjaan: doc.lingkup_pekerjaan || context.lingkup_pekerjaan || undefined,
+            is_ruko: typeof doc.is_ruko === 'boolean' ? doc.is_ruko : context.is_ruko,
+            luas_area_terbangun: doc.luas_area_terbangun || context.luas_area_terbangun || null,
+            klasifikasi_bangunan: getBuildingClassification(context.is_ruko, doc.kategori_lokasi),
+        };
+    });
+};
+
 type ProjectPlanningAttachment = {
     label: string;
     url: string | null | undefined;
@@ -520,6 +592,9 @@ const normalizeRABDocs = (items: RABListItem[]): NormalizedDoc[] =>
         total_nilai:   parseCurrency(r.grand_total_final ?? r.grand_total),
         created_at:    r.created_at,
         link_pdf:      r.link_pdf_gabungan ?? null,
+        lingkup_pekerjaan: (r as any).lingkup_pekerjaan || (r as any).toko?.lingkup_pekerjaan,
+        kategori_lokasi: (r as any).kategori_lokasi,
+        klasifikasi_bangunan: getBuildingClassification(undefined, (r as any).kategori_lokasi),
     }));
 
 const normalizeSPKDocs = (items: SPKListItem[]): NormalizedDoc[] =>
@@ -673,6 +748,10 @@ const normalizeProjekPlanningDocs = (items: ProjekPlanningItem[]): NormalizedDoc
         jenis_proyek:    p.jenis_proyek ?? undefined,
         jenis_pengajuan: p.jenis_pengajuan ?? undefined,
         nama_pengaju:    p.nama_pengaju ?? undefined,
+        lingkup_pekerjaan: p.lingkup_pekerjaan ?? undefined,
+        is_ruko:         p.is_ruko,
+        luas_area_terbangun: p.luas_area_terbangun,
+        klasifikasi_bangunan: getBuildingClassification(p.is_ruko),
     }));
 
 const normalizeDokumentasiBangunanDocs = (items: any[]): NormalizedDoc[] =>
@@ -867,6 +946,15 @@ export default function DaftarDokumenPage() {
             } else if (kategori === 'DOKUMENTASI_BANGUNAN') {
                 const res = await fetchDokumentasiBangunanList();
                 docs = normalizeDokumentasiBangunanDocs(res.data ?? []);
+            }
+
+            if (docs.length > 0 && kategori !== 'PROJECT_PLANNING') {
+                try {
+                    const projekContext = await fetchProjekPlanningList();
+                    docs = applyProjectPlanningContext(docs, projekContext.data ?? []);
+                } catch {
+                    // Context badges are best-effort; document list should still load.
+                }
             }
 
             // Filter by cabang for users without global branch visibility.
@@ -1194,6 +1282,10 @@ export default function DaftarDokumenPage() {
                     link_gambar_kerja_final_me_pp: d.link_gambar_kerja_final_me,
                     foto_items_pp:           d.foto_items ?? [],
                     butuh_desain_3d_pp:      d.butuh_desain_3d,
+                    is_ruko_pp:              d.is_ruko,
+                    luas_area_terbangun_pp:  d.luas_area_terbangun,
+                    klasifikasi_bangunan:    getBuildingClassification(d.is_ruko),
+                    luas_area_terbangun:     d.luas_area_terbangun,
                     bm_approval_pp:    { pemberi: d.bm_approver_email, waktu: d.bm_waktu_persetujuan },
                     pp1_approval:      { pemberi: d.pp1_approver_email, waktu: d.pp1_waktu_persetujuan },
                     pp2_approval:      { pemberi: d.pp2_approver_email, waktu: d.pp2_waktu_persetujuan },
@@ -1233,6 +1325,14 @@ export default function DaftarDokumenPage() {
             if (!detail) {
                 throw new Error(`Detail dokumen ${doc.tipe} belum tersedia.`);
             }
+
+            detail = {
+                ...detail,
+                lingkup_pekerjaan: detail.lingkup_pekerjaan || doc.lingkup_pekerjaan,
+                kategori_lokasi: detail.kategori_lokasi || doc.kategori_lokasi,
+                klasifikasi_bangunan: detail.klasifikasi_bangunan || doc.klasifikasi_bangunan || getBuildingClassification(doc.is_ruko, doc.kategori_lokasi),
+                luas_area_terbangun: detail.luas_area_terbangun || doc.luas_area_terbangun,
+            };
 
             const logs = await fetchActivityLogs(detail.tipe, detail.id)
                 .then(res => res.data)
@@ -2018,6 +2118,11 @@ export default function DaftarDokumenPage() {
                                                                     {getStatusLabel(doc.status)}
                                                                 </Badge>
                                                             )}
+                                                            {getDocumentContextBadges(doc).slice(0, 4).map((badge) => (
+                                                                <Badge key={`${doc.id}-${badge.label}`} className={`${badge.className} text-[10px] font-semibold border px-2 py-0`}>
+                                                                    {badge.label}
+                                                                </Badge>
+                                                            ))}
                                                         </div>
                                                         <p className="text-sm text-slate-600 truncate mt-0.5">
                                                             {selectedKategori === 'RAB' 
@@ -2143,7 +2248,7 @@ export default function DaftarDokumenPage() {
                                                         : selectedDetail.tipe === 'SPK' ? 'Detail SPK'
                                                         : selectedDetail.tipe === 'PERTAMBAHAN_SPK' ? 'Detail Pertambahan SPK'
                                                         : selectedDetail.tipe === 'OPNAME' ? 'Detail Opname'
-                                                        : selectedDetail.tipe === 'OPNAME_FINAL' ? 'Detail Opname Final'
+                                                        : selectedDetail.tipe === 'OPNAME_FINAL' ? 'Detail Opname'
                                                         : selectedDetail.tipe === 'PENGAWASAN' ? 'Detail Pengawasan'
                                                         : selectedDetail.tipe === 'BERKAS_SERAH_TERIMA' ? 'Detail Serah Terima'
                                                         : selectedDetail.tipe === 'INSTRUKSI_LAPANGAN' ? 'Detail Instruksi Lapangan'
@@ -2159,6 +2264,19 @@ export default function DaftarDokumenPage() {
                                                         {getStatusLabel(selectedDetail.status)}
                                                     </Badge>
                                                 )}
+                                                {getDocumentContextBadges({
+                                                    tipe: selectedDetail.tipe,
+                                                    status: selectedDetail.status,
+                                                    proyek: selectedDetail.proyek,
+                                                    lingkup_pekerjaan: selectedDetail.lingkup_pekerjaan,
+                                                    kategori_lokasi: selectedDetail.kategori_lokasi,
+                                                    is_ruko: selectedDetail.is_ruko_pp,
+                                                    klasifikasi_bangunan: selectedDetail.klasifikasi_bangunan,
+                                                }).slice(0, 4).map((badge) => (
+                                                    <Badge key={`detail-${badge.label}`} className={`${badge.className} font-semibold text-xs border px-3 py-1`}>
+                                                        {badge.label}
+                                                    </Badge>
+                                                ))}
                                                 {(isHO || isSuperHuman) && !isGlobalViewOnly && selectedDetail.tipe === 'RAB' && (
                                                     <Button
                                                         size="sm"
@@ -2196,6 +2314,12 @@ export default function DaftarDokumenPage() {
                                             <InfoRow icon={<Building2 className="w-4 h-4" />} label="Proyek" value={selectedDetail.proyek} />
                                             <InfoRow icon={<User className="w-4 h-4" />} label="Email Pembuat" value={selectedDetail.email_pembuat} />
                                             <InfoRow icon={<CalendarDays className="w-4 h-4" />} label="Tanggal Dibuat" value={formatDateFull(selectedDetail.created_at)} />
+                                            {selectedDetail.klasifikasi_bangunan && (
+                                                <InfoRow icon={<Building2 className="w-4 h-4" />} label="Ruko / Non-Ruko" value={selectedDetail.klasifikasi_bangunan} />
+                                            )}
+                                            {(selectedDetail.luas_area_terbangun || selectedDetail.luas_area_terbangun_pp) && (
+                                                <InfoRow icon={<Building2 className="w-4 h-4" />} label="Luas Area Terbangun" value={`${selectedDetail.luas_area_terbangun || selectedDetail.luas_area_terbangun_pp} m2`} />
+                                            )}
 
                                             {/* RAB-specific fields */}
                                             {selectedDetail.tipe === 'RAB' && (

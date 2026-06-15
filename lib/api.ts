@@ -2244,7 +2244,7 @@ export const deleteOpname = async (id: number) => {
 // 3b. OPNAME FINAL
 // =============================================================================
 
-/** List Opname Final headers */
+/** List Opname headers */
 export const fetchOpnameFinalList = async (filters?: {
     status?: string;
     aksi?: "active" | "terkunci";
@@ -2267,7 +2267,7 @@ export const fetchOpnameFinalList = async (filters?: {
     return safeFetchJSON(url, options);
 };
 
-/** Detail Opname Final */
+/** Detail Opname */
 export const fetchOpnameFinalDetail = async (id: number) => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}`);
     if (!res.ok) {
@@ -2277,7 +2277,7 @@ export const fetchOpnameFinalDetail = async (id: number) => {
     return res.json();
 };
 
-/** Kunci Opname Final  POST /api/final_opname/:id/kunci_opname_final */
+/** Kunci Opname  POST /api/final_opname/:id/kunci_opname_final */
 export const kunciOpnameFinal = async (id: number, payload: {
     id_toko: number;
     email_pembuat: string;
@@ -2296,7 +2296,7 @@ export const kunciOpnameFinal = async (id: number, payload: {
     return result;
 };
 
-/** Approval Opname Final  POST /api/final_opname/:id/approval */
+/** Approval Opname  POST /api/final_opname/:id/approval */
 export const approveOpnameFinal = async (id: number, payload: {
     approver_email: string;
     jabatan: string;
@@ -2314,17 +2314,17 @@ export const approveOpnameFinal = async (id: number, payload: {
     return result;
 };
 
-/** Download PDF Opname Final */
+/** Download PDF Opname */
 export const downloadOpnameFinalPdf = async (id: number): Promise<boolean> => {
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/final_opname/${id}/pdf`);
-    if (res.status === 404) throw new Error(`Data Opname Final dengan ID ${id} tidak ditemukan.`);
+    if (res.status === 404) throw new Error(`Data Opname dengan ID ${id} tidak ditemukan.`);
     if (!res.ok) {
         const text = await res.text();
         throw new Error(`Gagal mengunduh PDF (${res.status}): ${text.substring(0, 100)}`);
     }
 
     const disposition = res.headers.get("Content-Disposition");
-    let filename = `OPNAME_FINAL_${id}.pdf`;
+    let filename = `OPNAME_${id}.pdf`;
     if (disposition?.includes("filename=")) {
         const match = disposition.match(/filename="?([^"]+)"?/);
         if (match?.[1]) filename = match[1];
